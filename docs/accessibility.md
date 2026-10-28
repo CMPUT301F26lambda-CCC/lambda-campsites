@@ -62,9 +62,34 @@ where relevant: a `testTag` for automated tests, and a
 
 A status shown only as a colored dot or colored text (for example a
 reservation that's approved in green, pending in yellow, rejected in
-red) has no non-visual signal. Pair the color with text or an icon
-that states the same thing, like an "Approved" label next to the dot,
-so the status is readable by itself.
+red) has no non-visual signal at all, and TalkBack never reads a
+color. There are two separate things to fix here:
+
+For low vision, pair the color with a second *visual* cue: bold
+weight, an icon, or underline, not color as the only differentiator.
+
+For blind users, that second visual cue still isn't enough, since
+TalkBack doesn't read bold weight or icons without their own label
+either. The text itself (or its `contentDescription`) has to say the
+status in words:
+
+```kotlin
+val style = if (isRejected) {
+    SpanStyle(color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+} else {
+    SpanStyle(color = MaterialTheme.colorScheme.primary)
+}
+Text(
+    text = buildAnnotatedString {
+        withStyle(style) { append(if (isRejected) "Rejected" else "Approved") }
+    }
+)
+```
+
+The bold weight helps a low-vision user who can't rely on color alone;
+the word "Rejected"/"Approved" is what actually makes it accessible to
+a blind user, since that's the part TalkBack reads regardless of
+styling.
 
 ### Group related content into one node
 
@@ -74,6 +99,41 @@ separate stops, out of context from each other. Give the row a single
 `contentDescription` summarizing the item ("Elk Island Site 4,
 4.5 stars"), or use `Modifier.semantics(mergeDescendants = true)` on
 the container so it reads as one unit.
+
+### Selected state needs its own signal, not just a background color
+
+A selected campsite in a browse list that's only shown with a
+highlighted background has the same problem as a colored status: no
+non-visual signal. Use `Modifier.selectable` (with `selectableGroup()`
+on the container) instead of a plain `clickable`, and give the row a
+`contentDescription` that states the selection state outright:
+
+```kotlin
+LazyColumn(modifier = Modifier.selectableGroup()) {
+    items(campsites) { site ->
+        val isSelected = site == selectedSite
+        Text(
+            text = site.name,
+            modifier = Modifier
+                .selectable(selected = isSelected, onClick = { onSelect(site) })
+                .semantics {
+                    contentDescription =
+                        "${site.name}, ${if (isSelected) "selected" else "not selected"}"
+                }
+                .background(
+                    if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                    else MaterialTheme.colorScheme.surface
+                )
+        )
+    }
+}
+```
+
+`Modifier.selectable` is what makes TalkBack announce "selected" or
+"not selected" on its own as a semantic role; the explicit
+`contentDescription` on top of that makes sure the row's name and its
+state are read together as one phrase, rather than as two separate,
+disconnected pieces of information.
 
 ### Images need a real description, not a placeholder
 
@@ -95,8 +155,39 @@ tap target the same size as the icon.
 An action that changes something without navigating to a new screen
 (adding a campsite to favorites, submitting a reservation) needs its
 result announced, since there's no new screen title for TalkBack to
-read. Use a `Snackbar` or an equivalent text update tied to the
-action, not just a silent state change.
+read. Mark the text showing the result as a live region so TalkBack
+reads it on its own as soon as it changes, instead of requiring the
+user to go find it:
+
+```kotlin
+Text(
+    text = if (reservationResult.accepted) "Reservation confirmed" else "Reservation failed",
+    modifier = Modifier.semantics(mergeDescendants = true) {
+        liveRegion = LiveRegionMode.Polite
+    },
+)
+```
+
+`mergeDescendants = true` matters when the live region wraps more than
+one `Text`, such as a confirmation line plus a date range underneath
+it; without it, TalkBack only announces the first line and treats the
+rest as separate, unannounced stops.
+
+A slider or similar control that reports a raw percentage by default
+(for example a party-size or date-range picker) should override that
+with a `stateDescription` that actually means something:
+
+```kotlin
+Slider(
+    value = partySize.toFloat(),
+    onValueChange = { partySize = it.roundToInt() },
+    valueRange = 1f..8f,
+    modifier = Modifier.semantics {
+        contentDescription = "Party size: $partySize"
+        stateDescription = "$partySize"
+    },
+)
+```
 
 ### Form fields need labels tied to their input
 
