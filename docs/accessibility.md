@@ -104,9 +104,14 @@ the container so it reads as one unit.
 
 A selected campsite in a browse list that's only shown with a
 highlighted background has the same problem as a colored status: no
-non-visual signal. Use `Modifier.selectable` (with `selectableGroup()`
-on the container) instead of a plain `clickable`, and give the row a
-`contentDescription` that states the selection state outright:
+non-visual signal. `Modifier.selectable` (with `selectableGroup()` on
+the container) already marks the row as selected on its own, which
+TalkBack announces by itself. Don't also type the word "selected"
+into `contentDescription`; that risks TalkBack saying it twice, once
+from the state it already tracks and once from the literal text. If
+the default wording needs to say something more specific, override it
+through `stateDescription`, which is the property built for that,
+keeping `contentDescription` as just the row's label:
 
 ```kotlin
 LazyColumn(modifier = Modifier.selectableGroup()) {
@@ -117,8 +122,7 @@ LazyColumn(modifier = Modifier.selectableGroup()) {
             modifier = Modifier
                 .selectable(selected = isSelected, onClick = { onSelect(site) })
                 .semantics {
-                    contentDescription =
-                        "${site.name}, ${if (isSelected) "selected" else "not selected"}"
+                    stateDescription = if (isSelected) "Selected" else "Not selected"
                 }
                 .background(
                     if (isSelected) MaterialTheme.colorScheme.primaryContainer
@@ -129,13 +133,16 @@ LazyColumn(modifier = Modifier.selectableGroup()) {
 }
 ```
 
-`Modifier.selectable` is what makes TalkBack announce "selected" or
-"not selected" on its own as a semantic role; the explicit
-`contentDescription` on top of that makes sure the row's name and its
-state are read together as one phrase, rather than as two separate,
-disconnected pieces of information.
+Android's documented example for a built-in `Switch` is announced as
+"On; Switch; double tap to toggle", state before the control, which
+would already put a row's selected state ahead of its name for
+someone scrolling quickly. That's TalkBack's own formatting of
+`stateDescription`, not something to control by reordering text, and
+it's based on one documented example for a different component, not a
+guaranteed rule for this exact row; confirm the actual order with
+TalkBack on a device before relying on it.
 
-### Images need a real description, not a placeholder
+### Images need alt text
 
 Campsite photos uploaded by owners need a `contentDescription` that
 says what the image actually is in context ("Photo of Elk Island
@@ -148,7 +155,9 @@ decorative only (for example a background texture), mark it
 Interactive elements should be at least 48dp in both dimensions, even
 if the visible icon or text inside is smaller. Pad a small icon button
 out to that size with `Modifier.size(48.dp)` rather than leaving the
-tap target the same size as the icon.
+tap target the same size as the icon. Leave at least 8dp between two
+adjacent targets so a motor-impaired tap doesn't land on the wrong
+one.
 
 ### Announce state changes
 
@@ -191,15 +200,36 @@ Slider(
 
 ### Form fields need labels tied to their input
 
-A `TextField` needs its `label` parameter set, not just placeholder
-text, and a validation error needs to be exposed as text TalkBack
-reads when it appears, not only as a color change on the field border.
+A `TextField` needs its `label` parameter set, and a validation error needs to be exposed as text TalkBack
+reads when it appears, instead of only as a color change on the field border.
 
 ## Testing
 
 Any screen built against these rules should be checked with TalkBack
 turned on, using a real device or an emulator with TalkBack enabled in
-its accessibility settings, not just reviewed visually. Swipe right or
+its accessibility settings. Swipe right or
 left to move between elements, and confirm each stop reads a label
-that actually describes what it does, in an order that matches the
+that describes what it does, in an order that matches the
 screen's visual flow.
+
+## Further reading
+
+- [Semantics in Compose](https://developer.android.com/develop/ui/compose/accessibility/semantics):
+  what `contentDescription`, `stateDescription`, `liveRegion`, and
+  similar properties mean, and how composables set them by default.
+- [Merging and clearing semantics](https://developer.android.com/develop/ui/compose/accessibility/merging-clearing):
+  how `mergeDescendants` groups a row into one accessibility node,
+  and what happens when a merged child is itself interactive.
+- [Accessibility in Jetpack Compose (codelab)](https://developer.android.com/codelabs/jetpack-compose-accessibility):
+  a worked example covering the same properties end to end, including
+  how to test them.
+- [Accessible touch targets](https://developer.android.com/guide/topics/ui/accessibility/apps):
+  the 48dp minimum size and spacing guidance behind the touch target
+  rule above.
+- [Semantics API reference](https://developer.android.com/reference/kotlin/androidx/compose/ui/semantics/package-summary):
+  the Kotlin API docs for every semantics property mentioned in this
+  guide, including the exact merge behavior for each one.
+
+Where this guide and one of these pages disagree, or a page gives a
+single documented example rather than a general rule, treat it as a
+starting point to confirm with TalkBack on a device, not as settled.
