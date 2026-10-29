@@ -75,6 +75,14 @@ If an issue isn't linked through `Closes #N` for some reason, move its
 project board card manually when work starts on it and again once it's
 merged.
 
+## UI and accessibility
+
+Before picking a widget or pattern for any screen, check
+`docs/accessibility.md`. It covers which Compose semantics properties
+and widgets keep a screen usable with TalkBack, and calls out several
+defaults that look correct but aren't, like a plain `Slider` that only
+ever announces a raw percentage instead of the value it represents.
+
 ## Local environment and what not to commit
 
 The repository's root `.gitignore` already excludes files that are
