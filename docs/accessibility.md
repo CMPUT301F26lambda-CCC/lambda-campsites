@@ -126,7 +126,7 @@ Text(
 
 `LazyColumn`/`LazyRow` already carry list semantics automatically, so
 a plain scrolling list of campsite cards needs nothing extra. Apply
-the same idea anywhere a screen has real structure: a section title
+the same idea anywhere a screen has structure: a section title
 should be marked as a heading, a set of results should read as a
 list, not as a sequence of disconnected rows that happen to look
 grouped.
@@ -256,9 +256,7 @@ Row(
 TalkBack reaches a custom action through its own actions menu,
 without needing a separate visible element on the row. A touch user
 without TalkBack can't reach it the same way, so anything exposed only
-as a custom action still needs a real visible control somewhere on
-the screen; this is a shortcut for TalkBack users navigating quickly,
-not a replacement for a touch target.
+as a custom action naturally still needs a visible control somewhere on the screen.
 
 ### Form fields need labels tied to their input
 
@@ -268,7 +266,7 @@ reads when it appears, instead of only as a color change on the field border.
 ## Testing
 
 Any screen built against these rules should be checked with TalkBack
-turned on, using a real device or an emulator with TalkBack enabled in
+turned on, using a physical device or an emulator with TalkBack enabled in
 its accessibility settings. Swipe right or
 left to move between elements, and confirm each stop reads a label
 that describes what it does, in an order that matches the
@@ -284,7 +282,7 @@ screen's visual flow.
   and what happens when a merged child is itself interactive.
 - [Use the TalkBack menu and reading controls](https://support.google.com/accessibility/android/answer/6007066):
   how a user navigates by heading, list, or other granularity, and
-  why marking real structure in semantics matters for that.
+  why marking structure in semantics matters for that.
 - [Use TalkBack gestures](https://support.google.com/accessibility/android/answer/6151827):
   which two- and three-finger gestures TalkBack reserves for its own
   navigation while it's running.
