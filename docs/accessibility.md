@@ -30,6 +30,13 @@ TalkBack work. General cognitive-load guidance (plain language, simple
 flows) applies throughout but isn't broken out into its own rule set
 here.
 
+Custom multi-finger gestures, binding a two- or three-finger swipe or
+tap to an app-specific action, are out of scope for a different
+reason: TalkBack reserves those gestures for its own navigation while
+it's running, so an app can't rely on claiming them. Don't design a
+feature around one; use a visible touch target or a custom
+accessibility action instead.
+
 ## TalkBack rules
 
 ### Every actionable element needs a label
@@ -99,6 +106,30 @@ separate stops, out of context from each other. Give the row a single
 `contentDescription` summarizing the item ("Elk Island Site 4,
 4.5 stars"), or use `Modifier.semantics(mergeDescendants = true)` on
 the container so it reads as one unit.
+
+### Use structural hierarchy TalkBack can navigate by
+
+Content that's visually a heading, a list, or a table needs to be
+marked that way in semantics too, not just styled to look like one.
+TalkBack's reading controls can jump straight between headings, and
+list semantics tell TalkBack how many items there are and where the
+user currently is among them, something a column of unmarked `Text`
+composables can't convey no matter how it's laid out on screen:
+
+```kotlin
+Text(
+    text = "Amenities",
+    modifier = Modifier.semantics { heading() },
+    style = MaterialTheme.typography.titleMedium,
+)
+```
+
+`LazyColumn`/`LazyRow` already carry list semantics automatically, so
+a plain scrolling list of campsite cards needs nothing extra. Apply
+the same idea anywhere a screen has real structure: a section title
+should be marked as a heading, a set of results should read as a
+list, not as a sequence of disconnected rows that happen to look
+grouped.
 
 ### Selected state needs its own signal, not just a background color
 
@@ -198,6 +229,37 @@ Slider(
 )
 ```
 
+### Expose secondary actions as custom accessibility actions
+
+A row that already has a primary tap action (opening a campsite's
+details) sometimes needs a second action too, like favoriting it or
+canceling a reservation. A second always-visible icon button works,
+but when there isn't room for one, or it would get folded into the
+row's own merged description, Compose can expose the action to
+TalkBack directly instead:
+
+```kotlin
+Row(
+    modifier = Modifier.semantics {
+        customActions = listOf(
+            CustomAccessibilityAction("Add to favorites") {
+                onFavorite(site)
+                true
+            },
+        )
+    },
+) {
+    Text(site.name)
+}
+```
+
+TalkBack reaches a custom action through its own actions menu,
+without needing a separate visible element on the row. A touch user
+without TalkBack can't reach it the same way, so anything exposed only
+as a custom action still needs a real visible control somewhere on
+the screen; this is a shortcut for TalkBack users navigating quickly,
+not a replacement for a touch target.
+
 ### Form fields need labels tied to their input
 
 A `TextField` needs its `label` parameter set, and a validation error needs to be exposed as text TalkBack
@@ -220,6 +282,12 @@ screen's visual flow.
 - [Merging and clearing semantics](https://developer.android.com/develop/ui/compose/accessibility/merging-clearing):
   how `mergeDescendants` groups a row into one accessibility node,
   and what happens when a merged child is itself interactive.
+- [Use the TalkBack menu and reading controls](https://support.google.com/accessibility/android/answer/6007066):
+  how a user navigates by heading, list, or other granularity, and
+  why marking real structure in semantics matters for that.
+- [Use TalkBack gestures](https://support.google.com/accessibility/android/answer/6151827):
+  which two- and three-finger gestures TalkBack reserves for its own
+  navigation while it's running.
 - [Accessibility in Jetpack Compose (codelab)](https://developer.android.com/codelabs/jetpack-compose-accessibility):
   a worked example covering the same properties end to end, including
   how to test them.
