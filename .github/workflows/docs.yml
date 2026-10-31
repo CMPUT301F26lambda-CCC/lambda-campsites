@@ -1,0 +1,73 @@
+# AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
+# this workflow in October 2026. It helped with the GitHub Actions steps, the
+# action versions and the YAML syntax. Sashreek Addanki reviewed it and
+# committed it.
+#
+# Builds the KDoc site with Dokka and publishes it to GitHub Pages every time
+# something is merged into main:
+# https://cmput301f26lambda-ccc.github.io/lambda-campsites/
+
+name: Docs
+
+on:
+  push:
+    branches: [main]
+  # Lets anyone rebuild the site by hand from the Actions tab.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Only one deploy at a time. A newer run waits instead of cancelling one that's
+# halfway through publishing.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build the KDoc site
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v7
+
+      # Matches the JDK in gradle/gradle-daemon-jvm.properties.
+      - name: Set up JDK 25
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Build the site with Dokka
+        run: ./gradlew :app:dokkaGenerate
+
+      - name: Upload the site for Pages
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: app/build/dokka/html
+
+  deploy:
+    name: Publish to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # Only this job can publish, so only it gets the Pages permissions.
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5
