@@ -1,6 +1,10 @@
+// AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped add the
+// navigation, lifecycle, icon and coroutines-test dependencies and the Dokka
+// setup in October 2026. Sashreek Addanki reviewed and committed them.
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.dokka)
 }
 
 android {
@@ -44,11 +48,29 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.compose.material.icons.core)
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
+}
+
+// Builds the KDoc website with `./gradlew :app:dokkaGenerate`, into app/build/dokka/html.
+dokka {
+    moduleName.set("lambda-campsite")
+    dokkaSourceSets.configureEach {
+        // Each class and function on the site links to its source on GitHub.
+        sourceLink {
+            localDirectory.set(file("src/main/java"))
+            remoteUrl("https://github.com/CMPUT301F26lambda-CCC/lambda-campsites/tree/main/app/src/main/java")
+            remoteLineSuffix.set("#L")
+        }
+    }
 }

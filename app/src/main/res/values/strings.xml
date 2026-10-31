@@ -1,3 +1,34 @@
+<!--
+  AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write the
+  tab, role, profile and error strings in October 2026. Sashreek Addanki reviewed
+  and committed them.
+-->
 <resources>
     <string name="app_name">Lambda Campsite</string>
+
+    <!-- Nav bar tabs -->
+    <string name="tab_home">Home</string>
+    <string name="tab_reservations">Reservations</string>
+    <string name="tab_profile">Profile</string>
+    <string name="tab_campsites">Campsites</string>
+    <string name="tab_lotteries">Lotteries</string>
+    <string name="tab_profiles">Profiles</string>
+    <string name="tab_images">Images</string>
+    <string name="tab_logs">Logs</string>
+    <string name="open_profile">Open your profile</string>
+
+    <!-- Roles -->
+    <string name="role_entrant">Entrant</string>
+    <string name="role_owner">Owner</string>
+    <string name="role_admin">Admin</string>
+
+    <!-- Profile screen -->
+    <string name="profile_loading">Loading your profile…</string>
+    <string name="profile_use_app_as">Use the app as</string>
+    <string name="profile_list_your_campsite">List your campsite</string>
+
+    <!-- Errors -->
+    <string name="error_role_not_held">Your profile doesn\'t have that role.</string>
+    <string name="error_owner_banned">An admin removed your owner role, so you can\'t list campsites.</string>
+    <string name="error_save_failed">Couldn\'t save your profile. Check your connection and try again.</string>
 </resources>
