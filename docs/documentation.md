@@ -3,8 +3,9 @@
 > AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped
 > write this guide in October 2026, following the team's architecture
 > and testing docs. It also helped update the controller and screen
-> sections when the controllers became ViewModels. The team reviewed and
-> edited it in its pull requests.
+> sections when the controllers became ViewModels, and helped write the
+> part about the Dokka docs site. The team reviewed and edited it in its
+> pull requests.
 
 This document covers how we document code in this app: the AI-use note
 every file needs when AI helped write it, KDoc comments in Kotlin,
@@ -41,8 +42,15 @@ note.
 
 KDoc is Kotlin's version of Javadoc. It's a `/** ... */` comment
 placed directly above a class, function or property. Android Studio
-shows it when you hover over a name, and Dokka can turn it into HTML
-pages later.
+shows it when you hover over a name.
+
+Dokka turns our KDoc into the team's docs site,
+https://cmput301f26lambda-ccc.github.io/lambda-campsites/, which the
+Docs workflow rebuilds every time something is merged into `main`. To
+preview your changes before opening a pull request, run
+`./gradlew :app:dokkaGenerate` and open
+`app/build/dokka/html/index.html`. The site only shows public classes
+and functions, so a public one with no KDoc shows up as a blank entry.
 
 - Start with one sentence that says what the thing is or does. Add
   more only if the reader needs it.

@@ -119,9 +119,11 @@ Where a term has a longer explanation elsewhere, the entry points to it. "Archit
 | **CD (continuous delivery)** | Automatically turning merged code into something people can use, like an APK or a deployed function. We haven't set it up yet. |
 | **CI (continuous integration)** | Building the app and running the tests automatically on every pull request and every push to `main`. Ours runs on GitHub Actions. See the testing guide. |
 | **Conventional commit** | A commit message that starts with its type, like `feat:`, `fix:`, `docs:`, `test:` or `refactor:`. See `docs/CONTRIBUTING.md`. |
+| **Dokka** | JetBrains' tool that turns KDoc comments into a website. Ours is published at https://cmput301f26lambda-ccc.github.io/lambda-campsites/. Run `./gradlew :app:dokkaGenerate` to build it on your computer. See `docs/documentation.md`. |
 | **Espresso-Intents** | A testing library that checks which intent the app sent, like opening the photo picker, without opening the other app. |
 | **Fake** | A simple, working stand-in for a real class, used in tests. We use fakes, not mocks. A mock is scripted with answers and checks which calls it got. A fake just behaves like the real thing in memory. |
 | **GitHub Actions** | GitHub's service for running workflows, like our CI, on GitHub's computers. |
+| **GitHub Pages** | GitHub's free website hosting for a repo. The Docs workflow publishes our Dokka site there after every merge to `main`. |
 | **Intent** | An Android message asking another app or screen to do something, like pick a photo or share a CSV file. |
 | **Intent test** | A UI test that checks the app sends the right intent. See the testing guide. |
 | **JUnit** | The testing framework our unit tests use. A test is a function marked `@Test`. |
@@ -135,7 +137,7 @@ Where a term has a longer explanation elsewhere, the entry points to it. "Archit
 | **Test dispatcher** | A dispatcher for tests that runs coroutines on the test's own thread. `UnconfinedTestDispatcher` runs them straight away, so a controller's work is done before its method returns. |
 | **UI test** | A test that runs on an emulator or phone and taps through real screens, in `app/src/androidTest`. It's slower than a unit test. |
 | **Unit test** | A test that runs on your computer without an emulator, in `app/src/test`, in a few seconds. It covers model rules and controllers. |
-| **Workflow** | A GitHub Actions file in `.github/workflows` that says what to run and when. Ours is `android-ci.yml`. |
+| **Workflow** | A GitHub Actions file in `.github/workflows` that says what to run and when. Ours are `android-ci.yml`, which builds and tests every pull request, and `docs.yml`, which publishes the Dokka site. |
 
 ## Project terms we defined
 
