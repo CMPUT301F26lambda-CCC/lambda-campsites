@@ -1,9 +1,10 @@
 // AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped add the
-// navigation, lifecycle, icon and coroutines-test dependencies in October 2026.
-// Sashreek Addanki reviewed and committed them.
+// navigation, lifecycle, icon and coroutines-test dependencies and the Dokka
+// setup in October 2026. Sashreek Addanki reviewed and committed them.
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.dokka)
 }
 
 android {
@@ -59,4 +60,17 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
+}
+
+// Builds the KDoc website with `./gradlew :app:dokkaGenerate`, into app/build/dokka/html.
+dokka {
+    moduleName.set("lambda-campsite")
+    dokkaSourceSets.configureEach {
+        // Each class and function on the site links to its source on GitHub.
+        sourceLink {
+            localDirectory.set(file("src/main/java"))
+            remoteUrl("https://github.com/CMPUT301F26lambda-CCC/lambda-campsites/tree/main/app/src/main/java")
+            remoteLineSuffix.set("#L")
+        }
+    }
 }

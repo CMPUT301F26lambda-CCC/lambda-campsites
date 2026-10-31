@@ -1,6 +1,6 @@
 # AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
-# the navigation, lifecycle, icon and coroutines-test entries in October 2026.
-# Sashreek Addanki reviewed and committed them.
+# the navigation, lifecycle, icon and coroutines-test entries and the Dokka
+# plugin entry in October 2026. Sashreek Addanki reviewed and committed them.
 [versions]
 agp = "9.4.1"
 coreKtx = "1.19.1"
@@ -13,6 +13,7 @@ kotlin = "2.2.10"
 composeBom = "2026.02.01"
 navigationCompose = "2.10.2"
 kotlinxCoroutines = "1.11.0"
+dokka = "2.2.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -38,4 +39,5 @@ kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 
