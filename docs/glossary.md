@@ -3,7 +3,9 @@
 > AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped
 > write this glossary in October 2026, collecting the terms used in the
 > team's architecture, testing and documentation guides and in the
-> starter code. Sashreek reviewed and edited it.
+> starter code. It also helped add the BoM, Google services plugin and
+> Task rows when the app was connected to Firebase. Sashreek reviewed and
+> edited it.
 
 This page explains the technical words in our docs and code: the app's structure, Kotlin and Android, Firebase, and testing and tooling. Each section is in alphabetical order. Campsite words like entrant, lottery and waiting list are defined in the spec's glossary. The last section only covers meanings the team decided for itself.
 
@@ -42,6 +44,7 @@ Where a term has a longer explanation elsewhere, the entry points to it. "Archit
 |---|---|
 | **Activity** | One window that Android starts and manages. Our app has a single activity, `MainActivity`, and Compose navigation switches screens inside it. |
 | **Back stack** | The history of screens the back button walks through. Switching roles in our app starts a fresh back stack, so you land on the new role's first tab. |
+| **BoM (bill of materials)** | A list of library versions that are tested together. We add the BoM once with a version, then add its libraries without version numbers, so they always match. We use the Compose BoM and the Firebase BoM. |
 | **Collecting** | Listening to a Flow and running some code for each value it sends. A controller collects its repository's Flow, and a screen collects its controller's state with `collectAsStateWithLifecycle()`. |
 | **collectAsStateWithLifecycle()** | How a screen reads a StateFlow. It turns the flow into Compose state, so the screen redraws when the value changes. It stops listening while the app is in the background, so nothing updates a screen nobody can see. |
 | **Composable** | A Kotlin function marked `@Composable` that describes part of the screen. `ProfileScreen`, `Text` and `Button` are all composables. Composables call other composables to build up a screen. |
@@ -98,6 +101,7 @@ Where a term has a longer explanation elsewhere, the entry points to it. "Archit
 | **Firebase Local Emulator Suite** | Local copies of Firestore, Auth, Storage and Functions that run on your computer. UI, rules and functions tests run against them, so no test ever touches the real project. |
 | **Firebase Storage** | Where photo files live. Firestore only keeps each image's details and its path in Storage. |
 | **Free quota** | The amount of each Firebase service you can use each day or month at no cost. Architecture section 4 lists them next to our expected usage. |
+| **Google services plugin** | The Gradle plugin that reads `app/google-services.json` during the build and turns it into settings Firebase reads when the app starts. The build fails if the file is missing. |
 | **google-services.json** | The file that connects the app to our Firebase project. It's safe to commit, because it only identifies the project, and security rules protect the data. |
 | **Idempotent ("safe to run twice")** | Code that does the same thing whether it runs once or twice. Firebase can deliver the same trigger more than once, so every function checks the current state first. The draw only draws an OPEN lottery, so a second run does nothing. |
 | **Offline cache** | Firestore keeps a copy of the data each screen has loaded on the phone. Without a connection, screens still show it, and ordinary writes wait and go through later. Transactions can't wait, so they fail offline. |
@@ -107,6 +111,7 @@ Where a term has a longer explanation elsewhere, the entry points to it. "Archit
 | **Server timestamp** | A time set by Firestore's servers instead of the phone's clock. We use it for `joinedAt` and `sentAt`, so a phone with the wrong clock can't jump the queue. |
 | **Snapshot listener** | A Firestore feature that sends a document's or query's data straight away and then again every time it changes. Our repositories put one behind each Flow, which is how a change on one phone shows up on another. |
 | **Subcollection** | A collection inside a document, like `campsites/{id}/ratings`. Deleting the document doesn't delete its subcollections, so our clean-up functions do it. |
+| **Task and await()** | Firebase calls like signing in or saving a document return a `Task`, which finishes later. Inside a suspend function, `.await()` waits for the task without blocking the main thread, then returns its result or throws its error. It comes from `kotlinx-coroutines-play-services`. |
 | **Transaction** | A set of Firestore reads and writes that succeed or fail together. If another phone changes one of the documents first, Firestore runs the whole transaction again with fresh data. We use them for joining, booking, cancelling and the draw, so two people can never take the same spot or night. Architecture section 4. |
 | **Trigger** | What starts a Cloud Function: a timer, or a document being created, changed or deleted. |
 | **UID** | The user ID Firebase Auth gives each install. Profile documents use it as their document ID. |
