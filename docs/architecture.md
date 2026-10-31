@@ -2,6 +2,11 @@
 
 Sashreek and Sreeman · last updated October 30, 2026
 
+> AI use: Claude Opus 5.5 (Anthropic), through Claude Code, drafted this
+> document in October 2026, working from decisions the team made. It
+> also checked the free-tier figures in section 4 against Firebase's
+> pricing pages. Sashreek reviewed and edited it.
+
 This page explains how the app is put together. It covers the class diagram and the reasons behind it, the backend on Firebase, and how the Android app splits into Model, View and Controller. Section 6 follows one entrant from tapping "Join" to holding a reservation, so you can see every layer working in one story. Section 7 is the practical part: where files live, what to name things, and how to add something to the frontend or the backend.
 
 ## Contents
