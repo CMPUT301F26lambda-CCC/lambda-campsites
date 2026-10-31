@@ -1,0 +1,61 @@
+# AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
+# this workflow in October 2026. It helped with the GitHub Actions steps, the
+# action versions and the YAML syntax. Sashreek Addanki reviewed it and
+# committed it.
+#
+# Builds the app and runs the unit tests on every push and pull request to
+# main (issue #68). A failing build or test shows as a failed check on the
+# pull request.
+
+name: Android CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Lets anyone start the workflow by hand from the Actions tab.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to the same branch cancels the run that's still going.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v7
+
+      # Matches the JDK in gradle/gradle-daemon-jvm.properties.
+      - name: Set up JDK 25
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      # Caches Gradle downloads between runs, so later runs are faster.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Build the app
+        run: ./gradlew assembleDebug
+
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest
+
+      # Keeps the HTML test report when a test fails, so you can see which one.
+      - name: Upload the test report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-test-report
+          path: app/build/reports/tests/
