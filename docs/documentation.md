@@ -1,8 +1,11 @@
 # Code Documentation Guide
 
-> AI use: Claude Opus 5.5 (Anthropic), through Claude Code, drafted this
-> guide in October 2026 from the team's architecture and testing docs.
-> The team reviewed and edited it in its pull request.
+> AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped
+> write this guide in October 2026, following the team's architecture
+> and testing docs. It also helped update the controller and screen
+> sections when the controllers became ViewModels, and helped write the
+> part about the Dokka docs site. The team reviewed and edited it in its
+> pull requests.
 
 This document covers how we document code in this app: the AI-use note
 every file needs when AI helped write it, KDoc comments in Kotlin,
@@ -11,7 +14,7 @@ Reviewers check all of these in every pull request.
 
 ## AI use in a file
 
-If AI wrote or changed any part of a file, the file starts with an
+If AI helped write or change any part of a file, the file starts with an
 AI-use note, above everything else, including the `package` line. The
 note says:
 
@@ -19,8 +22,8 @@ note says:
   "Claude Opus 5.5 (Anthropic)" or "GPT-5 (OpenAI)";
 - how you used it, like Claude Code, a chat website, or GitHub Copilot
   in Android Studio;
-- what it was used for, by name: which functions or sections it wrote,
-  what it suggested, or what it checked;
+- what it was used for, by name: which functions or sections it helped
+  write, what it suggested, or what it checked;
 - what you wrote, changed or checked yourself.
 
 In Kotlin and Python files the note is a comment at the very top. In
@@ -28,9 +31,8 @@ Markdown files it's a quote block under the title, like the one at
 the top of this guide.
 
 Be specific. "AI was used" doesn't count. "Claude Opus 5.5 (Anthropic),
-through Claude Code, wrote the first version of `join` and its
-transaction; the error handling and the tests were written by hand"
-does.
+used through Claude Code, helped write `join` and its transaction; the
+error handling and the tests were written by hand" does.
 
 If a later change also used AI, add a line to the existing note
 instead of replacing it. A file where nobody used AI doesn't need a
@@ -40,8 +42,15 @@ note.
 
 KDoc is Kotlin's version of Javadoc. It's a `/** ... */` comment
 placed directly above a class, function or property. Android Studio
-shows it when you hover over a name, and Dokka can turn it into HTML
-pages later.
+shows it when you hover over a name.
+
+Dokka turns our KDoc into the team's docs site,
+https://cmput301f26lambda-ccc.github.io/lambda-campsites/, which the
+Docs workflow rebuilds every time something is merged into `main`. To
+preview your changes before opening a pull request, run
+`./gradlew :app:dokkaGenerate` and open
+`app/build/dokka/html/index.html`. The site only shows public classes
+and functions, so a public one with no KDoc shows up as a blank entry.
 
 - Start with one sentence that says what the thing is or does. Add
   more only if the reader needs it.
@@ -67,13 +76,15 @@ pages later.
 
 - **Model classes:** the rules they enforce, with the story ID, like
   "Enforces the waiting-list limit from US 02.04.07."
-- **Repositories:** which Firestore or Storage path they use, whether
-  an operation runs in a transaction, and which errors they report,
-  like offline, permission denied or dates taken.
+- **Repositories:** which Firestore or Storage path they use, which
+  functions return live data as a `Flow`, whether an operation runs in
+  a transaction, and which errors they throw, like offline, permission
+  denied or dates taken.
 - **Controllers:** for each `onSomething` method, the user action that
-  triggers it, the checks it makes, and what the model shows when it
-  fails.
-- **Screens:** what the screen shows, which model it observes, which
+  triggers it, the checks it makes, and what `state` shows when it
+  fails. On the `XUiState` class, use `@property` to say what each
+  value means.
+- **Screens:** what the screen shows, which controller it takes, which
   controller methods its buttons call, and the story IDs it covers.
 - **Shared components:** what the component shows, what each parameter
   means, and which Figma component it matches.

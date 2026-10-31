@@ -1,9 +1,11 @@
 # Testing Guide
 
-> AI use: Claude Opus 5.5 (Anthropic), through Claude Code, drafted this
-> guide in October 2026 from the checklist in issue #63 and the
-> decisions in `docs/architecture.md`. The team reviewed and edited it
-> in its pull request.
+> AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped
+> write this guide in October 2026, following the checklist in issue #63
+> and the decisions in `docs/architecture.md`. It also helped update the
+> CI section to match the workflow, and helped add the controller testing
+> section when the controllers became ViewModels. The team reviewed and
+> edited it in its pull requests.
 
 This document is for everyone writing code in this app. It covers
 which tests each user story needs, where test files go and what to
@@ -18,7 +20,7 @@ We write three kinds of tests, and each one checks a different layer.
 - **Unit tests** live in `app/src/test` and run on your computer
   without an emulator, in a few seconds. They cover model rules, like
   `Availability.isFree`, and controllers, which get a fake repository
-  instead of Firestore.
+  instead of Firestore. "Testing a controller" below shows how.
 - **UI tests** live in `app/src/androidTest` and run on an emulator or
   a phone. They use Compose's testing tools to tap through a screen
   and check what it shows.
@@ -75,6 +77,7 @@ Test files mirror the package of the class they test.
 | Unit test for a model class | `app/src/test/java/com/lambda/campsite/model/` | `LotteryTest` |
 | Unit test for a controller | `app/src/test/java/com/lambda/campsite/controller/` | `LotteryControllerTest` |
 | Fake repository | `app/src/test/java/com/lambda/campsite/model/repository/` | `FakeLotteryRepository` |
+| Shared test helper | `app/src/test/java/com/lambda/campsite/testutil/` | `MainDispatcherRule` |
 | UI or intent test for a screen | `app/src/androidTest/java/com/lambda/campsite/view/screens/` | `LotteryScreenTest` |
 | Security rules test | `app/src/androidTest/java/com/lambda/campsite/rules/` | `ProfileRulesTest` |
 | Cloud Functions test | `functions/tests/` | `test_draw_lotteries.py` |
@@ -92,6 +95,25 @@ Each test checks one behaviour and follows the same three steps: set
 up the data, do the one action, then check the result. Put the story
 ID in the test class's KDoc, like "Tests for US 01.02.01", so we can
 see which stories have tests.
+
+## Testing a controller
+
+Controllers are Jetpack ViewModels, and they run their work on
+Android's main thread. Unit tests don't have one, so every controller
+test class adds `MainDispatcherRule` from `testutil` as a JUnit rule.
+With the rule in place, a controller finishes its work before its
+method returns. The test calls the method, then checks
+`controller.state.value` straight away.
+
+Give the controller a fake repository. A fake keeps its data in
+memory, records every save, and can be told to fail the way an offline
+phone would. To test data that changes somewhere else, like an admin
+banning an owner, the fake also has a method that changes its data
+without a save. `FakeProfileRepository` has all three.
+
+For each action, test the success path, every error the user can see,
+and that a failed save leaves the state as it was. `ProfileControllerTest`
+follows this pattern, so copy it when you start a new controller test.
 
 ## Running the tests locally
 
@@ -127,19 +149,21 @@ pull request that breaks an existing test doesn't get merged.
 
 ## Tests in CI
 
-The CI pipeline (issue #68) runs on every pull request to `main` and
-on every push to `main`, using GitHub Actions.
+The CI pipeline is `.github/workflows/android-ci.yml`. It runs on
+GitHub Actions on every pull request to `main`, on every push to
+`main`, and when someone starts it by hand from the Actions tab.
 
-- It builds the app and runs all unit tests with
-  `./gradlew testDebugUnitTest`.
+- It builds the app with `./gradlew assembleDebug` and runs all unit
+  tests with `./gradlew testDebugUnitTest`.
 - If the build or any test fails, the check on the pull request turns
-  red, and the pull request can't be merged until it's fixed.
-- UI tests need an emulator, which makes them slow on CI. They run on
-  a schedule and when someone starts the workflow by hand, not on
-  every pull request.
-
-Until the pipeline is in place, run the tests locally before every
-pull request.
+  red and the run keeps the test report, so you can see which test
+  failed. `main` requires this check to pass, so the pull request
+  can't be merged until it's fixed.
+- UI tests aren't in CI yet. They need an Android emulator and the
+  Firebase emulators, which makes them slow, so they'll get their own
+  job that runs on a schedule and by hand once the first UI tests
+  exist. Until then, run them locally before opening a pull request
+  that changes a screen.
 
 ## Things to avoid
 

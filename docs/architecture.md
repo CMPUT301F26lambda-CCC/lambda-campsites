@@ -1,13 +1,15 @@
 # Lambda Campsite architecture
 
-Sashreek and Sreeman · last updated October 30, 2026
+Sashreek and Sreeman · last updated October 31, 2026
 
-> AI use: Claude Opus 5.5 (Anthropic), through Claude Code, drafted this
-> document in October 2026, working from decisions the team made. It
-> also checked the free-tier figures in section 4 against Firebase's
-> pricing pages. Sashreek reviewed and edited it.
+> AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped
+> write this document and its diagrams in October 2026, working from
+> decisions the team made. It also checked the free-tier figures in
+> section 4 against Firebase's pricing pages, and helped update sections
+> 5 to 7 when we moved the controllers to Jetpack ViewModels. Sashreek
+> reviewed and edited it.
 
-This page explains how the app is put together. It covers the class diagram and the reasons behind it, the backend on Firebase, and how the Android app splits into Model, View and Controller. Section 6 follows one entrant from tapping "Join" to holding a reservation, so you can see every layer working in one story. Section 7 is the practical part: where files live, what to name things, and how to add something to the frontend or the backend.
+This page explains how the app is put together. It covers the class diagram and the reasons behind it, the backend on Firebase, and how the Android app splits into Model, View and Controller. Section 6 follows one entrant from tapping "Join" to holding a reservation, so you can see every layer working in one story. Section 7 is the practical part: where files live, what to name things, and how to add something to the frontend or the backend. If a term is new to you, like repository, Flow or transaction, `docs/glossary.md` explains it.
 
 ## Contents
 
@@ -29,6 +31,7 @@ The app runs on the phone and talks to Firebase. Firebase holds the data and run
 |---|---|---|
 | Language | Kotlin | The course examples use it. |
 | UI | Jetpack Compose in one `MainActivity` | The repo's accessibility guide is written for Compose. |
+| App structure | Model, View, Controller, with Jetpack `ViewModel` classes as the controllers | Android keeps a ViewModel through rotation, and Compose redraws from its state on its own. Section 5 explains it. |
 | Sign-in | Firebase Auth, anonymous | Every install gets a stable user ID with no login screen, which is what US 01.09.01 asks for. |
 | Database | Cloud Firestore | Live listeners, transactions and offline support. |
 | Photos | Firebase Storage | Campsite and profile photos. |
@@ -74,6 +77,7 @@ We read all 60 user stories, underlined the nouns and circled the verbs. Nouns b
 | Reservations store CONFIRMED, CANCELLED or REJECTED. "Completed" is worked out from the check-out date. | Nothing has to run at midnight to change statuses. |
 | Messaging is two-way, with one Conversation per reservation, created when the chat opens. | 02.12.01 asks for owner messages and replies are wow factor 7. A new conversation can have zero messages, so `lastMessage` and `lastMessageAt` are nullable. |
 | We use the Blaze plan but stay inside the free quotas. | Cloud Functions only run on Blaze, and Cloud Storage has needed Blaze since February 3, 2026. The free quotas still apply on Blaze, and our expected usage is far below them (see section 4). |
+| Controllers are Jetpack ViewModels, not the lecture's `TModel` and `TView` classes. | Android keeps a ViewModel when the phone rotates, and Compose redraws from its state by itself, so we don't write our own lists of views or code to remove them. Model, View and Controller still do the same jobs. |
 
 ## 4. Backend on Firebase
 
@@ -130,7 +134,7 @@ A Firestore transaction reads and writes several documents as one step. If anoth
 
 Firestore keeps a local copy of the data each screen has loaded, so screens still show their last state without a connection. Ordinary writes, like editing a profile or marking a notification read, wait on the phone and go through when the connection comes back.
 
-Transactions can't wait like that, because they need the server's latest data. Joining a lottery, booking, cancelling and rejecting all fail while the phone is offline, and so do photo uploads. When one fails, the controller records an offline error in the model. The screen shows a message with a retry button, never a spinner that doesn't end.
+Transactions can't wait like that, because they need the server's latest data. Joining a lottery, booking, cancelling and rejecting all fail while the phone is offline, and so do photo uploads. When one fails, the controller puts an offline error in its state. The screen shows a message with a retry button, never a spinner that doesn't end.
 
 ### Security rules
 
@@ -167,54 +171,61 @@ Four setup steps keep the bill at zero:
 
 ![MVC diagram](images/mvc.png)
 
-We use the MVC framework from the course's MVC lecture. Every Model class extends `TModel<M>`, which keeps a list of views and calls `notifyViews()` after the model changes. Every View implements `TView<M>` and redraws itself in `update(model)`. Each Controller holds its model and handles what the user does.
+We split the app into the Model, View and Controller layers from the course's MVC lecture, but we build them from Android's own parts instead of the lecture's `TModel` and `TView` classes. Each controller is a Jetpack `ViewModel`. Android's docs call this arrangement MVVM. We keep the MVC names because the jobs are the same: the screen shows data, and the controller takes the user's taps and changes the model.
 
 ### The three layers
 
 | Layer | What goes in it | Rule |
 |---|---|---|
-| Model | The classes from the class diagram, plus repositories that load and save them in Firestore | No Android UI types, so we can unit test it without a phone. |
-| View | One Compose screen per feature, like `LotteryScreen` | Shows state and passes taps to its controller. No Firestore calls and no business rules. |
-| Controller | One controller per feature, like `LotteryController` | Checks input and calls model methods and repositories. Never draws anything. |
+| Model | Plain Kotlin classes from the class diagram, like `Profile` and `Lottery`, plus repositories that load and save them in Firestore | No Android UI types, so we can unit test it without a phone. |
+| View | One Compose screen per feature, like `LotteryScreen` | Shows the controller's state and passes taps to the controller. No Firestore calls and no business rules. |
+| Controller | One `ViewModel` per feature, like `LotteryController` | Holds the screen's state, checks input, and calls model methods and repositories. Never draws anything. |
 
-Calls go one way, from View to Controller to Model. The Model reaches a View only through `update()`.
+Calls go one way, from View to Controller to Model. Data comes back the other way. The repository sends new data to the controller through a Kotlin `Flow`, and the screen reads it from the controller's state.
 
-### How a Compose screen fits the course framework
+### How a controller works
 
-Compose redraws a screen whenever state it reads changes. Each screen class implements `TView<M>`. When the model calls `update(model)`, the screen copies what it needs into its own Compose state, and Compose redraws. The screen's `Content()` function draws the UI, and its buttons call the controller, like `controller.onJoin()`.
+Each controller has one property called `state`, a `StateFlow`. Its value is a data class, like `ProfileUiState`, with everything the screen shows. That includes model objects, like the profile, and values that only matter to the screen, like the active role or an error to display. When the controller is created, it starts listening to its repositories and copies each new value into `state`.
+
+Each user action is one `onSomething` method, like `onJoin` or `onSwitchRole`. The method checks the rule on the model, calls a repository if data has to change, and puts an error in `state` if anything says no. Calls to Firestore run in the controller's `viewModelScope`, so they never freeze the screen, and Android cancels them when the screen is gone for good.
+
+### How a screen works
+
+A screen is a `@Composable` function that takes its controller. It reads `state` with `collectAsStateWithLifecycle()`. Whenever `state` changes, Compose redraws the parts of the screen that use the changed values. Buttons call the controller, like `controller.onJoin()`. A screen never keeps its own copy of model data.
+
+`collectAsStateWithLifecycle()` stops listening while the app is in the background, so nothing updates a screen nobody can see.
 
 ### Repositories and listeners
 
 Each main model has a repository, like `CampsiteRepository` or `LotteryRepository`. Repositories belong to the Model layer. They turn Firestore documents into objects and back, run the transactions, and attach snapshot listeners.
 
-When a listener fires, the repository updates the model and the model calls `notifyViews()`. That's how a change made on another phone, like an owner editing a campsite, shows up on yours.
+A repository returns live data as a `Flow`, like `currentProfile()`, which returns a `Flow` of `Profile`. A Firestore snapshot listener sits behind it. When the data changes, on this phone or on another one, the listener fires, the `Flow` sends the new object, and the controller's `state` updates. That's how an owner's edit to a campsite shows up on your phone. Writes are `suspend` functions, like `save(profile)`. They return once Firestore accepts the write and throw an exception if it fails.
 
-Each repository is an interface with a Firestore version behind it. Unit tests swap in a fake repository, so we can test a controller without Firebase.
+Each repository is an interface. The app uses a Firestore version, and unit tests use a fake, so we can test a controller without Firebase. Until a Firestore version exists, the app uses an in-memory one with sample data, like `InMemoryProfileRepository`.
 
-`MainActivity` hosts Compose navigation and the bottom nav bar for the active role, whether Entrant, Owner or Admin. It creates each screen and calls `model.addView(screen)`. When a screen closes, it calls `deleteView(screen)`, so the model doesn't keep updating a screen nobody can see.
+### Wiring it together
 
-### Keeping the app smooth
-
-Three rules make our hand-built MVC behave as smoothly as an Android architecture library would.
-
-- Models and controllers live in an app container owned by the app's `Application` class, not in `MainActivity`. Android recreates `MainActivity` when the phone rotates, so anything it owns is lost. The container survives, so a rotated screen registers again with `addView` and shows its data straight away, without reloading from Firestore.
-- Every screen calls `deleteView` when it closes, so no model keeps updating a screen that's gone.
-- Slow work, like shrinking a photo before upload or building a CSV file, runs on a background thread. The screen stays responsive, and the result comes back through the model like any other change.
+- `LambdaApplication` creates one `AppContainer` when the app starts. The container creates each repository once, and it's the only place that decides which version the app uses. Moving from in-memory to Firestore repositories is a change to `AppContainer` alone.
+- Each controller has a `Factory` that takes its repositories from the container. A screen's route gets its controller with `viewModel(factory = XController.Factory)`. Android hands back the same controller after the phone rotates, so the screen shows its data straight away without reloading from Firestore.
+- `MainActivity` only applies the theme and shows `LambdaCampsiteApp`. That function, in `view/`, holds Compose navigation, the top bar and the bottom nav bar for the active role, whether Entrant, Owner or Admin. `AppTab` lists every tab and which roles see it.
+- Slow work, like shrinking a photo before upload or building a CSV file, runs on a background thread inside the controller's `viewModelScope`, so the screen stays responsive.
 
 ### Features
 
-| Screen | Controller | Model | Stories |
+| Screen | Controller | Model it calls | Stories |
 |---|---|---|---|
 | SearchScreen | SearchController | CampsiteSearch | 01.01.01 to 01.01.04, 01.12.01 |
-| CampsiteScreen | CampsiteController | Campsite | 01.01.05, 01.13.01, 02.01.01 to 02.03.01 |
-| LotteryScreen | LotteryController | Lottery | 01.01.06 to 01.02.02, 02.04.01 to 02.05.01, 02.09.01, 02.10.01 |
-| ReservationsScreen | ReservationController | ReservationList | 01.04.01 to 01.07.02, 02.06.01 to 02.08.01, 02.11.01 |
-| ProfileScreen | ProfileController | Profile | 01.07.03 to 01.11.01, 03.11.01 |
-| InboxScreen | NotificationController | NotificationList | 01.03.01, 01.03.02, 02.10.02 |
-| ConversationScreen | ConversationController | Conversation | 02.12.01 |
+| CampsiteScreen | CampsiteController | CampsiteRepository | 01.01.05, 01.13.01, 02.01.01 to 02.03.01 |
+| LotteryScreen | LotteryController | LotteryRepository | 01.01.06 to 01.02.02, 02.04.01 to 02.05.01, 02.09.01, 02.10.01 |
+| ReservationsScreen | ReservationController | ReservationRepository | 01.04.01 to 01.07.02, 02.06.01 to 02.08.01, 02.11.01 |
+| ProfileScreen | ProfileController | ProfileRepository | 01.07.03 to 01.11.01, 03.11.01 |
+| InboxScreen | NotificationController | NotificationRepository | 01.03.01, 01.03.02, 02.10.02 |
+| ConversationScreen | ConversationController | ConversationRepository | 02.12.01 |
 | AdminScreen | AdminController | AdminModeration | 03.01.01 to 03.12.01 |
 
-ReservationList and NotificationList exist only on the MVC page. They hold a list of reservations or notifications and give the filtered views the screens need, like active, past and cancelled reservations.
+`CampsiteSearch` and `AdminModeration` are services from the class diagram, and they call the repositories themselves.
+
+The starter code already has the profile feature: `ProfileScreen`, `ProfileController`, `ProfileRepository` and their tests. Copy its shape when you build a new feature.
 
 ## 6. One user, front to back
 
@@ -226,7 +237,7 @@ Jordan Lee, an entrant, wants a weekend at Aspen Hollow Campsite. The owner runs
 
 On the phone, the screen only passes the tap along. The controller asks the Lottery model first, so if registration has closed, Jordan sees an error straight away with no network call.
 
-On the backend, the transaction checks the window and the limit again. If two people take the last spot at the same moment, one transaction wins and the other runs again, finds the list full and fails. The listener then updates the model. The same listener refreshes the owner's waiting list (02.09.01) if they have it open.
+On the backend, the transaction checks the window and the limit again. If two people take the last spot at the same moment, one transaction wins and the other runs again, finds the list full and fails. The listener then sends the updated lottery through the repository's `Flow`, and the controller's state changes. The same listener refreshes the owner's waiting list (02.09.01) if they have it open.
 
 ### Step 2. Registration closes and the draw runs
 
@@ -238,7 +249,7 @@ No phone takes part in the draw. It runs on the server within 5 minutes of regis
 
 ![Sequence diagram: Jordan books two nights](images/book-nights.png)
 
-This is the double-booking case from scenario 1 of the spec. The calendar check and the booking happen in one transaction, so two winners can't both get July 2. Errors go through the model too, so the screen shows them the same way it shows anything else.
+This is the double-booking case from scenario 1 of the spec. The calendar check and the booking happen in one transaction, so two winners can't both get July 2. A failed transaction comes back to the controller as an exception. The controller puts the error in its state, so the screen shows it the same way it shows anything else.
 
 Across the three steps, the screens never touched Firestore and the controllers never drew anything. Every rule was checked twice, once in the model for a fast message and once in a transaction or security rule so it can't be skipped.
 
@@ -256,19 +267,21 @@ lambda-campsites/
 │       ├── main/
 │       │   ├── java/com/lambda/campsite/
 │       │   │   ├── LambdaApplication.kt     starts the app and creates the AppContainer
-│       │   │   ├── AppContainer.kt          builds every repository, model and controller once
-│       │   │   ├── MainActivity.kt          Compose navigation and the bottom nav bar
-│       │   │   ├── model/                   TModel and the classes from the class diagram
+│       │   │   ├── AppContainer.kt          creates every repository once
+│       │   │   ├── MainActivity.kt          applies the theme and shows LambdaCampsiteApp
+│       │   │   ├── model/                   the classes from the class diagram
 │       │   │   │   └── repository/          repository interfaces and their Firestore versions
-│       │   │   ├── controller/              one controller per feature
+│       │   │   ├── controller/              one ViewModel per feature, with its UiState
 │       │   │   └── view/
-│       │   │       ├── TView.kt
+│       │   │       ├── LambdaCampsiteApp.kt navigation, the top bar and the bottom nav bar
+│       │   │       ├── AppTab.kt            the nav bar tabs and which roles see them
 │       │   │       ├── screens/             one screen per feature
-│       │   │       ├── components/          shared pieces from Figma: nav bar, field, date picker, campsite card
+│       │   │       ├── components/          shared pieces from Figma: field, date picker, campsite card
 │       │   │       └── theme/               colours, text styles and shapes from the Figma tokens
 │       │   ├── res/                         strings, icons and launcher images
 │       │   └── AndroidManifest.xml
 │       ├── test/                            unit tests: model rules, controllers with fake repositories
+│       │   └── .../testutil/                MainDispatcherRule, which every controller test uses
 │       └── androidTest/                     UI tests that run on an emulator or a phone
 ├── functions/                           Cloud Functions in Python
 │   ├── main.py                          drawLotteries, sendPush, updateRatingStats, cleanUpCampsite, cleanUpProfile
@@ -277,7 +290,7 @@ lambda-campsites/
 ├── firestore.indexes.json               indexes for queries that filter on more than one field
 ├── storage.rules                        Storage security rules
 ├── firebase.json                        settings for the Firebase CLI
-└── docs/                                CONTRIBUTING, accessibility guide, testing guide
+└── docs/                                CONTRIBUTING and the architecture, testing, documentation and accessibility guides
 ```
 
 The folders follow the MVC layers, so a feature touches the same four places every time: `model`, `model/repository`, `controller` and `view/screens`.
@@ -289,9 +302,11 @@ The folders follow the MVC layers, so a feature touches the same four places eve
 | Domain class | The name from the class diagram | `model` | `Lottery` |
 | Repository interface | `XRepository` | `model/repository` | `LotteryRepository` |
 | Firestore repository | `FirestoreXRepository` | `model/repository` | `FirestoreLotteryRepository` |
+| In-memory repository with sample data, until the Firestore one exists | `InMemoryXRepository` | `model/repository` | `InMemoryProfileRepository` |
 | Fake repository for tests | `FakeXRepository` | `test` | `FakeLotteryRepository` |
-| Controller | `XController`, with one `onSomething` method per user action | `controller` | `LotteryController.onJoin` |
-| Screen | `XScreen` | `view/screens` | `LotteryScreen` |
+| Controller | `XController`, a `ViewModel` with one `onSomething` method per user action | `controller` | `LotteryController.onJoin` |
+| Controller state | `XUiState`, a data class in the controller's file | `controller` | `LotteryUiState` |
+| Screen | `XScreen`, a `@Composable` function | `view/screens` | `LotteryScreen` |
 | Shared component | What it shows | `view/components` | `CampsiteCard` |
 | Unit test | The class under test plus `Test` | `test` | `LotteryControllerTest` |
 
@@ -305,19 +320,20 @@ The frontend is everything in `controller` and `view`, plus the models the scree
 
 Example: the owner's calendar of booked dates (02.06.01).
 
-1. Pick the model the screen shows. Reuse one if it exists. This screen shows a campsite's `Availability`. If you need a new model, add it to `model`, extend `TModel`, and add it to the class diagram.
-2. Add a controller in `controller` with one method per thing the user can do, like `onNextMonth` and `onPreviousMonth`.
-3. Create `BookedDatesScreen` in `view/screens`. It implements `TView` for its model. Its `update` copies what the screen shows into Compose state, and its `Content` draws the screen from shared components and calls the controller from buttons.
-4. Register the model and controller in `AppContainer`. Add the route, and a nav bar entry if it needs one, in `MainActivity`. The screen calls `addView` when it opens and `deleteView` when it closes.
-5. Match the story's Figma mockup, and check `docs/accessibility.md` for labels and touch targets.
-6. Write a unit test for the controller with a fake repository. Add a UI test in `androidTest` if the screen is part of a main flow like joining or booking.
+1. Pick the model the screen shows. Reuse one if it exists. This screen shows a campsite's `Availability`. If you need a new model class, add it to `model` and to the class diagram.
+2. Add `BookedDatesController` in `controller`. It extends `ViewModel`, takes its repositories in its constructor, and has a `Factory` that gets them from `AppContainer`. `ProfileController` shows the shape to copy.
+3. In the same file, add `BookedDatesUiState`, a data class with everything the screen shows. The controller keeps it in `state` and has one method per thing the user can do, like `onNextMonth` and `onPreviousMonth`.
+4. Create `BookedDatesScreen` in `view/screens`. It takes the controller, reads `state` with `collectAsStateWithLifecycle()`, draws the screen from shared components and calls the controller from buttons. All of its text goes in `strings.xml`.
+5. Add the route in `LambdaCampsiteApp`, and a tab in `AppTab` if the screen needs one. The route gets the controller with `viewModel(factory = BookedDatesController.Factory)`.
+6. Match the story's Figma mockup, and check `docs/accessibility.md` for labels and touch targets.
+7. Write a unit test for the controller with a fake repository and `MainDispatcherRule`. Add a UI test in `androidTest` if the screen is part of a main flow like joining or booking.
 
 #### A new action on an existing screen
 
 Example: leaving a waiting list (01.02.02).
 
 1. Put the rule in the model. `Lottery` decides whether leaving is still allowed, which is only before registration closes.
-2. Add `onLeave` to `LotteryController`. It checks the rule, then calls the repository.
+2. Add `onLeave` to `LotteryController`. It checks the rule, calls the repository, and puts an error in `state` if either one says no.
 3. Add the button to `LotteryScreen` and have it call `onLeave`.
 4. If the action changes data, add the repository method first. The backend guide below covers that.
 5. Add a controller test for both cases, allowed and too late.
@@ -346,7 +362,7 @@ Example: `pricePerNight` on campsites.
 Example: how `notifications` was set up.
 
 1. Choose the path and what the document ID should be. Use a meaningful ID when it enforces a rule. Ratings use the rater's `{uid}`, so each person can only have one rating per campsite.
-2. Add the domain class, a repository interface, its Firestore version and a fake for tests.
+2. Add the domain class, a repository interface, its Firestore version and a fake for tests. Create the Firestore version in `AppContainer`.
 3. Add rules for the new path. Firestore denies everything by default, so allow exactly who can read and who can write.
 4. If a query filters or sorts on more than one field, add its index to `firestore.indexes.json`.
 5. If the new documents belong to a campsite or a profile, make `cleanUpCampsite` or `cleanUpProfile` delete them too. Firestore won't.

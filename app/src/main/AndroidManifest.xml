@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped add the
+  LambdaApplication entry in October 2026. Sashreek Addanki reviewed and committed it.
+-->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
     <application
+        android:name=".LambdaApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
