@@ -1,0 +1,154 @@
+# Testing Guide
+
+> AI use: Claude Opus 5.5 (Anthropic), through Claude Code, drafted this
+> guide in October 2026 from the checklist in issue #63 and the
+> decisions in `docs/architecture.md`. The team reviewed and edited it
+> in its pull request.
+
+This document is for everyone writing code in this app. It covers
+which tests each user story needs, where test files go and what to
+call them, how to run the tests on your machine, and how they run in
+CI. The architecture these tests rely on, like fake repositories and
+the MVC layers, is described in `docs/architecture.md`.
+
+## Kinds of tests
+
+We write three kinds of tests, and each one checks a different layer.
+
+- **Unit tests** live in `app/src/test` and run on your computer
+  without an emulator, in a few seconds. They cover model rules, like
+  `Availability.isFree`, and controllers, which get a fake repository
+  instead of Firestore.
+- **UI tests** live in `app/src/androidTest` and run on an emulator or
+  a phone. They use Compose's testing tools to tap through a screen
+  and check what it shows.
+- **Intent tests** are UI tests that check the app hands off to
+  another app correctly, like opening the photo picker or the share
+  sheet for a CSV file. They use Espresso-Intents to check which intent
+  was sent, without opening the other app.
+
+Two more kinds cover the backend:
+
+- **Security rules tests** also live in `app/src/androidTest`. Each one
+  tries a write the rules should block, against the Firebase emulator,
+  and expects a permission error.
+- **Cloud Functions tests** live in `functions/tests` and run with
+  pytest against the Firebase emulator.
+
+No test ever touches our real Firebase project. Unit tests use fakes,
+and everything else uses the Firebase Local Emulator Suite.
+
+## Which tests each story needs
+
+Every story gets three things:
+
+1. A unit test for each rule in its acceptance criteria, including the
+   case where the rule says no.
+2. A controller unit test for each user action, covering both the
+   success path and the error the user would see.
+3. One UI test for the story's main path, if the story has a screen.
+   If the story hands off to another app, that UI test is an intent
+   test.
+
+Stories that change who can read or write data also get a security
+rules test. Stories that depend on a Cloud Function get a functions
+test.
+
+Some examples:
+
+| Story | Unit tests | UI, intent or rules tests |
+|---|---|---|
+| 01.02.01 Join a waiting list | `Lottery` refuses a join after registration closes and when the list is full. `LotteryController.onJoin` reports each error. | Joining from `LotteryScreen` shows "You're on the waiting list". |
+| 01.04.02 Choose dates after winning | `Availability.isFree` for overlapping, touching and separate date ranges. The controller reports "dates taken" when the transaction fails. | Picking dates and tapping Book ends on the confirmation. |
+| 01.05.02 Confirmation by CSV | `ConfirmationExport` builds the right rows for a reservation. | Intent test: tapping "Save as CSV" sends a save or share intent. |
+| 01.10.01 Opt out of notifications | `Profile.setNotifications` changes the setting. `sendPush` skips the push when it's off (functions test). | Turning the switch off shows the snackbar and stays off after reopening the screen. |
+| 02.01.02 Provide campsite details | `Campsite.validate` rejects a missing name, a missing location and an occupancy of 0. | Intent test: tapping "Add photo" opens the photo picker. |
+| 02.04.03 Registration period | `Lottery.validateDates` rejects a closing date before the opening date. | Saving bad dates shows the error under the date field. |
+| 03.07.01 Remove an owner | `AdminModeration` removes the OWNER role and sets `ownerBanned`. | Rules test: an owner can't clear their own `ownerBanned`. |
+
+## Where test files go and what to call them
+
+Test files mirror the package of the class they test.
+
+| What | Folder | File name |
+|---|---|---|
+| Unit test for a model class | `app/src/test/java/com/lambda/campsite/model/` | `LotteryTest` |
+| Unit test for a controller | `app/src/test/java/com/lambda/campsite/controller/` | `LotteryControllerTest` |
+| Fake repository | `app/src/test/java/com/lambda/campsite/model/repository/` | `FakeLotteryRepository` |
+| UI or intent test for a screen | `app/src/androidTest/java/com/lambda/campsite/view/screens/` | `LotteryScreenTest` |
+| Security rules test | `app/src/androidTest/java/com/lambda/campsite/rules/` | `ProfileRulesTest` |
+| Cloud Functions test | `functions/tests/` | `test_draw_lotteries.py` |
+
+Name each test after the behaviour it checks, so a failing test tells
+you what broke without opening it.
+
+- In unit tests, use a sentence in backticks, like a test called
+  `join fails when registration has closed`.
+- In `androidTest`, use camelCase, like
+  `joinShowsWaitingListMessage`. Android versions before 11 can't run
+  test names that contain spaces.
+
+Each test checks one behaviour and follows the same three steps: set
+up the data, do the one action, then check the result. Put the story
+ID in the test class's KDoc, like "Tests for US 01.02.01", so we can
+see which stories have tests.
+
+## Running the tests locally
+
+### Unit tests
+
+In Android Studio, right-click `app/src/test` and choose "Run Tests".
+From a terminal at the repo root, run `./gradlew testDebugUnitTest`.
+Unit tests need no emulator and no internet connection.
+
+### UI, intent and rules tests
+
+1. Start an Android emulator from Android Studio's Device Manager.
+2. Start the Firebase emulators from the repo root with
+   `firebase emulators:start`. You need the Firebase CLI installed
+   for this.
+3. Run `./gradlew connectedDebugAndroidTest`, or right-click
+   `app/src/androidTest` in Android Studio and choose "Run Tests".
+
+Debug test builds point Firestore, Auth and Storage at the emulators,
+which the Android emulator reaches at `10.0.2.2`. Each test class
+clears the emulator's data before it runs, so tests don't depend on
+each other or on the order they run in.
+
+### Cloud Functions tests
+
+With the Firebase emulators running, run `pytest` inside `functions/`.
+Only the person working on functions needs Python set up.
+
+### Before opening a pull request
+
+Run all unit tests, and the UI tests for any screen you changed. A
+pull request that breaks an existing test doesn't get merged.
+
+## Tests in CI
+
+The CI pipeline (issue #68) runs on every pull request to `main` and
+on every push to `main`, using GitHub Actions.
+
+- It builds the app and runs all unit tests with
+  `./gradlew testDebugUnitTest`.
+- If the build or any test fails, the check on the pull request turns
+  red, and the pull request can't be merged until it's fixed.
+- UI tests need an emulator, which makes them slow on CI. They run on
+  a schedule and when someone starts the workflow by hand, not on
+  every pull request.
+
+Until the pipeline is in place, run the tests locally before every
+pull request.
+
+## Things to avoid
+
+- Don't test against the real Firebase project. Use fakes or the
+  emulators.
+- Don't use fixed sleeps to wait for the UI. Compose's test tools wait
+  for the screen to settle, and `waitUntil` covers anything slower.
+- Don't find UI elements by test tags when a label works.
+  `docs/accessibility.md` explains why labels matter, and finding
+  elements by the label a screen reader would read checks both at
+  once.
+- Don't share data between tests. Each test sets up what it needs.
