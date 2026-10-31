@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "969616971544",
+    "project_id": "lambda-campsite",
+    "storage_bucket": "lambda-campsite.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:969616971544:android:04c33fdc809bd57b4eb06d",
+        "android_client_info": {
+          "package_name": "com.lambda.campsite"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAnuZk_LqU5BaK8iRWwO3jtbuWDnPs1fck"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

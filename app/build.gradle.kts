@@ -1,10 +1,13 @@
 // AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped add the
-// navigation, lifecycle, icon and coroutines-test dependencies and the Dokka
-// setup in October 2026. Sashreek Addanki reviewed and committed them.
+// navigation, lifecycle, icon and coroutines-test dependencies, the Dokka
+// setup and the Firebase setup in October 2026. Sashreek Addanki reviewed and
+// committed them.
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.dokka)
+    // Reads app/google-services.json, which connects the app to our Firebase project.
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -52,6 +55,13 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.compose.material.icons.core)
+    // The BoM picks versions of the Firebase libraries that work together.
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.storage)
+    // Adds await(), so suspend functions can wait for Firebase calls.
+    implementation(libs.kotlinx.coroutines.play.services)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(platform(libs.androidx.compose.bom))
