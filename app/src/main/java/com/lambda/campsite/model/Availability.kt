@@ -1,3 +1,9 @@
+/*
+ * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
+ * this file in November 2026, following the Availability class in the team's
+ * class diagram. It helped with the Kotlin code, syntax and KDoc. Sashreek
+ * Addanki reviewed it.
+ */
 package com.lambda.campsite.model
 
 import java.time.LocalDate
