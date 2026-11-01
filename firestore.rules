@@ -104,6 +104,53 @@ service cloud.firestore {
             || (data.capacity is int && data.capacity >= 1));
     }
 
+    // A lottery as it is before this request, and as it will be if the
+    // request goes through. Joining and leaving write the entry and the
+    // lottery together, and each side checks the other.
+    function lotteryBefore(lotteryId) {
+      return get(/databases/$(database)/documents/lotteries/$(lotteryId)).data;
+    }
+
+    function lotteryAfter(lotteryId) {
+      return getAfter(/databases/$(database)/documents/lotteries/$(lotteryId)).data;
+    }
+
+    // Entrants can join or leave from when registration opens until it
+    // closes, and only before the draw (US 01.02.01, 01.02.02).
+    function registrationOpen(lottery) {
+      return lottery.status == 'OPEN'
+        && request.time >= lottery.registrationOpens
+        && request.time < lottery.registrationCloses;
+    }
+
+    // The waiting list can take one more entrant (US 02.04.07).
+    function hasSpace(lottery) {
+      return lottery.get('capacity', null) == null
+        || lottery.get('entryCount', 0) < lottery.capacity;
+    }
+
+    // Has a profile an admin hasn't removed (US 03.02.01). The app creates
+    // the profile the first time it opens.
+    function activeEntrant() {
+      return signedIn() && myProfile().get('removed', false) == false;
+    }
+
+    // This update to a lottery adds one to entryCount, and the same write
+    // creates the signed-in user's entry.
+    function joins(lotteryId) {
+      let entry = /databases/$(database)/documents/lotteries/$(lotteryId)/entries/$(request.auth.uid);
+      return request.resource.data.entryCount == resource.data.get('entryCount', 0) + 1
+        && !exists(entry) && existsAfter(entry);
+    }
+
+    // This update to a lottery takes one from entryCount, and the same write
+    // deletes the signed-in user's entry.
+    function leaves(lotteryId) {
+      let entry = /databases/$(database)/documents/lotteries/$(lotteryId)/entries/$(request.auth.uid);
+      return request.resource.data.entryCount == resource.data.get('entryCount', 0) - 1
+        && exists(entry) && !existsAfter(entry);
+    }
+
     // One profile per install. The document ID is its Firebase Auth user ID
     // (US 01.09.01). Admin access comes with the admin stories.
     match /profiles/{uid} {
@@ -197,6 +244,49 @@ service cloud.firestore {
             'registrationOpens', 'registrationCloses', 'stayStart', 'stayEnd', 'numberOfWinners', 'capacity'])
         && ownsCampsites(request.resource.data.campsiteIds)
         && validLottery(request.resource.data);
+
+      // Joining or leaving changes entryCount by one, in the same
+      // transaction that creates or deletes the user's own entry. The
+      // entry's rules check the registration window and the limit.
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['entryCount'])
+        && (joins(lotteryId) || leaves(lotteryId));
+
+      // One entry per entrant, and its ID is theirs, so nobody can join
+      // twice.
+      match /entries/{entrantId} {
+        // Entrants see their own entry, and the owner sees the whole waiting
+        // list (US 02.09.01). Looking up an entry that doesn't exist is
+        // allowed, so the app can check whether the user has joined.
+        allow read: if isSelf(entrantId)
+          || (signedIn() && lotteryBefore(lotteryId).ownerId == request.auth.uid);
+
+        // An entrant joins as themselves while registration is open and the
+        // list has space (US 01.02.01). The entry waits for the draw, and
+        // the server sets when it joined.
+        allow create: if isSelf(entrantId)
+          && activeEntrant()
+          && request.resource.data.keys().hasOnly(['entrantId', 'joinedAt', 'status'])
+          && request.resource.data.entrantId == entrantId
+          && request.resource.data.joinedAt == request.time
+          && request.resource.data.status == 'WAITING'
+          && registrationOpen(lotteryBefore(lotteryId))
+          && hasSpace(lotteryBefore(lotteryId))
+          && lotteryAfter(lotteryId).get('entryCount', 0) == lotteryBefore(lotteryId).get('entryCount', 0) + 1;
+
+        // An entrant leaves while registration is still open (US 01.02.02).
+        // Only the draw and booking change an entry, so there's no update.
+        allow delete: if isSelf(entrantId)
+          && registrationOpen(lotteryBefore(lotteryId))
+          && lotteryAfter(lotteryId).get('entryCount', 0) == lotteryBefore(lotteryId).get('entryCount', 0) - 1;
+      }
+    }
+
+    // "My waiting lists" finds a user's entries in every lottery with one
+    // query on entrantId. Rules don't filter queries, so the query has to
+    // ask for the user's own entries or it's refused.
+    match /{path=**}/entries/{entrantId} {
+      allow read: if signedIn() && resource.data.entrantId == request.auth.uid;
     }
 
     // Only a Cloud Function creates a notification (US 01.03.01, 01.03.02).
