@@ -3,7 +3,12 @@
  * this file in October 2026. It helped with the Kotlin code, syntax and KDoc.
  * It also helped add Firebase Auth when the app was connected to Firebase, and
  * helped switch the profile to Firestore, and helped add the campsite
- * repository. Sashreek Addanki reviewed it and committed it.
+ * repository. Sashreek Addanki reviewed the profile and campsite
+ * repositories.
+ *
+ * The notification repository was added by Aarush Bhat with the assistance
+ * of Claude Sonnet 5 (Anthropic), through Claude Code, in November 2026.
+ * Aarush Bhat reviewed and committed it.
  */
 package com.lambda.campsite
 
@@ -14,7 +19,9 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
 import com.lambda.campsite.model.repository.CampsiteRepository
 import com.lambda.campsite.model.repository.FirestoreCampsiteRepository
+import com.lambda.campsite.model.repository.FirestoreNotificationRepository
 import com.lambda.campsite.model.repository.FirestoreProfileRepository
+import com.lambda.campsite.model.repository.NotificationRepository
 import com.lambda.campsite.model.repository.ProfileRepository
 
 /**
@@ -44,4 +51,7 @@ class AppContainer {
 
     /** Every campsite, stored in Firestore. */
     val campsiteRepository: CampsiteRepository by lazy { FirestoreCampsiteRepository(auth, firestore) }
+
+    /** This device's notifications, stored in Firestore. */
+    val notificationRepository: NotificationRepository by lazy { FirestoreNotificationRepository(auth, firestore) }
 }

@@ -1,7 +1,11 @@
 // AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
 // the profile rules in October 2026, following docs/architecture.md section 4.
-// It helped with the rules syntax and comments. It also helped add the campsite
-// rules. Sashreek Addanki reviewed them and committed them.
+// It helped with the rules syntax and comments. It also helped add the
+// campsite rules. Sashreek Addanki reviewed the profile and campsite rules.
+//
+// The notification rules were coded by Aarush Bhat with the assistance of
+// Claude Sonnet 5 (Anthropic), through Claude Code, in November 2026. Aarush
+// Bhat reviewed and committed them.
 rules_version = '2';
 
 service cloud.firestore {
@@ -86,6 +90,15 @@ service cloud.firestore {
         && resource.data.ownerId == request.auth.uid
         && !request.resource.data.diff(resource.data).affectedKeys()
             .hasAny(['ownerId', 'published', 'ratingCount', 'ratingSum']);
+    }
+
+    // Only a Cloud Function creates a notification (US 01.03.01, 01.03.02).
+    // The app can only read its own and mark it read.
+    match /notifications/{notificationId} {
+      allow read: if isSelf(resource.data.recipientId);
+
+      allow update: if isSelf(resource.data.recipientId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
     }
 
     // Everything not matched above is denied.
