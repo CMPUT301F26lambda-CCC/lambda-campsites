@@ -2,14 +2,18 @@
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, the emulator's
  * REST calls, syntax and KDoc. It also helped add decimal numbers for the
- * campsite tests. Sashreek Addanki reviewed it and committed it.
+ * campsite tests. It also helped add timestampValue encoding for the
+ * notification tests. Sashreek Addanki reviewed the string, boolean, number
+ * and list encoding, and Aarush Bhat reviewed the timestamp encoding.
  */
 package com.lambda.campsite.testutil
 
 import com.google.firebase.Firebase
+import com.google.firebase.Timestamp
 import com.google.firebase.app
 import java.net.HttpURLConnection
 import java.net.URL
+import java.time.Instant
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -35,7 +39,7 @@ object FirestoreEmulator {
     /**
      * Replaces the document at [path], like `profiles/abc`, with [fields],
      * skipping the security rules. Values can be strings, booleans, numbers,
-     * lists of those, or `null`.
+     * timestamps, lists of those, or `null`.
      */
     fun setIgnoringRules(path: String, fields: Map<String, Any?>) {
         val name = "projects/$projectId/databases/(default)/documents/$path"
@@ -54,6 +58,10 @@ object FirestoreEmulator {
         is Boolean -> JSONObject().put("booleanValue", value)
         is Int, is Long -> JSONObject().put("integerValue", value.toString())
         is Double -> JSONObject().put("doubleValue", value)
+        is Timestamp -> JSONObject().put(
+            "timestampValue",
+            Instant.ofEpochSecond(value.seconds, value.nanoseconds.toLong()).toString(),
+        )
         is List<*> -> JSONObject().put(
             "arrayValue",
             JSONObject().put("values", JSONArray().apply { value.forEach { put(encode(it)) } }),
