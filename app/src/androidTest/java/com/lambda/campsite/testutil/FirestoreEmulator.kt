@@ -2,9 +2,11 @@
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, the emulator's
  * REST calls, syntax and KDoc. It also helped add decimal numbers for the
- * campsite tests. It also helped add timestampValue encoding for the
- * notification tests. Sashreek Addanki reviewed the string, boolean, number
- * and list encoding, and Aarush Bhat reviewed the timestamp encoding.
+ * campsite tests. Sashreek Addanki reviewed it and committed it.
+ *
+ * The timestampValue encoding was added by Aarush Bhat with the assistance
+ * of Claude Sonnet 5 (Anthropic), through Claude Code, in November 2026, for
+ * the notification tests. Aarush Bhat reviewed and committed it.
  */
 package com.lambda.campsite.testutil
 

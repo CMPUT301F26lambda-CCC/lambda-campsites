@@ -1,8 +1,7 @@
 /*
- * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
- * these tests in November 2026, following the pattern in
- * FirestoreCampsiteRepositoryTest. It helped with the test cases, the
- * coroutines code and the Kotlin syntax. Aarush Bhat reviewed them, ran them
+ * AI use: Coded by Aarush Bhat with the assistance of Claude Sonnet 5
+ * (Anthropic), through Claude Code, in November 2026, following the
+ * pattern in FirestoreCampsiteRepositoryTest. Aarush Bhat reviewed, ran
  * and committed them.
  */
 package com.lambda.campsite.model.repository

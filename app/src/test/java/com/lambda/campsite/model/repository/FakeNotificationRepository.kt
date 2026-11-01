@@ -1,8 +1,7 @@
 /*
- * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
- * this file in November 2026, following the pattern in
- * FakeCampsiteRepository. It helped with the Kotlin code, syntax and KDoc.
- * Aarush Bhat reviewed it and committed it.
+ * AI use: Coded by Aarush Bhat with the assistance of Claude Sonnet 5
+ * (Anthropic), through Claude Code, in November 2026, following the
+ * pattern in FakeCampsiteRepository. Aarush Bhat reviewed and committed it.
  */
 package com.lambda.campsite.model.repository
 

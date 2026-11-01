@@ -1,9 +1,11 @@
 // AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
 // the profile rules in October 2026, following docs/architecture.md section 4.
-// It helped with the rules syntax and comments. It also helped add the campsite
-// rules, and the notification rules in November 2026. Sashreek Addanki
-// reviewed the profile and campsite rules, and Aarush Bhat reviewed the
-// notification rules.
+// It helped with the rules syntax and comments. It also helped add the
+// campsite rules. Sashreek Addanki reviewed the profile and campsite rules.
+//
+// The notification rules were coded by Aarush Bhat with the assistance of
+// Claude Sonnet 5 (Anthropic), through Claude Code, in November 2026. Aarush
+// Bhat reviewed and committed them.
 rules_version = '2';
 
 service cloud.firestore {
