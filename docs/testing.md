@@ -5,8 +5,9 @@
 > and the decisions in `docs/architecture.md`. It also helped update the
 > CI section to match the workflow, and helped add the controller testing
 > section when the controllers became ViewModels, and helped update the
-> setup steps when the Firebase emulators were added. The team reviewed
-> and edited it in its pull requests.
+> setup steps when the Firebase emulators were added, and helped add the
+> part about rules test helpers. The team reviewed and edited it in its
+> pull requests.
 
 This document is for everyone writing code in this app. It covers
 which tests each user story needs, where test files go and what to
@@ -148,9 +149,19 @@ local network permission, so the runner grants it to debug builds.
 Every test that uses Firestore calls `awaitSignIn()` from `testutil`
 in a `@Before` method. The app signs in when it starts, and Firestore
 keeps a separate queue of writes for each user, so a write made before
-sign-in finishes never reaches the emulator. Each test class clears the
-emulator's data before it runs, so tests don't depend on each other or
-on the order they run in.
+sign-in finishes never reaches the emulator.
+
+Each test that uses Firestore also calls `FirestoreEmulator.clear()`
+from `testutil` first, so tests don't depend on each other or on the
+order they run in. To set up data a user isn't allowed to write, like
+a banned owner or a removed profile, use
+`FirestoreEmulator.setIgnoringRules`. It skips the security rules, the
+way an admin's or a Cloud Function's writes do.
+
+`ProfileRulesTest` shows the pattern for rules tests. A few tests check
+that normal use is allowed, so the rules can't pass by denying
+everything. Then there's one test per rule, each trying something a
+modified app might do and expecting `PERMISSION_DENIED`.
 
 If a test fails with "No answer from the Firestore emulator", the
 Firebase emulators aren't running.
