@@ -4,8 +4,9 @@
 > write this guide in October 2026, following the checklist in issue #63
 > and the decisions in `docs/architecture.md`. It also helped update the
 > CI section to match the workflow, and helped add the controller testing
-> section when the controllers became ViewModels. The team reviewed and
-> edited it in its pull requests.
+> section when the controllers became ViewModels, and helped update the
+> setup steps when the Firebase emulators were added. The team reviewed
+> and edited it in its pull requests.
 
 This document is for everyone writing code in this app. It covers
 which tests each user story needs, where test files go and what to
@@ -125,22 +126,45 @@ Unit tests need no emulator and no internet connection.
 
 ### UI, intent and rules tests
 
+Before your first run, install the Firebase CLI with
+`npm install -g firebase-tools` and sign in with `firebase login`,
+using the Google account you were added to the Firebase project with.
+The emulators also need Java 21 or newer.
+
 1. Start an Android emulator from Android Studio's Device Manager.
 2. Start the Firebase emulators from the repo root with
-   `firebase emulators:start`. You need the Firebase CLI installed
-   for this.
+   `firebase emulators:start`. The Emulator UI at
+   `http://localhost:4000` shows the users and data the tests create.
 3. Run `./gradlew connectedDebugAndroidTest`, or right-click
    `app/src/androidTest` in Android Studio and choose "Run Tests".
 
-Debug test builds point Firestore, Auth and Storage at the emulators,
-which the Android emulator reaches at `10.0.2.2`. Each test class
-clears the emulator's data before it runs, so tests don't depend on
-each other or on the order they run in.
+The test runner, `testutil/LambdaTestRunner`, points Firestore, Auth
+and Storage at the emulators before the app starts. The Android
+emulator reaches them at `10.0.2.2`. The emulators don't use HTTPS, so
+debug builds allow plain HTTP to that one address. Android 17 also
+blocks apps from local addresses like that one unless they have the
+local network permission, so the runner grants it to debug builds.
+
+Every test that uses Firestore calls `awaitSignIn()` from `testutil`
+in a `@Before` method. The app signs in when it starts, and Firestore
+keeps a separate queue of writes for each user, so a write made before
+sign-in finishes never reaches the emulator. Each test class clears the
+emulator's data before it runs, so tests don't depend on each other or
+on the order they run in.
+
+If a test fails with "No answer from the Firestore emulator", the
+Firebase emulators aren't running.
 
 ### Cloud Functions tests
 
+Only the person working on functions needs Python set up. From the
+repo root, make the virtual environment once with
+`python3.13 -m venv functions/venv`, then install the libraries with
+`functions/venv/bin/pip install -r functions/requirements.txt`.
+`firebase.json` runs the functions on Python 3.13, so use the same
+version on your machine.
+
 With the Firebase emulators running, run `pytest` inside `functions/`.
-Only the person working on functions needs Python set up.
 
 ### Before opening a pull request
 
