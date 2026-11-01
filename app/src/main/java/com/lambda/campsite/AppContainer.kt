@@ -2,8 +2,8 @@
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, syntax and KDoc.
  * It also helped add Firebase Auth when the app was connected to Firebase, and
- * helped switch the profile to Firestore. Sashreek Addanki reviewed it and
- * committed it.
+ * helped switch the profile to Firestore, and helped add the campsite
+ * repository. Sashreek Addanki reviewed it and committed it.
  */
 package com.lambda.campsite
 
@@ -12,6 +12,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
+import com.lambda.campsite.model.repository.CampsiteRepository
+import com.lambda.campsite.model.repository.FirestoreCampsiteRepository
 import com.lambda.campsite.model.repository.FirestoreProfileRepository
 import com.lambda.campsite.model.repository.ProfileRepository
 
@@ -39,4 +41,7 @@ class AppContainer {
 
     /** This device's profile, stored in Firestore. */
     val profileRepository: ProfileRepository by lazy { FirestoreProfileRepository(auth, firestore) }
+
+    /** Every campsite, stored in Firestore. */
+    val campsiteRepository: CampsiteRepository by lazy { FirestoreCampsiteRepository(auth, firestore) }
 }
