@@ -1,6 +1,7 @@
 /*
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, syntax and KDoc.
+ * It also helped share the emulator address with the other test helpers.
  * Sashreek Addanki reviewed it and committed it.
  */
 package com.lambda.campsite.testutil
@@ -47,7 +48,8 @@ class LambdaTestRunner : AndroidJUnitRunner() {
         }
     }
 
-    private companion object {
+    companion object {
+        /** The address the Android emulator uses to reach the computer it runs on. */
         const val HOST = "10.0.2.2"
         const val AUTH_PORT = 9099
         const val FIRESTORE_PORT = 8080
