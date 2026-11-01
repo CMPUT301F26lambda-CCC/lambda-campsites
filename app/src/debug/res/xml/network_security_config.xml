@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
+  this file in October 2026. Sashreek Addanki reviewed it and committed it.
+
+  Debug builds only. The Firebase emulators use plain HTTP, which Android
+  blocks by default, so this allows it for 10.0.2.2, the address the Android
+  emulator uses to reach the computer it runs on. Release builds keep the
+  default and only use HTTPS.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>
