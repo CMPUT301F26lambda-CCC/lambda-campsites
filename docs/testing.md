@@ -8,8 +8,9 @@
 > setup steps when the Firebase emulators were added, and helped add the
 > part about rules test helpers and the repository test locations, and
 > helped add the note about the shared Firestore cache with the campsite
-> tests, and the note on unused IDs with the availability tests. The team
-> reviewed and edited it in its pull requests.
+> tests, and the note on unused IDs with the availability tests, and the
+> notes on writes that go together and on a second user with the lottery
+> tests. The team reviewed and edited it in its pull requests.
 
 This document is for everyone writing code in this app. It covers
 which tests each user story needs, where test files go and what to
@@ -170,10 +171,19 @@ or for a snapshot whose `metadata.isFromCache` is false.
 For a single document, you can also give it an ID no other test uses,
 like `watched` in the calendar tests, so the cache has no old copy of it.
 
+To test what happens when two people use the app, call `signInAsNewUser()`
+again and give the new user a profile. `twoPeopleJoiningMakesTheCountTwo`
+in `FirestoreLotteryRepositoryTest` shows how.
+
 `ProfileRulesTest` shows the pattern for rules tests. A few tests check
 that normal use is allowed, so the rules can't pass by denying
 everything. Then there's one test per rule, each trying something a
 modified app might do and expecting `PERMISSION_DENIED`.
+
+Some writes only pass the rules together with another one, like joining a
+waiting list and adding one to `entryCount`. Send those as one batch, the
+way `LotteryEntryRulesTest` does. The rules check a batch the same way as
+the app's transaction.
 
 If a test fails with "No answer from the Firestore emulator", the
 Firebase emulators aren't running.

@@ -8,7 +8,8 @@
 > repository rows when the profile moved to Firestore, and helped add the
 > merge write row and the note on queries in the security rules row with the
 > campsite repository, and helped add the availability calendar and
-> LocalDate rows. Sashreek reviewed and edited it.
+> LocalDate rows, and helped add the entry count and lottery status rows.
+> Sashreek reviewed and edited it.
 
 This page explains the technical words in our docs and code: the app's structure, Kotlin and Android, Firebase, and testing and tooling. Each section is in alphabetical order. Campsite words like entrant, lottery and waiting list are defined in the spec's glossary. The last section only covers meanings the team decided for itself.
 
@@ -117,7 +118,7 @@ Where a term has a longer explanation elsewhere, the entry points to it. "Archit
 | **Snapshot listener** | A Firestore feature that sends a document's or query's data straight away and then again every time it changes. Our repositories put one behind each Flow, which is how a change on one phone shows up on another. They use `liveSnapshots()` from `model/repository/FirestoreFlows.kt`, which ends the Flow with an error if the listener fails, so the screen can show a message. |
 | **Subcollection** | A collection inside a document, like `campsites/{id}/ratings`. Deleting the document doesn't delete its subcollections, so our clean-up functions do it. |
 | **Task and await()** | Firebase calls like signing in or saving a document return a `Task`, which finishes later. Inside a suspend function, `.await()` waits for the task without blocking the main thread, then returns its result or throws its error. It comes from `kotlinx-coroutines-play-services`. |
-| **Transaction** | A set of Firestore reads and writes that succeed or fail together. If another phone changes one of the documents first, Firestore runs the whole transaction again with fresh data. We use them for joining, booking, cancelling and the draw, so two people can never take the same spot or night. Architecture section 4. |
+| **Transaction** | A set of Firestore reads and writes that succeed or fail together. If another phone changes one of the documents first, Firestore runs the whole transaction again with fresh data. We use them for joining and leaving, booking, cancelling and the draw, so two people can never take the same spot or night. Architecture section 4. |
 | **Trigger** | What starts a Cloud Function: a timer, or a document being created, changed or deleted. |
 | **UID** | The user ID Firebase Auth gives each install. Profile documents use it as their document ID. |
 
@@ -162,6 +163,8 @@ These are meanings the team decided where the spec was unclear, or names from ou
 | **Conversation** | The chat between an owner and an entrant about one reservation. There's one per reservation, and it's created when the chat screen first opens. |
 | **Draw** | The `drawLotteries` function picking winners at random. It runs within 5 minutes of registration closing, with no phone involved. |
 | **Entry** | One person's place on a lottery's waiting list, stored in `lotteries/{id}/entries/{uid}`. Its status goes from WAITING to WON or NOT_SELECTED, then to BOOKED or DECLINED. |
+| **Entry count** | How many people are on a lottery's waiting list, kept on the lottery as `entryCount` so a transaction can check the limit by reading one document. Only joining and leaving change it, in the same write as the entry. |
+| **Lottery status** | OPEN from when the owner saves the lottery until the draw sets DRAWN, or a Cloud Function cancels it and sets ENDED. UPCOMING is never stored. The app shows it while `registrationOpens` is still ahead. |
 | **Owner ban** | The `ownerBanned` flag an admin sets when removing someone's owner role (03.07.01). While it's set, the person can't become an owner again. |
-| **Registration window** | The time between `registrationOpens` and `registrationCloses` when entrants can join a lottery's waiting list. |
+| **Registration window** | The time between `registrationOpens` and `registrationCloses` when entrants can join or leave a lottery's waiting list. It starts at `registrationOpens` and ends just before `registrationCloses`. |
 | **Removed profile** | A profile an admin removed (03.02.01). It stays in Firestore with `removed` set and its personal details wiped, so the same device can't start over. A user who deletes their own profile (01.08.01) gets a full delete instead. |
