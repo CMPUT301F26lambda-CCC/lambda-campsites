@@ -8,7 +8,8 @@
 > setup steps when the Firebase emulators were added, and helped add the
 > part about rules test helpers and the repository test locations, and
 > helped add the note about the shared Firestore cache with the campsite
-> tests. The team reviewed and edited it in its pull requests.
+> tests, and the note on unused IDs with the availability tests. The team
+> reviewed and edited it in its pull requests.
 
 This document is for everyone writing code in this app. It covers
 which tests each user story needs, where test files go and what to
@@ -166,6 +167,8 @@ tests. A query or listener can send documents left over from an earlier
 test before the server's answer arrives. Wait for the value you expect,
 or for a snapshot whose `metadata.isFromCache` is false.
 `FirestoreCampsiteRepositoryTest` and `FirestoreFlowsTest` show both.
+For a single document, you can also give it an ID no other test uses,
+like `watched` in the calendar tests, so the cache has no old copy of it.
 
 `ProfileRulesTest` shows the pattern for rules tests. A few tests check
 that normal use is allowed, so the rules can't pass by denying

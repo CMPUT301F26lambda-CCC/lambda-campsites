@@ -7,7 +7,8 @@
 > Task rows when the app was connected to Firebase, and helped update the
 > repository rows when the profile moved to Firestore, and helped add the
 > merge write row and the note on queries in the security rules row with the
-> campsite repository. Sashreek reviewed and edited it.
+> campsite repository, and helped add the availability calendar and
+> LocalDate rows. Sashreek reviewed and edited it.
 
 This page explains the technical words in our docs and code: the app's structure, Kotlin and Android, Firebase, and testing and tooling. Each section is in alphabetical order. Campsite words like entrant, lottery and waiting list are defined in the spec's glossary. The last section only covers meanings the team decided for itself.
 
@@ -67,6 +68,7 @@ Where a term has a longer explanation elsewhere, the entry points to it. "Archit
 | **lazy** | A Kotlin property written `by lazy { ... }` is created the first time someone reads it, and the same object comes back every time after. `AppContainer` creates repositories this way. |
 | **Lifecycle** | The stages a screen goes through: created, visible, in the background, destroyed. Lifecycle-aware code, like `collectAsStateWithLifecycle()`, starts and stops itself at the right stage. |
 | **Live region** | An accessibility setting that makes TalkBack read text out as soon as it appears, without the user moving to it. Our error messages use it. See `docs/accessibility.md`. |
+| **LocalDate** | Java's type for a date with no time, like July 2, 2027. We use it for season and stay dates, so a time zone can't move a date to the day before. Firestore has no such type, so these dates are stored as text like `2027-07-02`. |
 | **Main thread** | The one thread that draws the screen and handles taps. Anything slow on it freezes the app, so network calls and photo shrinking run in coroutines instead. |
 | **Manifest** | `AndroidManifest.xml`, the file that tells Android about the app: its Application class, its activities, its permissions and its name. |
 | **Material 3** | Google's design system for Android, which Compose's buttons, chips and nav bars follow. Our Figma file uses the Material 3 kit. |
@@ -154,6 +156,7 @@ These are meanings the team decided where the spec was unclear, or names from ou
 | Term | Meaning |
 |---|---|
 | **Active role** | The role someone is using the app as right now, chosen with the "Use the app as" chips. It picks the nav bar. It's screen state, not saved to the profile. |
+| **Availability calendar** | A campsite's season and booked nights, stored in `campsites/{id}/availability/calendar`. The owner sets the season. A stay covers the nights from check-in up to check-out, so one guest can check in on the day another checks out. |
 | **Booking period** | The stay dates a lottery covers, `stayStart` to `stayEnd`. Winners book free nights inside it. |
 | **Completed stay** | A confirmed reservation whose check-out date has passed. It's worked out from the date, not stored as a status. Only entrants with a completed stay can rate a campsite. |
 | **Conversation** | The chat between an owner and an entrant about one reservation. There's one per reservation, and it's created when the chat screen first opens. |
