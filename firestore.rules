@@ -8,8 +8,8 @@
 // Bhat reviewed and committed them.
 //
 // Claude Opus 5.5 (Anthropic), used through Claude Code, also helped Sashreek
-// Addanki add the check that read is true or false and the availability
-// rules, in November 2026. Sashreek Addanki reviewed them.
+// Addanki add the check that read is true or false, the availability rules
+// and the lottery rules, in November 2026. Sashreek Addanki reviewed them.
 rules_version = '2';
 
 service cloud.firestore {
@@ -67,6 +67,41 @@ service cloud.firestore {
     function validSeason(data) {
       return isDate(data.seasonStart) && isDate(data.seasonEnd)
         && data.seasonStart < data.seasonEnd;
+    }
+
+    // The signed-in user owns every campsite in this list of one to five
+    // (US 02.04.02). Rules can't loop over a list, so each place is checked
+    // on its own. Each check reads one campsite, and a request can read at
+    // most 10 documents.
+    function ownsCampsites(ids) {
+      return ids is list && ids.size() >= 1 && ids.size() <= 5
+        && ids.toSet().size() == ids.size()
+        && ownsCampsite(ids[0])
+        && (ids.size() < 2 || ownsCampsite(ids[1]))
+        && (ids.size() < 3 || ownsCampsite(ids[2]))
+        && (ids.size() < 4 || ownsCampsite(ids[3]))
+        && (ids.size() < 5 || ownsCampsite(ids[4]));
+    }
+
+    // The fields an owner sets when they run a lottery (US 02.04.01 to
+    // 02.04.05, 02.04.07). Only joining and leaving change `entryCount`.
+    function lotteryFields() {
+      return ['ownerId', 'name', 'campsiteIds', 'registrationOpens', 'registrationCloses',
+              'stayStart', 'stayEnd', 'numberOfWinners', 'capacity', 'status'];
+    }
+
+    // The lottery's fields have the right types and its dates are in order.
+    // The app also checks that registration closes before the stay starts.
+    // The rules don't, because that depends on the owner's time zone.
+    function validLottery(data) {
+      return data.name is string
+        && data.registrationOpens is timestamp && data.registrationCloses is timestamp
+        && data.registrationOpens < data.registrationCloses
+        && isDate(data.stayStart) && isDate(data.stayEnd)
+        && data.stayStart < data.stayEnd
+        && data.numberOfWinners is int && data.numberOfWinners >= 1
+        && (data.get('capacity', null) == null
+            || (data.capacity is int && data.capacity >= 1));
     }
 
     // One profile per install. The document ID is its Firebase Auth user ID
@@ -135,6 +170,33 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seasonStart', 'seasonEnd'])
           && validSeason(request.resource.data);
       }
+    }
+
+    // Anyone signed in can see a lottery and how many people have joined it
+    // (US 01.01.06). Reading one that doesn't exist is allowed, so an old
+    // link shows "not found" instead of an error.
+    match /lotteries/{lotteryId} {
+      allow read: if signedIn();
+
+      // An owner runs a lottery for their own campsites. It starts OPEN with
+      // nobody on the waiting list. Only Cloud Functions change the status,
+      // when they draw or cancel it (US 02.05.01).
+      allow create: if activeOwner()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.keys().hasOnly(lotteryFields())
+        && request.resource.data.status == 'OPEN'
+        && ownsCampsites(request.resource.data.campsiteIds)
+        && validLottery(request.resource.data);
+
+      // The owner can edit it until it's drawn (US 02.04.06), but not who
+      // owns it, its status or how many people have joined.
+      allow update: if activeOwner()
+        && resource.data.ownerId == request.auth.uid
+        && resource.data.status == 'OPEN'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'campsiteIds',
+            'registrationOpens', 'registrationCloses', 'stayStart', 'stayEnd', 'numberOfWinners', 'capacity'])
+        && ownsCampsites(request.resource.data.campsiteIds)
+        && validLottery(request.resource.data);
     }
 
     // Only a Cloud Function creates a notification (US 01.03.01, 01.03.02).
