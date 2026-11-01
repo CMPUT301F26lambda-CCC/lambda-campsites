@@ -1,7 +1,8 @@
 /*
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, the emulator's
- * REST calls, syntax and KDoc. Sashreek Addanki reviewed it and committed it.
+ * REST calls, syntax and KDoc. It also helped add decimal numbers for the
+ * campsite tests. Sashreek Addanki reviewed it and committed it.
  */
 package com.lambda.campsite.testutil
 
@@ -33,8 +34,8 @@ object FirestoreEmulator {
 
     /**
      * Replaces the document at [path], like `profiles/abc`, with [fields],
-     * skipping the security rules. Values can be strings, booleans, whole
-     * numbers, lists of those, or `null`.
+     * skipping the security rules. Values can be strings, booleans, numbers,
+     * lists of those, or `null`.
      */
     fun setIgnoringRules(path: String, fields: Map<String, Any?>) {
         val name = "projects/$projectId/databases/(default)/documents/$path"
@@ -52,6 +53,7 @@ object FirestoreEmulator {
         is String -> JSONObject().put("stringValue", value)
         is Boolean -> JSONObject().put("booleanValue", value)
         is Int, is Long -> JSONObject().put("integerValue", value.toString())
+        is Double -> JSONObject().put("doubleValue", value)
         is List<*> -> JSONObject().put(
             "arrayValue",
             JSONObject().put("values", JSONArray().apply { value.forEach { put(encode(it)) } }),
