@@ -6,7 +6,8 @@ Sashreek and Sreeman · last updated October 31, 2026
 > write this document and its diagrams in October 2026, working from
 > decisions the team made. It also checked the free-tier figures in
 > section 4 against Firebase's pricing pages, and helped update sections
-> 5 to 7 when we moved the controllers to Jetpack ViewModels. Sashreek
+> 5 to 7 when we moved the controllers to Jetpack ViewModels, and helped
+> update sections 5 and 7 when the profile moved to Firestore. Sashreek
 > reviewed and edited it.
 
 This page explains how the app is put together. It covers the class diagram and the reasons behind it, the backend on Firebase, and how the Android app splits into Model, View and Controller. Section 6 follows one entrant from tapping "Join" to holding a reservation, so you can see every layer working in one story. Section 7 is the practical part: where files live, what to name things, and how to add something to the frontend or the backend. If a term is new to you, like repository, Flow or transaction, `docs/glossary.md` explains it.
@@ -201,7 +202,9 @@ Each main model has a repository, like `CampsiteRepository` or `LotteryRepositor
 
 A repository returns live data as a `Flow`, like `currentProfile()`, which returns a `Flow` of `Profile`. A Firestore snapshot listener sits behind it. When the data changes, on this phone or on another one, the listener fires, the `Flow` sends the new object, and the controller's `state` updates. That's how an owner's edit to a campsite shows up on your phone. Writes are `suspend` functions, like `save(profile)`. They return once Firestore accepts the write and throw an exception if it fails.
 
-Each repository is an interface. The app uses a Firestore version, and unit tests use a fake, so we can test a controller without Firebase. Until a Firestore version exists, the app uses an in-memory one with sample data, like `InMemoryProfileRepository`.
+Each repository is an interface. The app uses a Firestore version, and unit tests use a fake, so we can test a controller without Firebase. Until a Firestore version exists, the app can use an in-memory one with sample data.
+
+`FirestoreProfileRepository` is the one to copy for a new Firestore repository. It waits for the signed-in user, listens to the document with `liveSnapshots()` from `model/repository/FirestoreFlows.kt`, and returns a `Flow`. Use `liveSnapshots()` rather than Firestore's own `snapshots()`, because when the security rules refuse a read, `snapshots()` cancels the `Flow` without an error and the screen waits forever. How the object is stored, with its field names, enums stored by name and defaults for missing fields, lives in a separate object, `ProfileFields`, so unit tests can check it without Firebase.
 
 ### Wiring it together
 
@@ -302,7 +305,8 @@ The folders follow the MVC layers, so a feature touches the same four places eve
 | Domain class | The name from the class diagram | `model` | `Lottery` |
 | Repository interface | `XRepository` | `model/repository` | `LotteryRepository` |
 | Firestore repository | `FirestoreXRepository` | `model/repository` | `FirestoreLotteryRepository` |
-| In-memory repository with sample data, until the Firestore one exists | `InMemoryXRepository` | `model/repository` | `InMemoryProfileRepository` |
+| Conversion between an object and its Firestore fields | `XFields`, an object with `toMap` and `fromMap` | `model/repository` | `ProfileFields` |
+| In-memory repository with sample data, until the Firestore one exists | `InMemoryXRepository` | `model/repository` | `InMemoryCampsiteRepository` |
 | Fake repository for tests | `FakeXRepository` | `test` | `FakeLotteryRepository` |
 | Controller | `XController`, a `ViewModel` with one `onSomething` method per user action | `controller` | `LotteryController.onJoin` |
 | Controller state | `XUiState`, a data class in the controller's file | `controller` | `LotteryUiState` |

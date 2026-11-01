@@ -1,7 +1,8 @@
 /*
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * these tests in October 2026. It helped with the test cases and the JUnit,
- * coroutines and Kotlin syntax. Sashreek Addanki reviewed them, ran them and
+ * coroutines and Kotlin syntax. It also helped add the load error test when
+ * the profile moved to Firestore. Sashreek Addanki reviewed them, ran them and
  * committed them.
  */
 package com.lambda.campsite.controller
@@ -97,6 +98,16 @@ class ProfileControllerTest {
         repository.changeElsewhere(owner.copy(roles = setOf(Role.ENTRANT), ownerBanned = true))
 
         assertEquals(Role.ENTRANT, controller.state.value.activeRole)
+    }
+
+    @Test
+    fun `a profile that fails to load shows an error`() {
+        val repository = FakeProfileRepository(entrant).apply { failLoads = true }
+
+        val controller = ProfileController(repository)
+
+        assertNull(controller.state.value.profile)
+        assertEquals(ProfileError.LOAD_FAILED, controller.state.value.error)
     }
 
     @Test

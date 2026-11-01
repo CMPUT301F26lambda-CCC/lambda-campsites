@@ -6,8 +6,8 @@
 > CI section to match the workflow, and helped add the controller testing
 > section when the controllers became ViewModels, and helped update the
 > setup steps when the Firebase emulators were added, and helped add the
-> part about rules test helpers. The team reviewed and edited it in its
-> pull requests.
+> part about rules test helpers and the repository test locations. The
+> team reviewed and edited it in its pull requests.
 
 This document is for everyone writing code in this app. It covers
 which tests each user story needs, where test files go and what to
@@ -79,6 +79,8 @@ Test files mirror the package of the class they test.
 | Unit test for a model class | `app/src/test/java/com/lambda/campsite/model/` | `LotteryTest` |
 | Unit test for a controller | `app/src/test/java/com/lambda/campsite/controller/` | `LotteryControllerTest` |
 | Fake repository | `app/src/test/java/com/lambda/campsite/model/repository/` | `FakeLotteryRepository` |
+| Unit test for a repository's Firestore fields | `app/src/test/java/com/lambda/campsite/model/repository/` | `ProfileFieldsTest` |
+| Firestore repository test | `app/src/androidTest/java/com/lambda/campsite/model/repository/` | `FirestoreProfileRepositoryTest` |
 | Shared test helper | `app/src/test/java/com/lambda/campsite/testutil/` | `MainDispatcherRule` |
 | UI or intent test for a screen | `app/src/androidTest/java/com/lambda/campsite/view/screens/` | `LotteryScreenTest` |
 | Security rules test | `app/src/androidTest/java/com/lambda/campsite/rules/` | `ProfileRulesTest` |

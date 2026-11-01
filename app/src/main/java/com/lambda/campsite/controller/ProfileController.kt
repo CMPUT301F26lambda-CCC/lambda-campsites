@@ -1,8 +1,9 @@
 /*
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, the ViewModel and
- * StateFlow setup, syntax and KDoc. Sashreek Addanki reviewed it, ran the tests
- * and committed it.
+ * StateFlow setup, syntax and KDoc. It also helped add the load error when the
+ * profile moved to Firestore. Sashreek Addanki reviewed it, ran the tests and
+ * committed it.
  */
 package com.lambda.campsite.controller
 
@@ -19,6 +20,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -32,6 +34,9 @@ enum class ProfileError {
 
     /** The profile couldn't be saved, for example because the phone is offline. */
     SAVE_FAILED,
+
+    /** The profile couldn't be loaded, for example because Firestore refused to send it. */
+    LOAD_FAILED,
 }
 
 /**
@@ -67,13 +72,16 @@ class ProfileController(
 
     init {
         viewModelScope.launch {
-            repository.currentProfile().collect { profile ->
-                _state.update { current ->
-                    // If the active role was taken away, for example by an admin, go back to entrant.
-                    val role = if (profile.hasRole(current.activeRole)) current.activeRole else Role.ENTRANT
-                    current.copy(profile = profile, activeRole = role)
+            repository.currentProfile()
+                // Without this, a loading error would crash the app.
+                .catch { _state.update { it.copy(error = ProfileError.LOAD_FAILED) } }
+                .collect { profile ->
+                    _state.update { current ->
+                        // If the active role was taken away, for example by an admin, go back to entrant.
+                        val role = if (profile.hasRole(current.activeRole)) current.activeRole else Role.ENTRANT
+                        current.copy(profile = profile, activeRole = role)
+                    }
                 }
-            }
         }
     }
 

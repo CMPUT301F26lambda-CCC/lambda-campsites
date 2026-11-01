@@ -1,6 +1,7 @@
 /*
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, syntax and KDoc.
+ * It also helped update the KDoc when the profile moved to Firestore.
  * Sashreek Addanki reviewed it and committed it.
  */
 package com.lambda.campsite.model.repository
@@ -12,12 +13,14 @@ import kotlinx.coroutines.flow.Flow
  * Loads and saves the profile for this device.
  *
  * Controllers depend on this interface, never on a particular version of it.
- * The app uses [InMemoryProfileRepository] until Firebase is set up, and unit
- * tests use a fake.
+ * The app uses [FirestoreProfileRepository], and unit tests use a fake.
  */
 interface ProfileRepository {
 
-    /** The profile for this device. Sends a new value every time the profile changes. */
+    /**
+     * The profile for this device. Sends nothing until it has loaded, then a new
+     * value every time the profile changes.
+     */
     fun currentProfile(): Flow<Profile>
 
     /**
