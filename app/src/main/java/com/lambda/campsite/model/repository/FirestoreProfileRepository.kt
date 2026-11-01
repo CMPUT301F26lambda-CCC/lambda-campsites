@@ -1,8 +1,8 @@
 /*
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, the Flow and
- * snapshot listener setup, syntax and KDoc. Sashreek Addanki reviewed it and
- * committed it.
+ * snapshot listener setup, syntax and KDoc. It also helped move the wait for
+ * sign-in into AuthFlows.kt. Sashreek Addanki reviewed it and committed it.
  */
 package com.lambda.campsite.model.repository
 
@@ -11,11 +11,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.MetadataChanges
 import com.lambda.campsite.model.Profile
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.tasks.await
@@ -59,7 +56,7 @@ class FirestoreProfileRepository(
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun currentProfile(): Flow<Profile> =
-        signedInUserId().flatMapLatest { uid ->
+        auth.signedInUserId().flatMapLatest { uid ->
             // INCLUDE also sends a snapshot when only its source changes, so we
             // hear when the server confirms there's no profile.
             profiles.document(uid).liveSnapshots(MetadataChanges.INCLUDE).mapNotNull { snapshot ->
@@ -88,13 +85,6 @@ class FirestoreProfileRepository(
     override suspend fun save(profile: Profile) {
         profiles.document(profile.deviceId).set(ProfileFields.toMap(profile)).await()
     }
-
-    /** The signed-in user's ID, sent again if it changes. Sends nothing while nobody is signed in. */
-    private fun signedInUserId(): Flow<String> = callbackFlow {
-        val listener = FirebaseAuth.AuthStateListener { trySend(it.currentUser?.uid) }
-        auth.addAuthStateListener(listener)
-        awaitClose { auth.removeAuthStateListener(listener) }
-    }.filterNotNull().distinctUntilChanged()
 
     private companion object {
         const val COLLECTION = "profiles"
