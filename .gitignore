@@ -1,3 +1,5 @@
+# AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped add the
+# Firebase log lines in October 2026. Sashreek Addanki reviewed and committed them.
 *.iml
 .gradle
 /local.properties
@@ -14,3 +16,7 @@
 .cxx
 local.properties
 /.idea/
+
+# Logs the Firebase CLI and emulators write to the repo root
+*-debug.log
+firebase-debug.*.log
