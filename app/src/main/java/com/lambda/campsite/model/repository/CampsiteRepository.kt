@@ -1,15 +1,18 @@
 /*
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, syntax and KDoc.
- * Sashreek Addanki reviewed it and committed it.
+ * It also helped add the availability methods in November 2026. Sashreek
+ * Addanki reviewed it.
  */
 package com.lambda.campsite.model.repository
 
+import com.lambda.campsite.model.Availability
 import com.lambda.campsite.model.Campsite
+import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Loads and saves campsites.
+ * Loads and saves campsites and their availability calendars.
  *
  * Controllers depend on this interface, never on a particular version of it.
  * The app uses [FirestoreCampsiteRepository], and unit tests use
@@ -48,4 +51,21 @@ interface CampsiteRepository {
      *   device's profile isn't an owner.
      */
     suspend fun save(campsite: Campsite)
+
+    /**
+     * The calendar of the campsite with this [campsiteId], sent again whenever
+     * it changes (US 01.04.01). Sends `null` if the owner hasn't set a season
+     * yet.
+     */
+    fun availability(campsiteId: String): Flow<Availability?>
+
+    /**
+     * Sets the season of the campsite with this [campsiteId] and keeps its
+     * booked nights (US 02.01.02). Save the campsite first.
+     *
+     * @throws IllegalArgumentException if [seasonEnd] isn't after [seasonStart].
+     * @throws Exception if the season can't be saved, for example when the
+     *   campsite belongs to someone else.
+     */
+    suspend fun setSeason(campsiteId: String, seasonStart: LocalDate, seasonEnd: LocalDate)
 }
