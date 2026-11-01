@@ -32,3 +32,7 @@ val NightGreen = Color(0xFF0F1A16)
 
 /** Cards and sheets in dark mode. */
 val NightGreenSurface = Color(0xFF16241F)
+
+val LightSageGreen = Color(0xFFCDE8D5)
+val DarkText = Color(0xFF263D35)
+val PureWhite = Color(0xFFFFFFFF)

@@ -32,4 +32,25 @@
     <string name="error_owner_banned">An admin removed your owner role, so you can\'t list campsites.</string>
     <string name="error_save_failed">Couldn\'t save your profile. Check your connection and try again.</string>
     <string name="error_load_failed">Couldn\'t load your profile. Close the app and open it again.</string>
+    <string name="app_policy_title">App Policy and Guidelines</string>
+
+    <!--App Policy Sheet  -->
+    <string name="policy_lottery_heading">How the lottery works</string>
+    <string name="policy_lottery_description">Join a campsite waiting list while registration is open. When it closes, the app draws winners at random. Winners then book their dates first come, first served.</string>
+    <string name="policy_camper_heading">Be a good camper</string>
+    <string name="policy_camper_description">Entrants must follow campsite rules and treat each other respectfully. Profiles that break these guidelines can be removed.</string>
+    <string name="policy_information_heading">Your information</string>
+    <string name="policy_information_description">We store your profile information and details about the lotteries and reservations you participate in, linked to your device. You can delete your profile at any time from Settings.</string>
+    <string name="close">Close</string>
+    <string name="agree">I agree</string>
+    <!--First Launch  -->
+    <string name="app_tagline">A fair shot at the campsites everyone wants.</string>
+    <string name="get_started_heading">What should we call you?</string>
+    <string name="get_started_description">Campsite owners will see this name when you join a lottery.</string>
+    <string name="name_label">Your name</string>
+    <string name="policy_agreement">I agree to the</string>
+    <string name="policy_link">App Policy and Guidelines</string>
+    <string name="get_started_button">Get started</string>
+
+
 </resources>

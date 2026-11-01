@@ -11,6 +11,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.lambda.campsite.view.LambdaCampsiteApp
 import com.lambda.campsite.view.theme.LambdaCampsiteTheme
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import com.lambda.campsite.view.screens.FirstLaunchScreen
+import androidx.compose.runtime.*
 
 /**
  * The app's only activity. It draws [LambdaCampsiteApp], which holds the
@@ -22,7 +26,19 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             LambdaCampsiteTheme {
-                LambdaCampsiteApp()
+                var hasCompletedFirstLaunch by rememberSaveable {
+                    mutableStateOf(false)
+                }
+
+                if (hasCompletedFirstLaunch) {
+                    LambdaCampsiteApp()
+                } else {
+                    FirstLaunchScreen(
+                        onGetStarted = {
+                            hasCompletedFirstLaunch = true
+                        }
+                    )
+                }
             }
         }
     }
