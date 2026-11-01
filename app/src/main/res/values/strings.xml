@@ -31,4 +31,5 @@
     <string name="error_role_not_held">Your profile doesn\'t have that role.</string>
     <string name="error_owner_banned">An admin removed your owner role, so you can\'t list campsites.</string>
     <string name="error_save_failed">Couldn\'t save your profile. Check your connection and try again.</string>
+    <string name="error_load_failed">Couldn\'t load your profile. Close the app and open it again.</string>
 </resources>

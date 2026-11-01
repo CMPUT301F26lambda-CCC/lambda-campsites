@@ -1,6 +1,7 @@
 /*
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Compose code, syntax and KDoc.
+ * It also helped show the load error when the profile moved to Firestore.
  * Sashreek Addanki reviewed it and committed it.
  */
 package com.lambda.campsite.view.screens
@@ -57,7 +58,9 @@ fun ProfileScreen(controller: ProfileController, modifier: Modifier = Modifier) 
 
         val profile = state.profile
         if (profile == null) {
-            Text(stringResource(R.string.profile_loading))
+            // Say so if loading failed, instead of showing "Loading" forever.
+            val loadFailed = state.error == ProfileError.LOAD_FAILED
+            Text(stringResource(if (loadFailed) R.string.error_load_failed else R.string.profile_loading))
             return@Column
         }
 
@@ -113,5 +116,6 @@ private fun errorMessage(error: ProfileError): String = stringResource(
         ProfileError.ROLE_NOT_HELD -> R.string.error_role_not_held
         ProfileError.OWNER_BANNED -> R.string.error_owner_banned
         ProfileError.SAVE_FAILED -> R.string.error_save_failed
+        ProfileError.LOAD_FAILED -> R.string.error_load_failed
     },
 )
