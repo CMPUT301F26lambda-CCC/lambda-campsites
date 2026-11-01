@@ -2,6 +2,10 @@
  * AI use: Coded by Aarush Bhat with the assistance of Claude Sonnet 5
  * (Anthropic), through Claude Code, in November 2026, following the
  * pattern in CampsiteFields. Aarush Bhat reviewed and committed it.
+ *
+ * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+ * Sashreek Addanki change it in November 2026, so a notification with a type
+ * the app doesn't know reads as null. Sashreek Addanki reviewed the change.
  */
 package com.lambda.campsite.model.repository
 
@@ -42,14 +46,16 @@ object NotificationFields {
 
     /**
      * The notification stored in the document with ID [id] and these
-     * [fields]. A missing or unrecognized [TYPE] reads as [NotificationType.WIN],
-     * which can't happen in practice since only a Cloud Function sets it.
+     * [fields], or `null` if its [TYPE] is missing or one this version of the
+     * app doesn't know. A later version might add a type, and an older app
+     * shouldn't show that notification as something else, like a win.
      */
-    fun fromMap(id: String, fields: Map<String, Any?>): Notification {
+    fun fromMap(id: String, fields: Map<String, Any?>): Notification? {
+        val type = (fields[TYPE] as? String)?.let(::typeOrNull) ?: return null
         val defaults = Notification(
             id = id,
             recipientId = "",
-            type = NotificationType.WIN,
+            type = type,
             title = "",
             body = "",
             sentAt = Timestamp(0, 0),
@@ -57,7 +63,7 @@ object NotificationFields {
         return Notification(
             id = id,
             recipientId = fields[RECIPIENT_ID] as? String ?: defaults.recipientId,
-            type = (fields[TYPE] as? String)?.let(::typeOrNull) ?: defaults.type,
+            type = type,
             title = fields[TITLE] as? String ?: defaults.title,
             body = fields[BODY] as? String ?: defaults.body,
             sentAt = fields[SENT_AT] as? Timestamp ?: defaults.sentAt,

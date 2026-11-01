@@ -1,8 +1,8 @@
 /*
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * these tests in October 2026. It helped with the test cases, the coroutines
- * code and the Kotlin syntax. Sashreek Addanki reviewed them, ran them and
- * committed them.
+ * code and the Kotlin syntax. It also helped add the availability tests in
+ * November 2026. Sashreek Addanki reviewed them.
  */
 package com.lambda.campsite.model.repository
 
@@ -12,11 +12,13 @@ import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.firestore
+import com.lambda.campsite.model.Availability
 import com.lambda.campsite.model.Campsite
 import com.lambda.campsite.model.Profile
 import com.lambda.campsite.testutil.FirestoreEmulator
 import com.lambda.campsite.testutil.firestoreErrorFrom
 import com.lambda.campsite.testutil.signInAsNewUser
+import java.time.LocalDate
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -26,6 +28,7 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -111,6 +114,76 @@ class FirestoreCampsiteRepositoryTest {
         assertEquals(FirebaseFirestoreException.Code.PERMISSION_DENIED, error?.code)
     }
 
+    @Test
+    fun seasonSetByTheOwnerReadsBack() {
+        setUpOnServer(campsite(id = "mine", ownerId = uid))
+
+        runBlocking { withTimeout(TIMEOUT_MS) { repository.setSeason("mine", date("2027-05-15"), date("2027-09-30")) } }
+
+        val expected = Availability(date("2027-05-15"), date("2027-09-30"))
+        assertEquals(expected, calendarOnServer("mine"))
+        assertEquals(expected, firstValue(repository.availability("mine")))
+    }
+
+    @Test
+    fun calendarThatDoesntExistReadsAsNull() {
+        assertNull(firstValue(repository.availability("campsite-with-no-calendar")))
+    }
+
+    @Test
+    fun calendarSendsTheSeasonWhenAnotherPhoneSetsIt() {
+        val expected = Availability(date("2027-06-01"), date("2027-08-31"))
+
+        runBlocking {
+            withTimeout(TIMEOUT_MS) {
+                repository.availability("watched").first { availability ->
+                    // Once the server says there's no calendar yet, the owner
+                    // sets the season from another phone.
+                    if (availability == null) {
+                        FirestoreEmulator.setIgnoringRules(
+                            "campsites/watched/availability/calendar",
+                            AvailabilityFields.seasonFields(expected.seasonStart, expected.seasonEnd),
+                        )
+                    }
+                    availability == expected
+                }
+            }
+        }
+    }
+
+    @Test
+    fun settingTheSeasonKeepsTheBookedNights() {
+        setUpOnServer(campsite(id = "mine", ownerId = uid))
+        FirestoreEmulator.setIgnoringRules(
+            "campsites/mine/availability/calendar",
+            AvailabilityFields.seasonFields(date("2027-05-15"), date("2027-09-30")) +
+                mapOf(AvailabilityFields.BOOKED_NIGHTS to listOf("2027-07-10")),
+        )
+
+        runBlocking { withTimeout(TIMEOUT_MS) { repository.setSeason("mine", date("2027-06-01"), date("2027-09-30")) } }
+
+        val expected = Availability(date("2027-06-01"), date("2027-09-30"), setOf(date("2027-07-10")))
+        assertEquals(expected, calendarOnServer("mine"))
+    }
+
+    @Test
+    fun settingTheSeasonOfSomeoneElsesCampsiteThrows() {
+        setUpOnServer(campsite(id = "theirs", ownerId = "someone-else"))
+
+        val error = firestoreErrorFrom { repository.setSeason("theirs", date("2027-05-15"), date("2027-09-30")) }
+
+        assertEquals(FirebaseFirestoreException.Code.PERMISSION_DENIED, error?.code)
+    }
+
+    @Test
+    fun seasonThatClosesBeforeItOpensIsRefusedRightAway() {
+        setUpOnServer(campsite(id = "mine", ownerId = uid))
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repository.setSeason("mine", date("2027-09-30"), date("2027-05-15")) }
+        }
+    }
+
     private fun campsite(id: String, ownerId: String, published: Boolean = true) = Campsite(
         id = id,
         ownerId = ownerId,
@@ -153,6 +226,14 @@ class FirestoreCampsiteRepositoryTest {
         val snapshot = firestore.document("campsites/$id").get(Source.SERVER).await()
         CampsiteFields.fromMap(id, snapshot.data.orEmpty())
     }
+
+    /** The calendar as the server has it, skipping the phone's cache. */
+    private fun calendarOnServer(campsiteId: String): Availability? = runBlocking {
+        val snapshot = firestore.document("campsites/$campsiteId/availability/calendar").get(Source.SERVER).await()
+        AvailabilityFields.fromMap(snapshot.data.orEmpty())
+    }
+
+    private fun date(text: String): LocalDate = LocalDate.parse(text)
 
     private companion object {
         const val TIMEOUT_MS = 10_000L

@@ -6,6 +6,10 @@
 // The notification rules were coded by Aarush Bhat with the assistance of
 // Claude Sonnet 5 (Anthropic), through Claude Code, in November 2026. Aarush
 // Bhat reviewed and committed them.
+//
+// Claude Opus 5.5 (Anthropic), used through Claude Code, also helped Sashreek
+// Addanki add the check that read is true or false and the availability
+// rules, in November 2026. Sashreek Addanki reviewed them.
 rules_version = '2';
 
 service cloud.firestore {
@@ -42,6 +46,27 @@ service cloud.firestore {
         && 'OWNER' in myProfile().get('roles', ['ENTRANT'])
         && myProfile().get('ownerBanned', false) == false
         && myProfile().get('removed', false) == false;
+    }
+
+    // The signed-in user owns this campsite and can still act as an owner.
+    // Reading the campsite costs one more document read.
+    function ownsCampsite(campsiteId) {
+      return activeOwner()
+        && get(/databases/$(database)/documents/campsites/$(campsiteId)).data.ownerId == request.auth.uid;
+    }
+
+    // Text like 2027-07-02, which is how dates without a time are stored.
+    // It doesn't catch a day that doesn't exist, like 2027-02-30. The app
+    // reads those as no date.
+    function isDate(value) {
+      return value is string && value.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}');
+    }
+
+    // Two dates, and the season closes after it opens (US 02.01.02). Dates
+    // stored as text sort in date order, so < compares them.
+    function validSeason(data) {
+      return isDate(data.seasonStart) && isDate(data.seasonEnd)
+        && data.seasonStart < data.seasonEnd;
     }
 
     // One profile per install. The document ID is its Firebase Auth user ID
@@ -90,6 +115,26 @@ service cloud.firestore {
         && resource.data.ownerId == request.auth.uid
         && !request.resource.data.diff(resource.data).affectedKeys()
             .hasAny(['ownerId', 'published', 'ratingCount', 'ratingSum']);
+
+      // Each campsite has one calendar, `availability/calendar`, with its
+      // season and booked nights. Anyone signed in can see which nights are
+      // free (US 01.04.01). Reading one that doesn't exist is allowed, so a
+      // campsite with no season yet shows "no dates" instead of an error.
+      match /availability/{docId} {
+        allow read: if signedIn();
+
+        // The owner sets the season of a campsite they've already saved
+        // (US 02.01.02). Booked nights only change when a stay is booked,
+        // which comes with reservations.
+        allow create: if docId == 'calendar'
+          && ownsCampsite(campsiteId)
+          && request.resource.data.keys().hasOnly(['seasonStart', 'seasonEnd'])
+          && validSeason(request.resource.data);
+
+        allow update: if ownsCampsite(campsiteId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seasonStart', 'seasonEnd'])
+          && validSeason(request.resource.data);
+      }
     }
 
     // Only a Cloud Function creates a notification (US 01.03.01, 01.03.02).
@@ -98,7 +143,8 @@ service cloud.firestore {
       allow read: if isSelf(resource.data.recipientId);
 
       allow update: if isSelf(resource.data.recipientId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+        && request.resource.data.read is bool;
     }
 
     // Everything not matched above is denied.

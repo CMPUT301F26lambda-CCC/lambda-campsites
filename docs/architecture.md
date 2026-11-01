@@ -1,6 +1,6 @@
 # Lambda Campsite architecture
 
-Sashreek and Sreeman · last updated October 31, 2026
+Sashreek and Sreeman · last updated November 1, 2026
 
 > AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped
 > write this document and its diagrams in October 2026, working from
@@ -8,7 +8,8 @@ Sashreek and Sreeman · last updated October 31, 2026
 > section 4 against Firebase's pricing pages, and helped update sections
 > 5 to 7 when we moved the controllers to Jetpack ViewModels, and helped
 > update sections 5 and 7 when the profile moved to Firestore, and helped
-> add the campsite repository to sections 3, 5 and 7. Sashreek reviewed and
+> add the campsite repository to sections 3, 5 and 7, and helped add the
+> availability calendar to sections 4, 5 and 7. Sashreek reviewed and
 > edited it.
 
 This page explains how the app is put together. It covers the class diagram and the reasons behind it, the backend on Firebase, and how the Android app splits into Model, View and Controller. Section 6 follows one entrant from tapping "Join" to holding a reservation, so you can see every layer working in one story. Section 7 is the practical part: where files live, what to name things, and how to add something to the frontend or the backend. If a term is new to you, like repository, Flow or transaction, `docs/glossary.md` explains it.
@@ -106,7 +107,7 @@ The diagram shows every collection, the fields in each document, and which field
 
 A few conventions keep the data consistent:
 
-- Dates without a time, like check-in or season start, are stored as strings such as `2027-07-02`. Firestore has no date-only type, and these strings sort in date order.
+- Dates without a time, like check-in or season start, are stored as strings such as `2027-07-02`. Firestore has no date-only type, and these strings sort in date order. In the app they're `LocalDate`s. `AvailabilityFields` shows how to turn them into strings and back, and `isDate()` in `firestore.rules` checks their format.
 - Times like `joinedAt` and `sentAt` use Firestore server timestamps, so a phone with the wrong clock can't move ahead in the queue.
 - Enums are stored by name, like `WON`.
 - Lists copy a few fields to avoid extra reads. A reservation stores the guest's name and the campsite's name, so the owner's reservation list loads with one query.
@@ -144,7 +145,7 @@ The app checks every rule before it calls Firestore, so users get a quick error 
 
 - Every request has to come from a signed-in user. Anonymous sign-in counts.
 - Users can edit only their own profile. They can't add ADMIN to their roles, they can add OWNER only while `ownerBanned` is false, and they can't change `ownerBanned` or `removed`.
-- Only a campsite's owner can edit the campsite. An entrant can change the availability calendar only in the same write that creates their own reservation.
+- Only a campsite's owner can edit the campsite or set its season. An entrant can change the availability calendar only in the same write that creates their own reservation.
 - Only admins can delete other people's campsites, profiles or images, set `ownerBanned`, or read every notification and message.
 - Only the conversation's owner and entrant can read its messages, plus admins.
 - A removed profile can't write anything.
@@ -208,6 +209,8 @@ Each repository is an interface. The app uses a Firestore version, and unit test
 `FirestoreProfileRepository` is the one to copy for a new Firestore repository. It waits for the signed-in user with `signedInUserId()` from `model/repository/AuthFlows.kt`, listens to the document with `liveSnapshots()` from `model/repository/FirestoreFlows.kt`, and returns a `Flow`. Use `liveSnapshots()` rather than Firestore's own `snapshots()`, because when the security rules refuse a read, `snapshots()` cancels the `Flow` without an error and the screen waits forever. How the object is stored, with its field names, enums stored by name and defaults for missing fields, lives in a separate object, `ProfileFields`, so unit tests can check it without Firebase.
 
 For lists, copy `FirestoreCampsiteRepository`. It runs queries through the `Query` version of `liveSnapshots()`. Every query has to fit the security rules, because rules don't filter results: Firestore refuses a whole query if it could return a document the user isn't allowed to read. That's why `publishedCampsites()` asks for `published == true`. Its `save` uses `SetOptions.merge()`, which keeps the fields the app doesn't write, like the rating totals a Cloud Function keeps.
+
+A document that belongs to another one can share its parent's repository. A campsite's calendar is `campsites/{id}/availability/calendar`, so `availability()` and `setSeason()` are on `CampsiteRepository` instead of a repository of their own. `setSeason` is a merge write with only the season fields, so it keeps the booked nights.
 
 ### Wiring it together
 
@@ -389,7 +392,7 @@ Use a Cloud Function only when the work can't happen on a phone. It has to run o
 
 #### Changing security rules
 
-Change `firestore.rules` or `storage.rules` in the same pull request as the feature that needs it. Test the change against the emulator, since a wrong rule either blocks the app or lets anyone write. The deploy owner deploys the rules along with the app's release.
+Change `firestore.rules` or `storage.rules` in the same pull request as the feature that needs it. Test the change against the emulator, since a wrong rule either blocks the app or lets anyone write. The deploy owner deploys the rules along with the app's release. For a document under a campsite, like its calendar, `ownsCampsite(campsiteId)` checks that the signed-in user owns the campsite and isn't banned or removed.
 
 ### When a story needs both
 
