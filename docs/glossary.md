@@ -5,8 +5,9 @@
 > team's architecture, testing and documentation guides and in the
 > starter code. It also helped add the BoM, Google services plugin and
 > Task rows when the app was connected to Firebase, and helped update the
-> repository rows when the profile moved to Firestore. Sashreek reviewed and
-> edited it.
+> repository rows when the profile moved to Firestore, and helped add the
+> merge write row and the note on queries in the security rules row with the
+> campsite repository. Sashreek reviewed and edited it.
 
 This page explains the technical words in our docs and code: the app's structure, Kotlin and Android, Firebase, and testing and tooling. Each section is in alphabetical order. Campsite words like entrant, lottery and waiting list are defined in the spec's glossary. The last section only covers meanings the team decided for itself.
 
@@ -30,7 +31,7 @@ Where a term has a longer explanation elsewhere, the entry points to it. "Archit
 | **Dependency injection** | Giving a class the objects it needs from outside, instead of letting it create them. A controller takes its repository in its constructor, so the app can give it the real repository and a test can give it a fake. We do this by hand with `AppContainer` and each controller's `Factory`, without a library. |
 | **Domain class** | A class from the class diagram that describes something in the app's world, like `Profile`, `Campsite` or `Lottery`. Domain classes live in the `model` folder and use plain Kotlin, with no Android screen code. |
 | **Factory** | The recipe Android uses to build a ViewModel that needs constructor arguments. Each controller has one, `XController.Factory`, which takes the controller's repositories from `AppContainer`. Android runs it only the first time a screen asks for the controller. |
-| **Fake repository** | A simple working version of a repository used only in unit tests, like `FakeProfileRepository`. It keeps data in memory, records what was saved, and can be told to fail like an offline phone. See the testing guide. |
+| **Fake repository** | A simple working version of a repository used only in unit tests, like `FakeProfileRepository` or `FakeCampsiteRepository`. It keeps data in memory, records what was saved, and can be told to fail like an offline phone. See the testing guide. |
 | **In-memory repository** | A repository that keeps its data in memory instead of Firestore, like the `InMemoryProfileRepository` the app used before the profile moved to Firestore. It lets a feature run before its Firestore version exists. The data is lost when the app closes. Each one gets replaced by its Firestore version in `AppContainer` and then deleted. |
 | **Model** | The layer that holds the app's data and rules: domain classes, repositories and services. It has no screen code, so we can unit test it without a phone. Architecture section 5. |
 | **MVC (Model, View, Controller)** | The way we split the app into three layers: the View shows things, the Controller handles taps, and the Model holds the data and rules. We use the layers from the course's MVC lecture, built from Android's own parts. Android's docs call this arrangement MVVM. Architecture section 5. |
@@ -105,10 +106,11 @@ Where a term has a longer explanation elsewhere, the entry points to it. "Archit
 | **Google services plugin** | The Gradle plugin that reads `app/google-services.json` during the build and turns it into settings Firebase reads when the app starts. The build fails if the file is missing. |
 | **google-services.json** | The file that connects the app to our Firebase project. It's safe to commit, because it only identifies the project, and security rules protect the data. |
 | **Idempotent ("safe to run twice")** | Code that does the same thing whether it runs once or twice. Firebase can deliver the same trigger more than once, so every function checks the current state first. The draw only draws an OPEN lottery, so a second run does nothing. |
+| **Merge write** | A Firestore write with `SetOptions.merge()`. It changes only the fields it sends and keeps the rest of the document. `FirestoreCampsiteRepository.save` uses one, so it never overwrites the rating totals that only a Cloud Function writes. |
 | **Offline cache** | Firestore keeps a copy of the data each screen has loaded on the phone. Without a connection, screens still show it, and ordinary writes wait and go through later. Transactions can't wait, so they fail offline. |
 | **Push notification** | A message that appears on the phone even when the app is closed, like "You won a spot". Each one also exists in the app's inbox as a notification document. |
 | **Push token** | An ID for one app install that FCM uses to deliver pushes to that phone. It's stored on the profile as `pushToken` and can change. |
-| **Security rules** | Rules in `firestore.rules` and `storage.rules` that Google's servers check on every read and write from the app. They stop a modified app from skipping our checks, for example adding ADMIN to its own roles. Cloud Functions use admin access, which skips these rules, so functions must do their own checks. Architecture section 4. |
+| **Security rules** | Rules in `firestore.rules` and `storage.rules` that Google's servers check on every read and write from the app. They stop a modified app from skipping our checks, for example adding ADMIN to its own roles. Cloud Functions use admin access, which skips these rules, so functions must do their own checks. Rules don't filter queries: Firestore refuses a whole query if it could return a document the user can't read, so a query must ask only for what the rules allow, like published campsites. Architecture section 4. |
 | **Server timestamp** | A time set by Firestore's servers instead of the phone's clock. We use it for `joinedAt` and `sentAt`, so a phone with the wrong clock can't jump the queue. |
 | **Snapshot listener** | A Firestore feature that sends a document's or query's data straight away and then again every time it changes. Our repositories put one behind each Flow, which is how a change on one phone shows up on another. They use `liveSnapshots()` from `model/repository/FirestoreFlows.kt`, which ends the Flow with an error if the listener fails, so the screen can show a message. |
 | **Subcollection** | A collection inside a document, like `campsites/{id}/ratings`. Deleting the document doesn't delete its subcollections, so our clean-up functions do it. |

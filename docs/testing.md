@@ -6,8 +6,9 @@
 > CI section to match the workflow, and helped add the controller testing
 > section when the controllers became ViewModels, and helped update the
 > setup steps when the Firebase emulators were added, and helped add the
-> part about rules test helpers and the repository test locations. The
-> team reviewed and edited it in its pull requests.
+> part about rules test helpers and the repository test locations, and
+> helped add the note about the shared Firestore cache with the campsite
+> tests. The team reviewed and edited it in its pull requests.
 
 This document is for everyone writing code in this app. It covers
 which tests each user story needs, where test files go and what to
@@ -159,6 +160,12 @@ order they run in. To set up data a user isn't allowed to write, like
 a banned owner or a removed profile, use
 `FirestoreEmulator.setIgnoringRules`. It skips the security rules, the
 way an admin's or a Cloud Function's writes do.
+
+The phone's Firestore cache is shared by every user and lasts between
+tests. A query or listener can send documents left over from an earlier
+test before the server's answer arrives. Wait for the value you expect,
+or for a snapshot whose `metadata.isFromCache` is false.
+`FirestoreCampsiteRepositoryTest` and `FirestoreFlowsTest` show both.
 
 `ProfileRulesTest` shows the pattern for rules tests. A few tests check
 that normal use is allowed, so the rules can't pass by denying
