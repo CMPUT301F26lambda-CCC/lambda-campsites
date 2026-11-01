@@ -7,8 +7,9 @@ Sashreek and Sreeman · last updated October 31, 2026
 > decisions the team made. It also checked the free-tier figures in
 > section 4 against Firebase's pricing pages, and helped update sections
 > 5 to 7 when we moved the controllers to Jetpack ViewModels, and helped
-> update sections 5 and 7 when the profile moved to Firestore. Sashreek
-> reviewed and edited it.
+> update sections 5 and 7 when the profile moved to Firestore, and helped
+> add the campsite repository to sections 3, 5 and 7. Sashreek reviewed and
+> edited it.
 
 This page explains how the app is put together. It covers the class diagram and the reasons behind it, the backend on Firebase, and how the Android app splits into Model, View and Controller. Section 6 follows one entrant from tapping "Join" to holding a reservation, so you can see every layer working in one story. Section 7 is the practical part: where files live, what to name things, and how to add something to the frontend or the backend. If a term is new to you, like repository, Flow or transaction, `docs/glossary.md` explains it.
 
@@ -69,7 +70,7 @@ We read all 60 user stories, underlined the nouns and circled the verbs. Nouns b
 | A removed profile stays in Firestore with `removed` set and its personal details wiped. | Identity comes from the device (01.09.01). Deleting the document would let a removed user start over on the next launch. A user who deletes their own profile (01.08.01) gets a full delete. |
 | Profile and Campsite implement the `ImageOwner` interface. | One Image class serves both. When an admin removes a photo (03.03.01), the image tells its owner to fall back to a placeholder without caring which kind of owner it is. |
 | Image, Availability, LotteryEntry and Message are composition parts. | None of them means anything without its whole, so deleting a campsite must delete its photo and calendar. Firestore doesn't delete a document's subcollections by itself, so the `cleanUpCampsite` and `cleanUpProfile` functions do it (section 4). |
-| The diagram types references with the class, like `reservation: Reservation`. Firestore stores them as IDs. | This follows the course's rules for turning UML into Kotlin. Repositories turn IDs into objects when they load data. |
+| The diagram types references with the class, like `reservation: Reservation`. Firestore stores them as IDs. | This follows the course's rules for turning UML into Kotlin. Repositories turn IDs into objects when they load data. One exception: `Campsite` keeps `ownerId` as a string, because profiles are private and other users can't load the owner's profile. |
 | "Booking period" in 02.04.04 means the stay dates the lottery covers. | Every reservation comes from a lottery, so each lottery has to say which nights it gives out. A campsite can run a July lottery and an August lottery. |
 | No replacement draw when a winner declines (01.04.03). | The declined nights go back to the calendar for the other winners, and the draw stays a single event. |
 | Price per night is optional and only displayed. Rules are one text field that includes the cancellation policy. | No story covers payment, so there are no refunds to handle. 02.11.01 needs rules that entrants agree to. |
@@ -204,7 +205,9 @@ A repository returns live data as a `Flow`, like `currentProfile()`, which retur
 
 Each repository is an interface. The app uses a Firestore version, and unit tests use a fake, so we can test a controller without Firebase. Until a Firestore version exists, the app can use an in-memory one with sample data.
 
-`FirestoreProfileRepository` is the one to copy for a new Firestore repository. It waits for the signed-in user, listens to the document with `liveSnapshots()` from `model/repository/FirestoreFlows.kt`, and returns a `Flow`. Use `liveSnapshots()` rather than Firestore's own `snapshots()`, because when the security rules refuse a read, `snapshots()` cancels the `Flow` without an error and the screen waits forever. How the object is stored, with its field names, enums stored by name and defaults for missing fields, lives in a separate object, `ProfileFields`, so unit tests can check it without Firebase.
+`FirestoreProfileRepository` is the one to copy for a new Firestore repository. It waits for the signed-in user with `signedInUserId()` from `model/repository/AuthFlows.kt`, listens to the document with `liveSnapshots()` from `model/repository/FirestoreFlows.kt`, and returns a `Flow`. Use `liveSnapshots()` rather than Firestore's own `snapshots()`, because when the security rules refuse a read, `snapshots()` cancels the `Flow` without an error and the screen waits forever. How the object is stored, with its field names, enums stored by name and defaults for missing fields, lives in a separate object, `ProfileFields`, so unit tests can check it without Firebase.
+
+For lists, copy `FirestoreCampsiteRepository`. It runs queries through the `Query` version of `liveSnapshots()`. Every query has to fit the security rules, because rules don't filter results: Firestore refuses a whole query if it could return a document the user isn't allowed to read. That's why `publishedCampsites()` asks for `published == true`. Its `save` uses `SetOptions.merge()`, which keeps the fields the app doesn't write, like the rating totals a Cloud Function keeps.
 
 ### Wiring it together
 
@@ -306,7 +309,7 @@ The folders follow the MVC layers, so a feature touches the same four places eve
 | Repository interface | `XRepository` | `model/repository` | `LotteryRepository` |
 | Firestore repository | `FirestoreXRepository` | `model/repository` | `FirestoreLotteryRepository` |
 | Conversion between an object and its Firestore fields | `XFields`, an object with `toMap` and `fromMap` | `model/repository` | `ProfileFields` |
-| In-memory repository with sample data, until the Firestore one exists | `InMemoryXRepository` | `model/repository` | `InMemoryCampsiteRepository` |
+| In-memory repository with sample data, until the Firestore one exists | `InMemoryXRepository` | `model/repository` | `InMemoryLotteryRepository` |
 | Fake repository for tests | `FakeXRepository` | `test` | `FakeLotteryRepository` |
 | Controller | `XController`, a `ViewModel` with one `onSomething` method per user action | `controller` | `LotteryController.onJoin` |
 | Controller state | `XUiState`, a data class in the controller's file | `controller` | `LotteryUiState` |
