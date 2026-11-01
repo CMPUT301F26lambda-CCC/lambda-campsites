@@ -3,6 +3,10 @@
  * (Anthropic), through Claude Code, in November 2026, following the
  * notification rules in firestore.rules. Aarush Bhat reviewed and
  * committed it.
+ *
+ * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+ * Sashreek Addanki add the query tests and the test for the read value in
+ * November 2026. Sashreek Addanki reviewed them.
  */
 package com.lambda.campsite.rules
 
@@ -10,6 +14,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.firebase.Firebase
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.firestore
@@ -67,10 +72,34 @@ class NotificationRulesTest {
     }
 
     @Test
+    fun userCanQueryTheirOwnNotifications() {
+        FirestoreEmulator.setIgnoringRules("notifications/mine", notificationFields(recipientId = uid))
+
+        val error = firestoreErrorFrom {
+            notifications
+                .whereEqualTo("recipientId", uid)
+                .orderBy("sentAt", Query.Direction.DESCENDING)
+                .get(Source.SERVER)
+                .await()
+        }
+
+        assertNull(error)
+    }
+
+    @Test
     fun userCantReadSomeoneElsesNotification() {
         FirestoreEmulator.setIgnoringRules("notifications/theirs", notificationFields(recipientId = "someone-else"))
 
         val error = firestoreErrorFrom { notifications.document("theirs").get(Source.SERVER).await() }
+
+        assertPermissionDenied(error)
+    }
+
+    @Test
+    fun queryWithoutTheRecipientFilterIsRefused() {
+        FirestoreEmulator.setIgnoringRules("notifications/mine", notificationFields(recipientId = uid))
+
+        val error = firestoreErrorFrom { notifications.get(Source.SERVER).await() }
 
         assertPermissionDenied(error)
     }
@@ -101,6 +130,17 @@ class NotificationRulesTest {
 
         val error = firestoreErrorFrom {
             notifications.document("mine").set(mapOf("title" to "Changed"), SetOptions.merge()).await()
+        }
+
+        assertPermissionDenied(error)
+    }
+
+    @Test
+    fun userCantSetReadToSomethingOtherThanTrueOrFalse() {
+        FirestoreEmulator.setIgnoringRules("notifications/mine", notificationFields(recipientId = uid))
+
+        val error = firestoreErrorFrom {
+            notifications.document("mine").set(mapOf("read" to "yes"), SetOptions.merge()).await()
         }
 
         assertPermissionDenied(error)

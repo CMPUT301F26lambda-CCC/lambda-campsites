@@ -6,6 +6,10 @@
 // The notification rules were coded by Aarush Bhat with the assistance of
 // Claude Sonnet 5 (Anthropic), through Claude Code, in November 2026. Aarush
 // Bhat reviewed and committed them.
+//
+// Claude Opus 5.5 (Anthropic), used through Claude Code, also helped Sashreek
+// Addanki add the check that read is true or false, in November 2026.
+// Sashreek Addanki reviewed it.
 rules_version = '2';
 
 service cloud.firestore {
@@ -98,7 +102,8 @@ service cloud.firestore {
       allow read: if isSelf(resource.data.recipientId);
 
       allow update: if isSelf(resource.data.recipientId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+        && request.resource.data.read is bool;
     }
 
     // Everything not matched above is denied.
