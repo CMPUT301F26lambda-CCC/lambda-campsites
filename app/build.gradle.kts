@@ -1,7 +1,7 @@
 // AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped add the
 // navigation, lifecycle, icon and coroutines-test dependencies, the Dokka
-// setup and the Firebase setup in October 2026. Sashreek Addanki reviewed and
-// committed them.
+// setup, the Firebase setup and the emulator test runner in October 2026.
+// Sashreek Addanki reviewed and committed them.
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -23,7 +23,8 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Points every androidTest at the Firebase emulators. See docs/testing.md.
+        testInstrumentationRunner = "com.lambda.campsite.testutil.LambdaTestRunner"
     }
 
     buildTypes {

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
+  this file in October 2026. Sashreek Addanki reviewed it and committed it.
+
+  Merged into the main manifest in debug builds only. Both entries let tests
+  reach the Firebase emulators on the computer at 10.0.2.2.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Android 17 blocks connections to local addresses like 10.0.2.2
+         without this. The test runner grants it before the app starts. -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+
+    <application android:networkSecurityConfig="@xml/network_security_config" />
+
+</manifest>
