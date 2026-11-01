@@ -4,7 +4,8 @@
 > write this glossary in October 2026, collecting the terms used in the
 > team's architecture, testing and documentation guides and in the
 > starter code. It also helped add the BoM, Google services plugin and
-> Task rows when the app was connected to Firebase. Sashreek reviewed and
+> Task rows when the app was connected to Firebase, and helped update the
+> repository rows when the profile moved to Firestore. Sashreek reviewed and
 > edited it.
 
 This page explains the technical words in our docs and code: the app's structure, Kotlin and Android, Firebase, and testing and tooling. Each section is in alphabetical order. Campsite words like entrant, lottery and waiting list are defined in the spec's glossary. The last section only covers meanings the team decided for itself.
@@ -30,7 +31,7 @@ Where a term has a longer explanation elsewhere, the entry points to it. "Archit
 | **Domain class** | A class from the class diagram that describes something in the app's world, like `Profile`, `Campsite` or `Lottery`. Domain classes live in the `model` folder and use plain Kotlin, with no Android screen code. |
 | **Factory** | The recipe Android uses to build a ViewModel that needs constructor arguments. Each controller has one, `XController.Factory`, which takes the controller's repositories from `AppContainer`. Android runs it only the first time a screen asks for the controller. |
 | **Fake repository** | A simple working version of a repository used only in unit tests, like `FakeProfileRepository`. It keeps data in memory, records what was saved, and can be told to fail like an offline phone. See the testing guide. |
-| **In-memory repository** | A repository that keeps its data in memory instead of Firestore, like `InMemoryProfileRepository`. It lets the app run before the Firebase project is set up. The data is lost when the app closes. Each one gets replaced by its Firestore version in `AppContainer` and then deleted. |
+| **In-memory repository** | A repository that keeps its data in memory instead of Firestore, like the `InMemoryProfileRepository` the app used before the profile moved to Firestore. It lets a feature run before its Firestore version exists. The data is lost when the app closes. Each one gets replaced by its Firestore version in `AppContainer` and then deleted. |
 | **Model** | The layer that holds the app's data and rules: domain classes, repositories and services. It has no screen code, so we can unit test it without a phone. Architecture section 5. |
 | **MVC (Model, View, Controller)** | The way we split the app into three layers: the View shows things, the Controller handles taps, and the Model holds the data and rules. We use the layers from the course's MVC lecture, built from Android's own parts. Android's docs call this arrangement MVVM. Architecture section 5. |
 | **Repository** | A class in the Model layer that loads and saves one kind of data, like `ProfileRepository`. It turns Firestore documents into Kotlin objects and back, runs transactions, and sends live updates as a Flow. Each repository is an interface, so controllers don't know or care whether the data comes from Firestore, memory or a test fake. |
@@ -59,7 +60,7 @@ Where a term has a longer explanation elsewhere, the entry points to it. "Archit
 | **Gradle** | The tool that builds the app. It reads `build.gradle.kts`, downloads the libraries the app uses, compiles the code and runs the tests. |
 | **Gradle sync** | Android Studio reading the Gradle files and downloading any new libraries. After someone adds a library, the code that uses it shows up red until you sync. |
 | **Immutable** | Can't change after it's made. Our domain classes and UI states are immutable: every property is a `val`, and a change makes a new copy. This matters because a StateFlow only sends a value that's different from the last one. |
-| **Interface** | A list of functions a class promises to have, without the code for them. `ProfileRepository` is an interface, and `InMemoryProfileRepository`, the Firestore version and the test fake all implement it. |
+| **Interface** | A list of functions a class promises to have, without the code for them. `ProfileRepository` is an interface, and `FirestoreProfileRepository` and the test fake `FakeProfileRepository` both implement it. |
 | **Jetpack** | Google's set of Android libraries. We use Jetpack Compose for screens, Lifecycle for ViewModels and Navigation for moving between screens. |
 | **Jetpack Compose** | Android's toolkit for building screens in Kotlin code instead of XML layouts. You describe what the screen should show for the current state, and Compose redraws it when the state changes. |
 | **lazy** | A Kotlin property written `by lazy { ... }` is created the first time someone reads it, and the same object comes back every time after. `AppContainer` creates repositories this way. |
@@ -109,7 +110,7 @@ Where a term has a longer explanation elsewhere, the entry points to it. "Archit
 | **Push token** | An ID for one app install that FCM uses to deliver pushes to that phone. It's stored on the profile as `pushToken` and can change. |
 | **Security rules** | Rules in `firestore.rules` and `storage.rules` that Google's servers check on every read and write from the app. They stop a modified app from skipping our checks, for example adding ADMIN to its own roles. Cloud Functions use admin access, which skips these rules, so functions must do their own checks. Architecture section 4. |
 | **Server timestamp** | A time set by Firestore's servers instead of the phone's clock. We use it for `joinedAt` and `sentAt`, so a phone with the wrong clock can't jump the queue. |
-| **Snapshot listener** | A Firestore feature that sends a document's or query's data straight away and then again every time it changes. Our repositories put one behind each Flow, which is how a change on one phone shows up on another. |
+| **Snapshot listener** | A Firestore feature that sends a document's or query's data straight away and then again every time it changes. Our repositories put one behind each Flow, which is how a change on one phone shows up on another. They use `liveSnapshots()` from `model/repository/FirestoreFlows.kt`, which ends the Flow with an error if the listener fails, so the screen can show a message. |
 | **Subcollection** | A collection inside a document, like `campsites/{id}/ratings`. Deleting the document doesn't delete its subcollections, so our clean-up functions do it. |
 | **Task and await()** | Firebase calls like signing in or saving a document return a `Task`, which finishes later. Inside a suspend function, `.await()` waits for the task without blocking the main thread, then returns its result or throws its error. It comes from `kotlinx-coroutines-play-services`. |
 | **Transaction** | A set of Firestore reads and writes that succeed or fail together. If another phone changes one of the documents first, Firestore runs the whole transaction again with fresh data. We use them for joining, booking, cancelling and the draw, so two people can never take the same spot or night. Architecture section 4. |
