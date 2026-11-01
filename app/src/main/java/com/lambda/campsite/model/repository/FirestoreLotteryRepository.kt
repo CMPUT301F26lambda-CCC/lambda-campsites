@@ -6,11 +6,13 @@
  */
 package com.lambda.campsite.model.repository
 
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.MetadataChanges
 import com.google.firebase.firestore.QuerySnapshot
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.Transaction
 import com.lambda.campsite.model.Lottery
 import com.lambda.campsite.model.LotteryEntry
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -25,7 +27,8 @@ import kotlinx.coroutines.tasks.await
 /**
  * Keeps lotteries in Firestore at `lotteries/{id}`, and each one's waiting
  * list at `lotteries/{id}/entries/{entrantId}`. [LotteryFields] and
- * [LotteryEntryFields] decide how they're stored.
+ * [LotteryEntryFields] decide how they're stored. Joining and leaving are
+ * transactions that write the entry and the lottery's `entryCount` together.
  *
  * Every flow waits for sign-in first, and ends with a
  * `FirebaseFirestoreException` if Firestore refuses the read. Lists leave out
@@ -103,6 +106,46 @@ class FirestoreLotteryRepository(
                 .liveSnapshots()
                 .map { it.toEntries() }
         }
+
+    /**
+     * The security rules check the same things again, using the server's
+     * clock, and only accept the new entry together with the higher count.
+     */
+    override suspend fun join(lotteryId: String) {
+        val uid = auth.signedInUserId().first()
+        val entry = entries(lotteryId).document(uid)
+        firestore.runTransaction { transaction ->
+            // A transaction has to do all its reads before it writes.
+            val lottery = transaction.lottery(lotteryId)
+            if (transaction.get(entry).exists()) refuse(WaitingListException.Reason.ALREADY_JOINED)
+            if (!lottery.isRegistrationOpen(Timestamp.now())) refuse(WaitingListException.Reason.REGISTRATION_CLOSED)
+            if (!lottery.hasSpace()) refuse(WaitingListException.Reason.FULL)
+            transaction.set(entry, LotteryEntryFields.newEntryFields(uid))
+            transaction.update(lotteries.document(lotteryId), LotteryFields.ENTRY_COUNT, lottery.entryCount + 1)
+        }.await()
+    }
+
+    override suspend fun leave(lotteryId: String) {
+        val uid = auth.signedInUserId().first()
+        val entry = entries(lotteryId).document(uid)
+        firestore.runTransaction { transaction ->
+            val lottery = transaction.lottery(lotteryId)
+            if (!transaction.get(entry).exists()) refuse(WaitingListException.Reason.NOT_JOINED)
+            if (!lottery.isRegistrationOpen(Timestamp.now())) refuse(WaitingListException.Reason.REGISTRATION_CLOSED)
+            transaction.delete(entry)
+            transaction.update(lotteries.document(lotteryId), LotteryFields.ENTRY_COUNT, lottery.entryCount - 1)
+        }.await()
+    }
+
+    /** Reads the lottery with this [id] inside the transaction, or refuses if there isn't one the app can read. */
+    private fun Transaction.lottery(id: String): Lottery {
+        val fields = get(lotteries.document(id)).data ?: refuse(WaitingListException.Reason.NO_SUCH_LOTTERY)
+        return LotteryFields.fromMap(id, fields) ?: refuse(WaitingListException.Reason.NO_SUCH_LOTTERY)
+    }
+
+    // Throwing inside runTransaction stops it without writing anything, and
+    // await() throws the same exception.
+    private fun refuse(reason: WaitingListException.Reason): Nothing = throw WaitingListException(reason)
 
     private fun entries(lotteryId: String) = lotteries.document(lotteryId).collection(ENTRIES)
 

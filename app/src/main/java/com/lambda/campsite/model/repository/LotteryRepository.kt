@@ -62,4 +62,53 @@ interface LotteryRepository {
      * sets the result.
      */
     fun myEntries(): Flow<List<LotteryEntry>>
+
+    /**
+     * Adds this device's profile to the waiting list of the lottery with this
+     * [lotteryId] (US 01.02.01). It runs as a transaction on the server's
+     * latest copy of the lottery, so if two people take the last spot at the
+     * same moment, only one of them gets it.
+     *
+     * @throws WaitingListException if the lottery doesn't exist, registration
+     *   isn't open, the list is full, or this device has already joined.
+     * @throws Exception if the server can't be reached. A transaction can't
+     *   wait for the connection to come back.
+     */
+    suspend fun join(lotteryId: String)
+
+    /**
+     * Takes this device's profile off the waiting list of the lottery with
+     * this [lotteryId], while registration is still open (US 01.02.02).
+     *
+     * @throws WaitingListException if the lottery doesn't exist, registration
+     *   has closed, or this device isn't on the list.
+     * @throws Exception if the server can't be reached.
+     */
+    suspend fun leave(lotteryId: String)
+}
+
+/**
+ * Thrown when [LotteryRepository.join] or [LotteryRepository.leave] isn't
+ * allowed. [reason] says why, so the screen can show the right message.
+ */
+class WaitingListException(val reason: Reason) : Exception("Can't join or leave the waiting list: $reason") {
+
+    /** Why joining or leaving was refused. */
+    enum class Reason {
+
+        /** There's no such lottery, or the app can't read it. */
+        NO_SUCH_LOTTERY,
+
+        /** Registration hasn't opened yet, has closed, or the lottery has been drawn. */
+        REGISTRATION_CLOSED,
+
+        /** The waiting list has reached its limit (US 02.04.07). */
+        FULL,
+
+        /** This device is already on the waiting list. */
+        ALREADY_JOINED,
+
+        /** This device isn't on the waiting list, so it can't leave it. */
+        NOT_JOINED,
+    }
 }

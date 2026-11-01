@@ -6,6 +6,7 @@
  */
 package com.lambda.campsite.model.repository
 
+import com.google.firebase.Timestamp
 import com.lambda.campsite.model.Lottery
 import com.lambda.campsite.model.LotteryEntry
 import java.io.IOException
@@ -24,11 +25,14 @@ import kotlinx.coroutines.flow.update
  * @param initial the lotteries to start with.
  * @param initialEntries the waiting-list entries to start with, in any
  *   lottery.
+ * @param now the time [join] and [leave] treat as now, for checking the
+ *   registration window.
  */
 class FakeLotteryRepository(
     private val myUserId: String = "user-1",
     initial: List<Lottery> = emptyList(),
     initialEntries: List<LotteryEntry> = emptyList(),
+    private val now: () -> Timestamp = { Timestamp.now() },
 ) : LotteryRepository {
 
     private val stored = MutableStateFlow(initial.associateBy { it.id })
@@ -38,7 +42,7 @@ class FakeLotteryRepository(
     /** Every lottery passed to [save], in order. */
     val saved = mutableListOf<Lottery>()
 
-    /** When `true`, [save] throws as if the phone were offline. */
+    /** When `true`, [save], [join] and [leave] throw as if the phone were offline. */
     var failSaves = false
 
     override fun lottery(id: String): Flow<Lottery?> = stored.map { it[id] }
@@ -67,6 +71,25 @@ class FakeLotteryRepository(
     override fun myEntries(): Flow<List<LotteryEntry>> =
         entries.map { all -> all.filter { it.entrantId == myUserId } }
 
+    override suspend fun join(lotteryId: String) {
+        if (failSaves) throw IOException("Offline")
+        val lottery = stored.value[lotteryId] ?: refuse(WaitingListException.Reason.NO_SUCH_LOTTERY)
+        if (myEntry(lotteryId) != null) refuse(WaitingListException.Reason.ALREADY_JOINED)
+        if (!lottery.isRegistrationOpen(now())) refuse(WaitingListException.Reason.REGISTRATION_CLOSED)
+        if (!lottery.hasSpace()) refuse(WaitingListException.Reason.FULL)
+        entries.update { it + LotteryEntry(lotteryId = lotteryId, entrantId = myUserId, joinedAt = now()) }
+        stored.update { it + (lotteryId to lottery.copy(entryCount = lottery.entryCount + 1)) }
+    }
+
+    override suspend fun leave(lotteryId: String) {
+        if (failSaves) throw IOException("Offline")
+        val lottery = stored.value[lotteryId] ?: refuse(WaitingListException.Reason.NO_SUCH_LOTTERY)
+        val entry = myEntry(lotteryId) ?: refuse(WaitingListException.Reason.NOT_JOINED)
+        if (!lottery.isRegistrationOpen(now())) refuse(WaitingListException.Reason.REGISTRATION_CLOSED)
+        entries.update { it - entry }
+        stored.update { it + (lotteryId to lottery.copy(entryCount = lottery.entryCount - 1)) }
+    }
+
     /** Changes or adds a lottery without a save, like the draw marking it DRAWN. */
     fun changeElsewhere(lottery: Lottery) {
         stored.update { it + (lottery.id to lottery) }
@@ -81,4 +104,9 @@ class FakeLotteryRepository(
             all.filterNot { it.lotteryId == entry.lotteryId && it.entrantId == entry.entrantId } + entry
         }
     }
+
+    private fun myEntry(lotteryId: String): LotteryEntry? =
+        entries.value.firstOrNull { it.lotteryId == lotteryId && it.entrantId == myUserId }
+
+    private fun refuse(reason: WaitingListException.Reason): Nothing = throw WaitingListException(reason)
 }
