@@ -1,9 +1,53 @@
+// AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
+// the profile rules in October 2026, following docs/architecture.md section 4.
+// It helped with the rules syntax and comments. Sashreek Addanki reviewed them
+// and committed them.
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+
+    // Anonymous sign-in counts as signed in.
+    function signedIn() {
+      return request.auth != null;
     }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // The roles in the profile being written, and in the stored profile. A
+    // profile with no roles field is treated as an entrant, like the app does.
+    function newRoles() {
+      return request.resource.data.get('roles', ['ENTRANT']);
+    }
+
+    function oldRoles() {
+      return resource.data.get('roles', ['ENTRANT']);
+    }
+
+    // One profile per install. The document ID is its Firebase Auth user ID
+    // (US 01.09.01). Admin access comes with the admin stories.
+    match /profiles/{uid} {
+      allow read: if isSelf(uid);
+
+      // A new profile can't start as an admin, banned or removed.
+      allow create: if isSelf(uid)
+        && !('ADMIN' in newRoles())
+        && request.resource.data.get('ownerBanned', false) == false
+        && request.resource.data.get('removed', false) == false;
+
+      // Only admins and Cloud Functions set ownerBanned and removed, and they
+      // skip these rules. A removed profile can't be changed (US 03.02.01),
+      // and a banned one can't become an owner again (US 03.07.01).
+      allow update: if isSelf(uid)
+        && resource.data.get('removed', false) == false
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerBanned', 'removed'])
+        && (!('ADMIN' in newRoles()) || 'ADMIN' in oldRoles())
+        && (!('OWNER' in newRoles()) || 'OWNER' in oldRoles()
+            || resource.data.get('ownerBanned', false) == false);
+    }
+
+    // Everything not matched above is denied.
   }
 }
