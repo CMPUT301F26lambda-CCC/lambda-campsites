@@ -3,6 +3,10 @@
  * (Anthropic), through Claude Code, in November 2026, following the
  * pattern in FirestoreCampsiteRepositoryTest. Aarush Bhat reviewed, ran
  * and committed them.
+ *
+ * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+ * Sashreek Addanki add the unknown type test in November 2026. Sashreek
+ * Addanki reviewed it.
  */
 package com.lambda.campsite.model.repository
 
@@ -63,6 +67,19 @@ class FirestoreNotificationRepositoryTest {
     }
 
     @Test
+    fun myNotificationsLeavesOutTypesTheAppDoesntKnow() {
+        val known = notification(id = "known", recipientId = uid, sentAt = Timestamp(1_000, 0))
+        val unknown = notification(id = "unknown", recipientId = uid, sentAt = Timestamp(2_000, 0))
+        setUpOnServer(known)
+        FirestoreEmulator.setIgnoringRules(
+            "notifications/${unknown.id}",
+            NotificationFields.toMap(unknown) + mapOf(NotificationFields.TYPE to "SOMETHING_NEW"),
+        )
+
+        assertEventuallySends(listOf(known), repository.myNotifications())
+    }
+
+    @Test
     fun markingAsReadReadsBackFromTheServer() {
         val mine = notification(id = "mine", recipientId = uid)
         setUpOnServer(mine)
@@ -114,7 +131,7 @@ class FirestoreNotificationRepositoryTest {
     }
 
     /** The notification as the server has it, skipping the phone's cache. */
-    private fun notificationOnServer(id: String): Notification = runBlocking {
+    private fun notificationOnServer(id: String): Notification? = runBlocking {
         val snapshot = firestore.document("notifications/$id").get(Source.SERVER).await()
         NotificationFields.fromMap(id, snapshot.data.orEmpty())
     }

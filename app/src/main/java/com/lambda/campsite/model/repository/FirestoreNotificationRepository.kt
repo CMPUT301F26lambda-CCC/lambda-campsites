@@ -3,6 +3,10 @@
  * (Anthropic), through Claude Code, in November 2026, following the
  * pattern in FirestoreCampsiteRepository. Aarush Bhat reviewed and
  * committed it.
+ *
+ * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+ * Sashreek Addanki change it in November 2026, so notifications with a type
+ * the app doesn't know are left out. Sashreek Addanki reviewed the change.
  */
 package com.lambda.campsite.model.repository
 
@@ -23,7 +27,8 @@ import kotlinx.coroutines.tasks.await
  * [NotificationFields] decides how a notification is stored.
  *
  * The flow waits for sign-in first, and ends with a
- * `FirebaseFirestoreException` if Firestore refuses the read.
+ * `FirebaseFirestoreException` if Firestore refuses the read. It leaves out
+ * notifications with a type this version of the app doesn't know.
  *
  * @param auth gives the signed-in user's ID. `LambdaApplication` signs in when
  *   the app starts.
@@ -61,7 +66,7 @@ class FirestoreNotificationRepository(
     }
 
     private fun QuerySnapshot.toNotifications(): List<Notification> =
-        documents.map { NotificationFields.fromMap(it.id, it.data.orEmpty()) }
+        documents.mapNotNull { NotificationFields.fromMap(it.id, it.data.orEmpty()) }
 
     private companion object {
         const val COLLECTION = "notifications"
