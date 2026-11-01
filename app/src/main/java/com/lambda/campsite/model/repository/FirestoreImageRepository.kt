@@ -10,6 +10,7 @@ import android.graphics.Bitmap
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.StorageMetadata
 import com.lambda.campsite.model.Image
 import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.flow.first
@@ -42,7 +43,10 @@ class FirestoreImageRepository(
     override suspend fun upload(photo: Bitmap): String {
         val uid = auth.signedInUserId().first()
         val id = images.document().id
-        photos.child("$id.jpg").putBytes(photo.shrunkToWidth(MAX_WIDTH).toJpegBytes()).await()
+        val bytes = photo.shrunkToWidth(MAX_WIDTH).toJpegBytes()
+        // storage.rules checks the content type, so it has to be set here:
+        // putBytes with no metadata leaves it unset.
+        photos.child("$id.jpg").putBytes(bytes, JPEG_METADATA).await()
         images.document(id).set(ImageFields.toMap(Image(id = id, ownerId = uid))).await()
         return id
     }
@@ -62,5 +66,6 @@ class FirestoreImageRepository(
         const val COLLECTION = "images"
         const val MAX_WIDTH = 800
         const val JPEG_QUALITY = 80
+        val JPEG_METADATA: StorageMetadata = StorageMetadata.Builder().setContentType("image/jpeg").build()
     }
 }
