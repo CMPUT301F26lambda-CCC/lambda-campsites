@@ -1,7 +1,7 @@
 // AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
 // the profile rules in October 2026, following docs/architecture.md section 4.
-// It helped with the rules syntax and comments. Sashreek Addanki reviewed them
-// and committed them.
+// It helped with the rules syntax and comments. It also helped add the campsite
+// rules. Sashreek Addanki reviewed them and committed them.
 rules_version = '2';
 
 service cloud.firestore {
@@ -26,6 +26,20 @@ service cloud.firestore {
       return resource.data.get('roles', ['ENTRANT']);
     }
 
+    // The signed-in user's stored profile. Reading it costs one document read.
+    function myProfile() {
+      return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data;
+    }
+
+    // Holds the owner role and hasn't been banned or removed by an admin
+    // (US 03.02.01, 03.07.01).
+    function activeOwner() {
+      return signedIn()
+        && 'OWNER' in myProfile().get('roles', ['ENTRANT'])
+        && myProfile().get('ownerBanned', false) == false
+        && myProfile().get('removed', false) == false;
+    }
+
     // One profile per install. The document ID is its Firebase Auth user ID
     // (US 01.09.01). Admin access comes with the admin stories.
     match /profiles/{uid} {
@@ -46,6 +60,32 @@ service cloud.firestore {
         && (!('ADMIN' in newRoles()) || 'ADMIN' in oldRoles())
         && (!('OWNER' in newRoles()) || 'OWNER' in oldRoles()
             || resource.data.get('ownerBanned', false) == false);
+    }
+
+    // Signed-in users can read published campsites, and owners can also read
+    // their own unpublished ones (US 02.03.01). Reading a campsite that doesn't
+    // exist is allowed, so a QR code for a deleted campsite shows "not found"
+    // instead of an error (US 01.12.01). Rules don't filter queries: a query
+    // has to ask for published campsites or the user's own, or it's refused.
+    match /campsites/{campsiteId} {
+      allow read: if signedIn()
+        && (resource == null
+            || resource.data.published == true
+            || resource.data.ownerId == request.auth.uid);
+
+      // An owner lists a campsite as themselves, with no ratings yet
+      // (US 02.01.01).
+      allow create: if activeOwner()
+        && request.resource.data.ownerId == request.auth.uid
+        && !request.resource.data.keys().hasAny(['ratingCount', 'ratingSum']);
+
+      // An owner edits their own campsites (US 02.01.03). Only Cloud Functions
+      // change the rating totals, and only admins unpublish (US 03.07.01).
+      // Deleting comes with the admin stories (US 03.01.01).
+      allow update: if activeOwner()
+        && resource.data.ownerId == request.auth.uid
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['ownerId', 'published', 'ratingCount', 'ratingSum']);
     }
 
     // Everything not matched above is denied.
