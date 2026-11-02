@@ -7,8 +7,10 @@
 # Outstanding issues:
 # - updateRatingStats, cleanUpCampsite and cleanUpProfile aren't written
 #   yet. Each one comes with its own issue.
-# - send_push doesn't catch a stale push token, so it logs an error every
-#   time and never clears the token. #108 fixes this.
+# - send_push only clears a token when FCM says it's unregistered. Any
+#   other send error, like FCM being down, fails the function and that
+#   push is lost. Retrying could send the same push twice, and the in-app
+#   notification is there either way.
 # - send_push only runs for notifications. Messages get a trigger with #112.
 # - A lottery the draw can't finish is logged and left OPEN instead of
 #   being marked failed. That way nothing about it changes until someone
@@ -27,8 +29,9 @@
 # Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
 # Sashreek Addanki make the draw skip a lottery it can't draw instead of
 # stopping, recheck inside the draw transaction that registration has
-# closed, and tidy the imports and spacing a merge left doubled, on
-# November 1, 2026. Sashreek Addanki reviewed them.
+# closed, tidy the imports and spacing a merge left doubled, and clear a
+# push token FCM says is stale, on November 1, 2026. Sashreek Addanki
+# reviewed them.
 """Cloud Functions for Lambda Campsite.
 
 docs/architecture.md section 4 lists every function: drawLotteries,
@@ -141,9 +144,35 @@ def send_push(event: firestore_fn.Event) -> None:
     """
     if event.data is None:
         return
-    message = push_for_notification(firestore.client(), event.data.to_dict())
-    if message is not None:
+    deliver_push(firestore.client(), event.data.to_dict())
+
+
+def deliver_push(db, notification):
+    """Sends the push for `notification`, if there is one to send.
+
+    If FCM says the recipient's token isn't registered anymore, because the
+    app was uninstalled or its data cleared, the token is cleared from the
+    profile, so later notifications skip the push instead of failing the
+    same way. Split out from send_push so tests can run it with FCM's send
+    replaced.
+    """
+    message = push_for_notification(db, notification)
+    if message is None:
+        return
+    try:
         messaging.send(message)
+    except messaging.UnregisteredError:
+        profile_ref = db.collection("profiles").document(notification["recipientId"])
+        _clear_stale_token(db.transaction(), profile_ref, message.token)
+
+
+@firestore.transactional
+def _clear_stale_token(transaction, profile_ref, stale_token):
+    profile = profile_ref.get(transaction=transaction).to_dict()
+    # The phone may have saved a new token since the push was built. Only
+    # the token FCM rejected gets cleared.
+    if profile is not None and profile.get("pushToken") == stale_token:
+        transaction.update(profile_ref, {"pushToken": None})
 
 
 def push_for_notification(db, notification):
