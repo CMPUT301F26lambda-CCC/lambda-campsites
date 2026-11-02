@@ -5,9 +5,6 @@
  * ProfileController.
  *
  * Outstanding issues:
- * - The notification permission is asked on every onCreate, including
- *   after a rotation, so a user who just said no is asked again. #108
- *   fixes this.
  * - The permission prompt shows straight away, before the user has seen
  *   anything. Asking at a moment that explains why, like joining a first
  *   lottery, would be friendlier.
@@ -22,7 +19,8 @@
  *
  * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
  * Sashreek Addanki hand the push token to ProfileController on each start,
- * on November 1, 2026. Sashreek Addanki reviewed it.
+ * and ask for the notification permission only on a fresh start, on
+ * November 1, 2026. Sashreek Addanki reviewed them.
  */
 package com.lambda.campsite
 
@@ -58,9 +56,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        askForNotificationPermission()
-        // Only on a fresh start. After a rotation the token hasn't changed.
-        if (savedInstanceState == null) savePushToken()
+        // Only on a fresh start. After a rotation the user has already
+        // answered the prompt, and the token hasn't changed.
+        if (savedInstanceState == null) {
+            askForNotificationPermission()
+            savePushToken()
+        }
         setContent {
             LambdaCampsiteTheme {
                 LambdaCampsiteApp()
@@ -72,6 +73,10 @@ class MainActivity : ComponentActivity() {
      * Android 13 and later hide every notification, including a push, until
      * the user grants this (US 01.10.01). Earlier versions don't have the
      * permission and show notifications without asking.
+     *
+     * [onCreate] only calls this on a fresh start. Asking again after a
+     * rotation would count as a second "no" if the user declines, and Android
+     * 11 and later stop showing the prompt after two.
      */
     private fun askForNotificationPermission() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
