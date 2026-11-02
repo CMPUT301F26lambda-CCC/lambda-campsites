@@ -1,8 +1,19 @@
 /*
+ * Purpose: tests the Firestore security rules for image documents against
+ * the emulator (US 02.01.02): anyone signed in can read one, and a user can
+ * only create their own, holding only ownerId, and never change or delete
+ * it.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Coded by Aarush Bhat with the assistance of Claude Sonnet 5
  * (Anthropic), through Claude Code, in November 2026, following the
  * notification rules tests in NotificationRulesTest. Aarush Bhat reviewed
  * and committed it.
+ *
+ * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+ * Sashreek Addanki add the extra fields test, on November 1, 2026. Sashreek
+ * Addanki reviewed it.
  */
 package com.lambda.campsite.rules
 
@@ -63,6 +74,15 @@ class ImageRulesTest {
     @Test
     fun userCantCreateAnImageAsSomeoneElse() {
         val error = firestoreErrorFrom { images.document("new").set(mapOf("ownerId" to "someone-else")).await() }
+
+        assertPermissionDenied(error)
+    }
+
+    @Test
+    fun userCantCreateAnImageWithExtraFields() {
+        val error = firestoreErrorFrom {
+            images.document("new").set(mapOf("ownerId" to uid, "caption" to "Anything at all")).await()
+        }
 
         assertPermissionDenied(error)
     }

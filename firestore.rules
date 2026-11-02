@@ -6,8 +6,6 @@
 // - Admins have no access yet. It comes with the admin stories.
 // - Reservations have no rules yet, so the app can't create one. #108 adds
 //   them.
-// - Image documents don't limit their fields to ownerId, so a modified app
-//   can add any extra fields. The next fix on this branch adds that check.
 //
 // AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
 // the profile rules in October 2026, following docs/architecture.md section 4.
@@ -27,8 +25,9 @@
 // and the lottery rules, in November 2026. Sashreek Addanki reviewed them.
 //
 // Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
-// Sashreek Addanki add the check that a campsite's photo is its owner's, on
-// November 1, 2026. Sashreek Addanki reviewed it.
+// Sashreek Addanki add the check that a campsite's photo is its owner's,
+// and limit image documents to ownerId, on November 1, 2026. Sashreek
+// Addanki reviewed them.
 rules_version = '2';
 
 service cloud.firestore {
@@ -333,12 +332,13 @@ service cloud.firestore {
 
     // Any signed-in user can read an image, since campsite photos are shown
     // to every entrant browsing campsites. Only the uploader's own document
-    // is created, and nothing about an image ever changes once it exists
-    // (US 02.01.02).
+    // is created, holding nothing but who uploaded it, and nothing about an
+    // image ever changes once it exists (US 02.01.02).
     match /images/{imageId} {
       allow read: if signedIn();
 
-      allow create: if isSelf(request.resource.data.ownerId);
+      allow create: if isSelf(request.resource.data.ownerId)
+        && request.resource.data.keys().hasOnly(['ownerId']);
     }
 
     // Everything not matched above is denied.
