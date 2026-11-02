@@ -4,8 +4,8 @@
 //
 // Outstanding issues:
 // - Admins have no access yet. It comes with the admin stories.
-// - Reservations have no rules yet, so the app can't create one. #108 adds
-//   them.
+// - Reservations can be read, but not booked, cancelled or rejected yet.
+//   The rest of #108 adds those rules.
 //
 // AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
 // the profile rules in October 2026, following docs/architecture.md section 4.
@@ -27,6 +27,10 @@
 // Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
 // Sashreek Addanki add the check that a campsite's photo is its owner's,
 // and limit image documents to ownerId, on November 1, 2026. Sashreek
+// Addanki reviewed them.
+//
+// Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+// Sashreek Addanki add the reservation rules, on November 2, 2026. Sashreek
 // Addanki reviewed them.
 rules_version = '2';
 
@@ -318,6 +322,18 @@ service cloud.firestore {
     // ask for the user's own entries or it's refused.
     match /{path=**}/entries/{entrantId} {
       allow read: if signedIn() && resource.data.entrantId == request.auth.uid;
+    }
+
+    // A lottery winner's booked stay (US 01.04.02). Only its guest and the
+    // campsite's owner can read it (US 01.06.01, 02.07.01). Reading one that
+    // doesn't exist is allowed, so the app can tell a missing reservation
+    // from an error. Rules don't filter queries, so a query has to ask for
+    // the user's own reservations as guest or as owner, or it's refused.
+    match /reservations/{reservationId} {
+      allow read: if signedIn()
+        && (resource == null
+            || resource.data.guestId == request.auth.uid
+            || resource.data.ownerId == request.auth.uid);
     }
 
     // Only a Cloud Function creates a notification (US 01.03.01, 01.03.02).
