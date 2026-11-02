@@ -1,7 +1,17 @@
 /*
+ * Purpose: how a campsite's Availability calendar is stored in its Firestore
+ * document, `campsites/{campsiteId}/availability/calendar`: the field names,
+ * the season fields an owner writes, and reading the calendar back.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in November 2026. It helped with the Kotlin code, syntax and KDoc.
  * Sashreek Addanki reviewed it.
+ *
+ * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+ * Sashreek Addanki add lastReservationId, on November 2, 2026. Sashreek
+ * Addanki reviewed it.
  */
 package com.lambda.campsite.model.repository
 
@@ -25,6 +35,13 @@ object AvailabilityFields {
     const val SEASON_START = "seasonStart"
     const val SEASON_END = "seasonEnd"
     const val BOOKED_NIGHTS = "bookedNights"
+
+    /**
+     * The reservation whose booking, cancel or reject last changed
+     * [BOOKED_NIGHTS]. The security rules use it to check that the nights
+     * only change along with that reservation.
+     */
+    const val LAST_RESERVATION_ID = "lastReservationId"
 
     /**
      * The fields an owner writes to set the season (US 02.01.02). It leaves
