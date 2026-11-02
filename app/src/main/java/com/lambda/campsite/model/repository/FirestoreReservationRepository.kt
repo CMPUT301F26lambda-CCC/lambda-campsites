@@ -8,8 +8,8 @@
  * - After a cancel or a reject, the winning entry stays BOOKED, so the win
  *   is used up. Otherwise a winner could cancel and book again as often as
  *   they liked, holding nights the whole time.
- * - firestore.rules has no reservation rules yet, so the server refuses
- *   the writes of book, cancel, reject and decline until #108 adds them.
+ * - firestore.rules doesn't allow cancel, reject and decline yet, so the
+ *   server refuses their writes until #108 adds those rules.
  * - The lists are sorted on the phone instead of in the query. Sorting in
  *   the query would need a composite index for each list, and one person
  *   has few reservations.
@@ -149,7 +149,13 @@ class FirestoreReservationRepository(
                 createdAt = Timestamp.now(),
             )
             val bookedNights = calendar.bookedNights + calendar.nights(checkIn, checkOut)
-            transaction.update(calendarRef, AvailabilityFields.BOOKED_NIGHTS, bookedNights.sorted().map { it.toString() })
+            transaction.update(
+                calendarRef,
+                mapOf(
+                    AvailabilityFields.BOOKED_NIGHTS to bookedNights.sorted().map { it.toString() },
+                    AvailabilityFields.LAST_RESERVATION_ID to reservationRef.id,
+                ),
+            )
             transaction.set(reservationRef, ReservationFields.newReservationFields(reservation))
             transaction.update(
                 entryRef,

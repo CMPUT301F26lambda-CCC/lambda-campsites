@@ -4,8 +4,13 @@
 //
 // Outstanding issues:
 // - Admins have no access yet. It comes with the admin stories.
-// - Reservations can be read, but not booked, cancelled or rejected yet.
-//   The rest of #108 adds those rules.
+// - Reservations can be read and booked, but not cancelled or rejected
+//   yet. The rest of #108 adds those rules.
+// - A booking's rules check how many new nights it adds to the calendar,
+//   that check-in is one of them and that none were booked before, but not
+//   that the others are exactly the nights up to check-out. Rules can't loop
+//   over dates. The app's booking transaction writes the right nights, and
+//   moving booking into a Cloud Function would close the gap.
 //
 // AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
 // the profile rules in October 2026, following docs/architecture.md section 4.
@@ -182,6 +187,79 @@ service cloud.firestore {
         && exists(entry) && !existsAfter(entry);
     }
 
+    // The midnight that starts a date stored as text like 2027-07-02, so the
+    // number of nights between two dates can be worked out.
+    function day(date) {
+      let parts = date.split('-');
+      return timestamp.date(int(parts[0]), int(parts[1]), int(parts[2]));
+    }
+
+    // Every field a reservation has. The app always writes all of them.
+    function reservationFields() {
+      return ['guestId', 'guestName', 'ownerId', 'campsiteId', 'campsiteName', 'lotteryId',
+              'checkIn', 'checkOut', 'guests', 'rulesAgreedAt', 'createdAt', 'status', 'cancelledAt'];
+    }
+
+    // A new reservation r with this ID, checked against everything it copies
+    // or depends on: the guest's profile, the campsite, the lottery they won,
+    // their entry and the campsite's calendar (US 01.04.02, 01.05.01,
+    // 02.11.01). The same write has to set the entry from WON to BOOKED and
+    // add the stay's nights to the calendar.
+    function booksStay(reservationId, r) {
+      let lottery = get(/databases/$(database)/documents/lotteries/$(r.lotteryId)).data;
+      let campsite = get(/databases/$(database)/documents/campsites/$(r.campsiteId)).data;
+      let entry = /databases/$(database)/documents/lotteries/$(r.lotteryId)/entries/$(request.auth.uid);
+      let calendar = /databases/$(database)/documents/campsites/$(r.campsiteId)/availability/calendar;
+      return r.status == 'CONFIRMED' && r.cancelledAt == null
+        && r.createdAt == request.time && r.rulesAgreedAt == request.time
+        && r.guestName == myProfile().get('name', '')
+        && r.ownerId == campsite.ownerId && r.campsiteName == campsite.name
+        && r.guests is int && r.guests >= 1 && r.guests <= campsite.get('maxOccupancy', 1)
+        && isDate(r.checkIn) && isDate(r.checkOut) && r.checkIn < r.checkOut
+        && r.campsiteId in lottery.campsiteIds
+        && lottery.stayStart <= r.checkIn && r.checkOut <= lottery.stayEnd
+        && get(entry).data.status == 'WON'
+        && getAfter(entry).data.status == 'BOOKED'
+        && getAfter(entry).data.reservationId == reservationId
+        && addsNights(get(calendar).data, getAfter(calendar).data, reservationId, r);
+    }
+
+    // The calendar after a booking names this reservation as the one that
+    // changed it, keeps every night it had, and has exactly as many new
+    // nights as the stay, starting with check-in, all inside the season.
+    function addsNights(before, after, reservationId, r) {
+      let booked = before.get('bookedNights', []);
+      let added = after.bookedNights.toSet().difference(booked.toSet());
+      return after.lastReservationId == reservationId
+        && before.seasonStart <= r.checkIn && r.checkOut <= before.seasonEnd
+        && after.bookedNights.toSet().hasAll(booked)
+        && after.bookedNights.size() == after.bookedNights.toSet().size()
+        && r.checkIn in added
+        && added.size() * 86400000 == day(r.checkOut).toMillis() - day(r.checkIn).toMillis();
+    }
+
+    // This same write creates the reservation with this ID, or changes its
+    // status, and it's at this campsite. The calendar's rule uses it, so the
+    // booked nights only change along with a reservation, whose own rules
+    // check the nights.
+    function reservationChangesWith(reservationId, campsiteId) {
+      let path = /databases/$(database)/documents/reservations/$(reservationId);
+      return reservationId is string
+        && existsAfter(path)
+        && getAfter(path).data.campsiteId == campsiteId
+        && (!exists(path) || get(path).data.status != getAfter(path).data.status);
+    }
+
+    // This same write creates the reservation with this ID for the signed-in
+    // user, in this lottery. The entry's rule uses it when booking.
+    function newReservationFor(reservationId, lotteryId) {
+      let path = /databases/$(database)/documents/reservations/$(reservationId);
+      return reservationId is string
+        && !exists(path) && existsAfter(path)
+        && getAfter(path).data.guestId == request.auth.uid
+        && getAfter(path).data.lotteryId == lotteryId;
+    }
+
     // One profile per install. The document ID is its Firebase Auth user ID
     // (US 01.09.01). Admin access comes with the admin stories.
     match /profiles/{uid} {
@@ -241,8 +319,8 @@ service cloud.firestore {
         allow read: if signedIn();
 
         // The owner sets the season of a campsite they've already saved
-        // (US 02.01.02). Booked nights only change when a stay is booked,
-        // which comes with reservations.
+        // (US 02.01.02). Booked nights only change along with a reservation,
+        // in the rule after these.
         allow create: if docId == 'calendar'
           && ownsCampsite(campsiteId)
           && request.resource.data.keys().hasOnly(['seasonStart', 'seasonEnd'])
@@ -251,6 +329,15 @@ service cloud.firestore {
         allow update: if ownsCampsite(campsiteId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seasonStart', 'seasonEnd'])
           && validSeason(request.resource.data);
+
+        // A booking, cancel or reject changes the booked nights in the same
+        // write as the reservation it names in lastReservationId. That
+        // reservation's rules check the nights (US 01.04.02, 01.07.01,
+        // 02.08.01).
+        allow update: if signedIn()
+          && docId == 'calendar'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bookedNights', 'lastReservationId'])
+          && reservationChangesWith(request.resource.data.lastReservationId, campsiteId);
       }
     }
 
@@ -310,10 +397,18 @@ service cloud.firestore {
           && lotteryAfter(lotteryId).get('entryCount', 0) == lotteryBefore(lotteryId).get('entryCount', 0) + 1;
 
         // An entrant leaves while registration is still open (US 01.02.02).
-        // Only the draw and booking change an entry, so there's no update.
+        // Only the draw, booking and declining change an entry.
         allow delete: if isSelf(entrantId)
           && registrationOpen(lotteryBefore(lotteryId))
           && lotteryAfter(lotteryId).get('entryCount', 0) == lotteryBefore(lotteryId).get('entryCount', 0) - 1;
+
+        // Booking sets the winner's own entry from WON to BOOKED, in the same
+        // write that creates the reservation it names (US 01.04.02).
+        allow update: if isSelf(entrantId)
+          && resource.data.status == 'WON'
+          && request.resource.data.status == 'BOOKED'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reservationId'])
+          && newReservationFor(request.resource.data.reservationId, lotteryId);
       }
     }
 
@@ -334,6 +429,14 @@ service cloud.firestore {
         && (resource == null
             || resource.data.guestId == request.auth.uid
             || resource.data.ownerId == request.auth.uid);
+
+      // A winner books a stay for themselves (US 01.04.02). booksStay checks
+      // everything else.
+      allow create: if isSelf(request.resource.data.guestId)
+        && activeEntrant()
+        && request.resource.data.keys().hasOnly(reservationFields())
+        && request.resource.data.keys().hasAll(reservationFields())
+        && booksStay(reservationId, request.resource.data);
     }
 
     // Only a Cloud Function creates a notification (US 01.03.01, 01.03.02).
