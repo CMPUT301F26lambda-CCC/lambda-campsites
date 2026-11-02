@@ -21,7 +21,8 @@
  * Sashreek Addanki write this file on November 2, 2026, following the
  * pattern in FirestoreLotteryRepository. It helped with the Kotlin code,
  * the Firestore queries, the booking, cancel, reject and decline
- * transactions, syntax and KDoc. Sashreek Addanki reviewed it.
+ * transactions, the retry after a lost race, syntax and KDoc. Sashreek
+ * Addanki reviewed it.
  */
 package com.lambda.campsite.model.repository
 
@@ -97,8 +98,8 @@ class FirestoreReservationRepository(
 
     /**
      * If another winner books one of the same nights while this runs,
-     * Firestore runs the transaction again on the new calendar, which then
-     * refuses with [ReservationException.Reason.NIGHTS_NOT_FREE].
+     * [retryIfRaced] runs the transaction again on the new calendar, which
+     * then refuses with [ReservationException.Reason.NIGHTS_NOT_FREE].
      */
     override suspend fun book(
         lotteryId: String,
@@ -111,60 +112,62 @@ class FirestoreReservationRepository(
         val reservationRef = reservations.document()
         val entryRef = entry(lotteryId, uid)
         val calendarRef = calendar(campsiteId)
-        firestore.runTransaction { transaction ->
-            // A transaction has to do all its reads before it writes.
-            val entry = transaction.get(entryRef).data?.let { LotteryEntryFields.fromMap(lotteryId, uid, it) }
-            val lottery = transaction.get(lotteries.document(lotteryId)).data
-                ?.let { LotteryFields.fromMap(lotteryId, it) }
-            val campsite = transaction.get(campsites.document(campsiteId)).data
-                ?.let { CampsiteFields.fromMap(campsiteId, it) }
-            val calendar = transaction.get(calendarRef).data?.let(AvailabilityFields::fromMap)
-            val profile = transaction.get(profiles.document(uid)).data.orEmpty()
+        retryIfRaced {
+            firestore.runTransaction { transaction ->
+                // A transaction has to do all its reads before it writes.
+                val entry = transaction.get(entryRef).data?.let { LotteryEntryFields.fromMap(lotteryId, uid, it) }
+                val lottery = transaction.get(lotteries.document(lotteryId)).data
+                    ?.let { LotteryFields.fromMap(lotteryId, it) }
+                val campsite = transaction.get(campsites.document(campsiteId)).data
+                    ?.let { CampsiteFields.fromMap(campsiteId, it) }
+                val calendar = transaction.get(calendarRef).data?.let(AvailabilityFields::fromMap)
+                val profile = transaction.get(profiles.document(uid)).data.orEmpty()
 
-            if (entry?.status != EntryStatus.WON) refuse(ReservationException.Reason.NOT_A_WINNER)
-            if (lottery == null || campsite == null || campsiteId !in lottery.campsiteIds) {
-                refuse(ReservationException.Reason.NOT_IN_LOTTERY)
-            }
-            if (!checkOut.isAfter(checkIn) || checkIn.isBefore(lottery.stayStart) || checkOut.isAfter(lottery.stayEnd)) {
-                refuse(ReservationException.Reason.OUTSIDE_STAY)
-            }
-            if (calendar == null || !calendar.isFree(checkIn, checkOut)) {
-                refuse(ReservationException.Reason.NIGHTS_NOT_FREE)
-            }
-            if (guests !in 1..campsite.maxOccupancy) refuse(ReservationException.Reason.GUESTS_DONT_FIT)
+                if (entry?.status != EntryStatus.WON) refuse(ReservationException.Reason.NOT_A_WINNER)
+                if (lottery == null || campsite == null || campsiteId !in lottery.campsiteIds) {
+                    refuse(ReservationException.Reason.NOT_IN_LOTTERY)
+                }
+                if (!checkOut.isAfter(checkIn) || checkIn.isBefore(lottery.stayStart) || checkOut.isAfter(lottery.stayEnd)) {
+                    refuse(ReservationException.Reason.OUTSIDE_STAY)
+                }
+                if (calendar == null || !calendar.isFree(checkIn, checkOut)) {
+                    refuse(ReservationException.Reason.NIGHTS_NOT_FREE)
+                }
+                if (guests !in 1..campsite.maxOccupancy) refuse(ReservationException.Reason.GUESTS_DONT_FIT)
 
-            val reservation = Reservation(
-                id = reservationRef.id,
-                guestId = uid,
-                guestName = ProfileFields.fromMap(uid, profile).name,
-                ownerId = campsite.ownerId,
-                campsiteId = campsiteId,
-                campsiteName = campsite.name,
-                lotteryId = lotteryId,
-                checkIn = checkIn,
-                checkOut = checkOut,
-                guests = guests,
-                // newReservationFields swaps both times for the server's.
-                rulesAgreedAt = Timestamp.now(),
-                createdAt = Timestamp.now(),
-            )
-            val bookedNights = calendar.bookedNights + calendar.nights(checkIn, checkOut)
-            transaction.update(
-                calendarRef,
-                mapOf(
-                    AvailabilityFields.BOOKED_NIGHTS to bookedNights.sorted().map { it.toString() },
-                    AvailabilityFields.LAST_RESERVATION_ID to reservationRef.id,
-                ),
-            )
-            transaction.set(reservationRef, ReservationFields.newReservationFields(reservation))
-            transaction.update(
-                entryRef,
-                mapOf(
-                    LotteryEntryFields.STATUS to EntryStatus.BOOKED.name,
-                    LotteryEntryFields.RESERVATION_ID to reservationRef.id,
-                ),
-            )
-        }.await()
+                val reservation = Reservation(
+                    id = reservationRef.id,
+                    guestId = uid,
+                    guestName = ProfileFields.fromMap(uid, profile).name,
+                    ownerId = campsite.ownerId,
+                    campsiteId = campsiteId,
+                    campsiteName = campsite.name,
+                    lotteryId = lotteryId,
+                    checkIn = checkIn,
+                    checkOut = checkOut,
+                    guests = guests,
+                    // newReservationFields swaps both times for the server's.
+                    rulesAgreedAt = Timestamp.now(),
+                    createdAt = Timestamp.now(),
+                )
+                val bookedNights = calendar.bookedNights + calendar.nights(checkIn, checkOut)
+                transaction.update(
+                    calendarRef,
+                    mapOf(
+                        AvailabilityFields.BOOKED_NIGHTS to bookedNights.sorted().map { it.toString() },
+                        AvailabilityFields.LAST_RESERVATION_ID to reservationRef.id,
+                    ),
+                )
+                transaction.set(reservationRef, ReservationFields.newReservationFields(reservation))
+                transaction.update(
+                    entryRef,
+                    mapOf(
+                        LotteryEntryFields.STATUS to EntryStatus.BOOKED.name,
+                        LotteryEntryFields.RESERVATION_ID to reservationRef.id,
+                    ),
+                )
+            }.await()
+        }
         return reservationRef.id
     }
 
@@ -183,11 +186,13 @@ class FirestoreReservationRepository(
     override suspend fun decline(lotteryId: String) {
         val uid = auth.signedInUserId().first()
         val entryRef = entry(lotteryId, uid)
-        firestore.runTransaction { transaction ->
-            val entry = transaction.get(entryRef).data?.let { LotteryEntryFields.fromMap(lotteryId, uid, it) }
-            if (entry?.status != EntryStatus.WON) refuse(ReservationException.Reason.NOT_A_WINNER)
-            transaction.update(entryRef, LotteryEntryFields.STATUS, EntryStatus.DECLINED.name)
-        }.await()
+        retryIfRaced {
+            firestore.runTransaction { transaction ->
+                val entry = transaction.get(entryRef).data?.let { LotteryEntryFields.fromMap(lotteryId, uid, it) }
+                if (entry?.status != EntryStatus.WON) refuse(ReservationException.Reason.NOT_A_WINNER)
+                transaction.update(entryRef, LotteryEntryFields.STATUS, EntryStatus.DECLINED.name)
+            }.await()
+        }
     }
 
     /**
@@ -205,30 +210,50 @@ class FirestoreReservationRepository(
         val uid = auth.signedInUserId().first()
         val reservationRef = reservations.document(reservationId)
         val today = LocalDate.now()
-        firestore.runTransaction { transaction ->
-            val reservation = readReservation(transaction, reservationRef)
-            if (reservation == null || !canChange(reservation, uid)) {
-                refuse(ReservationException.Reason.NO_SUCH_RESERVATION)
-            }
-            if (reservation.status != ReservationStatus.CONFIRMED || !today.isBefore(reservation.checkIn)) {
-                refuse(ReservationException.Reason.CANT_CHANGE)
-            }
-            val calendarRef = calendar(reservation.campsiteId)
-            val calendar = transaction.get(calendarRef).data?.let(AvailabilityFields::fromMap)
+        retryIfRaced {
+            firestore.runTransaction { transaction ->
+                val reservation = readReservation(transaction, reservationRef)
+                if (reservation == null || !canChange(reservation, uid)) {
+                    refuse(ReservationException.Reason.NO_SUCH_RESERVATION)
+                }
+                if (reservation.status != ReservationStatus.CONFIRMED || !today.isBefore(reservation.checkIn)) {
+                    refuse(ReservationException.Reason.CANT_CHANGE)
+                }
+                val calendarRef = calendar(reservation.campsiteId)
+                val calendar = transaction.get(calendarRef).data?.let(AvailabilityFields::fromMap)
 
-            transaction.update(
-                reservationRef,
-                mapOf(
-                    ReservationFields.STATUS to status.name,
-                    ReservationFields.CANCELLED_AT to FieldValue.serverTimestamp(),
-                ),
-            )
-            if (calendar != null) {
-                val freed = calendar.bookedNights - calendar.nights(reservation.checkIn, reservation.checkOut).toSet()
-                transaction.update(calendarRef, AvailabilityFields.BOOKED_NIGHTS, freed.sorted().map { it.toString() })
-            }
-        }.await()
+                transaction.update(
+                    reservationRef,
+                    mapOf(
+                        ReservationFields.STATUS to status.name,
+                        ReservationFields.CANCELLED_AT to FieldValue.serverTimestamp(),
+                    ),
+                )
+                if (calendar != null) {
+                    val freed = calendar.bookedNights - calendar.nights(reservation.checkIn, reservation.checkOut).toSet()
+                    transaction.update(calendarRef, AvailabilityFields.BOOKED_NIGHTS, freed.sorted().map { it.toString() })
+                }
+            }.await()
+        }
     }
+
+    /**
+     * Runs [attempt] again once if the server refused it with
+     * PERMISSION_DENIED. When another phone's write reaches the server
+     * between a transaction's reads and its commit, Firestore checks the
+     * rules against the newer data and refuses, instead of running the
+     * transaction again itself. The second attempt reads the newer data, so
+     * its own checks throw the real reason, like
+     * [ReservationException.Reason.NIGHTS_NOT_FREE]. A second
+     * PERMISSION_DENIED is a real refusal, and is thrown as it is.
+     */
+    private suspend fun <T> retryIfRaced(attempt: suspend () -> T): T =
+        try {
+            attempt()
+        } catch (e: FirebaseFirestoreException) {
+            if (e.code != FirebaseFirestoreException.Code.PERMISSION_DENIED) throw e
+            attempt()
+        }
 
     /** A campsite's calendar, `campsites/{campsiteId}/availability/calendar`. */
     private fun calendar(campsiteId: String) =
