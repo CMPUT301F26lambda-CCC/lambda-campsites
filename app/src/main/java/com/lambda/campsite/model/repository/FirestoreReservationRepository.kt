@@ -5,9 +5,12 @@
  * declines stays as transactions.
  *
  * Outstanding issues:
- * - cancel, reject and decline aren't written yet. They come in the next
- *   steps of #108, and until then they throw NotImplementedError. Nothing
- *   in the app uses this class yet, so nothing can reach them.
+ * - decline isn't written yet. It comes in the next step of #108, and until
+ *   then it throws NotImplementedError. Nothing in the app uses this class
+ *   yet, so nothing can reach it.
+ * - After a cancel or a reject, the winning entry stays BOOKED, so the win
+ *   is used up. Otherwise a winner could cancel and book again as often as
+ *   they liked, holding nights the whole time.
  * - firestore.rules has no reservation rules yet, so the server refuses
  *   book's writes until #108 adds them.
  * - The lists are sorted on the phone instead of in the query. Sorting in
@@ -20,17 +23,22 @@
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped
  * Sashreek Addanki write this file on November 2, 2026, following the
  * pattern in FirestoreLotteryRepository. It helped with the Kotlin code,
- * the Firestore queries, the booking transaction, syntax and KDoc. Sashreek
- * Addanki reviewed it.
+ * the Firestore queries, the booking, cancel and reject transactions,
+ * syntax and KDoc. Sashreek Addanki reviewed it.
  */
 package com.lambda.campsite.model.repository
 
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentReference
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.QuerySnapshot
+import com.google.firebase.firestore.Transaction
 import com.lambda.campsite.model.EntryStatus
 import com.lambda.campsite.model.Reservation
+import com.lambda.campsite.model.ReservationStatus
 import java.time.LocalDate
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -157,15 +165,69 @@ class FirestoreReservationRepository(
         return reservationRef.id
     }
 
-    override suspend fun cancel(reservationId: String): Unit = TODO("#108: the cancel transaction")
+    override suspend fun cancel(reservationId: String) =
+        change(reservationId, ReservationStatus.CANCELLED) { reservation, uid -> reservation.guestId == uid }
 
-    override suspend fun reject(reservationId: String): Unit = TODO("#108: the reject transaction")
+    override suspend fun reject(reservationId: String) =
+        change(reservationId, ReservationStatus.REJECTED) { reservation, uid -> reservation.ownerId == uid }
 
     override suspend fun decline(lotteryId: String): Unit = TODO("#108: the decline transaction")
+
+    /**
+     * Sets the reservation with this [reservationId] to [status] and frees
+     * its nights in the calendar, in one transaction. [canChange] says
+     * whether the signed-in user may: the guest for a cancel, the owner for
+     * a reject. The stay has to be confirmed and not started yet, by this
+     * phone's date.
+     */
+    private suspend fun change(
+        reservationId: String,
+        status: ReservationStatus,
+        canChange: (Reservation, String) -> Boolean,
+    ) {
+        val uid = auth.signedInUserId().first()
+        val reservationRef = reservations.document(reservationId)
+        val today = LocalDate.now()
+        firestore.runTransaction { transaction ->
+            val reservation = readReservation(transaction, reservationRef)
+            if (reservation == null || !canChange(reservation, uid)) {
+                refuse(ReservationException.Reason.NO_SUCH_RESERVATION)
+            }
+            if (reservation.status != ReservationStatus.CONFIRMED || !today.isBefore(reservation.checkIn)) {
+                refuse(ReservationException.Reason.CANT_CHANGE)
+            }
+            val calendarRef = calendar(reservation.campsiteId)
+            val calendar = transaction.get(calendarRef).data?.let(AvailabilityFields::fromMap)
+
+            transaction.update(
+                reservationRef,
+                mapOf(
+                    ReservationFields.STATUS to status.name,
+                    ReservationFields.CANCELLED_AT to FieldValue.serverTimestamp(),
+                ),
+            )
+            if (calendar != null) {
+                val freed = calendar.bookedNights - calendar.nights(reservation.checkIn, reservation.checkOut).toSet()
+                transaction.update(calendarRef, AvailabilityFields.BOOKED_NIGHTS, freed.sorted().map { it.toString() })
+            }
+        }.await()
+    }
 
     /** A campsite's calendar, `campsites/{campsiteId}/availability/calendar`. */
     private fun calendar(campsiteId: String) =
         campsites.document(campsiteId).collection(AVAILABILITY).document(CALENDAR)
+
+    /**
+     * Reads the reservation at [ref] inside [transaction], or `null` if there
+     * isn't one this device can read. The rules answer PERMISSION_DENIED for
+     * someone else's reservation, which counts the same as a missing one.
+     */
+    private fun readReservation(transaction: Transaction, ref: DocumentReference): Reservation? =
+        try {
+            transaction.get(ref).data?.let { ReservationFields.fromMap(ref.id, it) }
+        } catch (e: FirebaseFirestoreException) {
+            if (e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) null else throw e
+        }
 
     /** The readable reservations in this snapshot, earliest check-in first. */
     private fun QuerySnapshot.toReservations(): List<Reservation> =
