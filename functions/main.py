@@ -27,7 +27,7 @@
 # Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
 # Sashreek Addanki make the draw skip a lottery it can't draw instead of
 # stopping, recheck inside the draw transaction that registration has
-# closed, and add this file's purpose and outstanding issues, on
+# closed, and tidy the imports and spacing a merge left doubled, on
 # November 1, 2026. Sashreek Addanki reviewed them.
 """Cloud Functions for Lambda Campsite.
 
@@ -39,10 +39,8 @@ gets added here by its own issue.
 import random
 from datetime import datetime, timezone
 
-from firebase_admin import firestore, initialize_app
-from firebase_functions import scheduler_fn
 from firebase_admin import firestore, initialize_app, messaging
-from firebase_functions import firestore_fn, logger
+from firebase_functions import firestore_fn, logger, scheduler_fn
 from firebase_functions.options import set_global_options
 from google.cloud.firestore_v1.base_query import FieldFilter
 
@@ -132,6 +130,8 @@ def _lottery_notification(recipient_id, lottery_name, won):
         "sentAt": firestore.SERVER_TIMESTAMP,
         "read": False,
     }
+
+
 @firestore_fn.on_document_created(document="notifications/{notificationId}")
 def send_push(event: firestore_fn.Event) -> None:
     """Sends a push for a new notification, through FCM (US 01.10.01).
