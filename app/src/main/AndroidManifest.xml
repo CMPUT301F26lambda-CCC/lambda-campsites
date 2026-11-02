@@ -7,6 +7,10 @@
   added by Aarush Bhat with the assistance of Claude Sonnet 5 (Anthropic),
   through Claude Code, in November 2026. Aarush Bhat reviewed and committed
   them.
+
+  Claude Opus 5.5 (Anthropic), used through Claude Code, also helped Sashreek
+  Addanki add the default push icon and channel on November 1, 2026. Sashreek
+  Addanki reviewed them.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
@@ -46,6 +50,16 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+
+        <!-- How FCM shows a push while the app is in the background: a white
+             tent in the status bar instead of a blank square, in the channel
+             LambdaApplication creates (US 01.10.01). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="@string/notification_channel_id" />
     </application>
 
 </manifest>
