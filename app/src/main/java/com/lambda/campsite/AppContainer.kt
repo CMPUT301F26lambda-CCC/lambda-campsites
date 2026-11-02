@@ -22,6 +22,7 @@ import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
 import com.lambda.campsite.model.repository.CampsiteRepository
+import com.lambda.campsite.model.repository.FirestoreCampsiteRepository
 import com.lambda.campsite.model.repository.FirestoreLotteryRepository
 import com.lambda.campsite.model.repository.FirestoreNotificationRepository
 import com.lambda.campsite.model.repository.FirestoreProfileRepository
@@ -59,7 +60,8 @@ class AppContainer {
      * Every campsite, provided in-memory with sample dummy data for UI testing
      * (US 02.01 – 02.03) until connecting to Firestore.
      */
-    val campsiteRepository: CampsiteRepository by lazy { InMemoryCampsiteRepository() }
+    val campsiteRepository: CampsiteRepository by lazy { FirestoreCampsiteRepository(auth, firestore) }
+    //val campsiteRepository: CampsiteRepository by lazy { InMemoryCampsiteRepository() }
 
     /** Every lottery and waiting list, stored in Firestore. */
     val lotteryRepository: LotteryRepository by lazy { FirestoreLotteryRepository(auth, firestore) }
