@@ -1,4 +1,17 @@
 /*
+ * Purpose: the app's only activity, the entry point Android starts. It
+ * draws LambdaCampsiteApp inside the brand theme, asks for the
+ * notification permission, and hands the current push token to
+ * ProfileController.
+ *
+ * Outstanding issues:
+ * - The notification permission is asked on every onCreate, including
+ *   after a rotation, so a user who just said no is asked again. #108
+ *   fixes this.
+ * - The permission prompt shows straight away, before the user has seen
+ *   anything. Asking at a moment that explains why, like joining a first
+ *   lottery, would be friendlier.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped change
  * this file in October 2026 to show LambdaCampsiteApp instead of the template's
  * greeting. Sashreek Addanki reviewed and committed it.
@@ -6,6 +19,10 @@
  * The notification permission request was added by Aarush Bhat with the
  * assistance of Claude Sonnet 5 (Anthropic), through Claude Code, in
  * November 2026. Aarush Bhat reviewed and committed it.
+ *
+ * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+ * Sashreek Addanki hand the push token to ProfileController on each start,
+ * on November 1, 2026. Sashreek Addanki reviewed it.
  */
 package com.lambda.campsite
 
@@ -17,7 +34,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
+import com.google.firebase.Firebase
+import com.google.firebase.messaging.messaging
+import com.lambda.campsite.controller.ProfileController
 import com.lambda.campsite.view.LambdaCampsiteApp
 import com.lambda.campsite.view.theme.LambdaCampsiteTheme
 
@@ -30,10 +51,16 @@ class MainActivity : ComponentActivity() {
     private val requestNotificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
+    // The same instance LambdaCampsiteApp gets: both come from this
+    // activity's ViewModel store.
+    private val profileController: ProfileController by viewModels { ProfileController.Factory }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         askForNotificationPermission()
+        // Only on a fresh start. After a rotation the token hasn't changed.
+        if (savedInstanceState == null) savePushToken()
         setContent {
             LambdaCampsiteTheme {
                 LambdaCampsiteApp()
@@ -51,5 +78,15 @@ class MainActivity : ComponentActivity() {
         val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
         if (!granted) requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
+    /**
+     * Hands this device's current FCM token to [profileController], which
+     * saves it if the profile doesn't have it yet (US 01.10.01). If Firebase
+     * can't give a token right now, for example offline, the next start
+     * tries again.
+     */
+    private fun savePushToken() {
+        Firebase.messaging.token.addOnSuccessListener(profileController::onPushTokenAvailable)
     }
 }

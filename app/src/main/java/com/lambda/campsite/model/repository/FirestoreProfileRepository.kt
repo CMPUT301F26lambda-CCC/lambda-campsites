@@ -5,8 +5,9 @@
  *
  * Outstanding issues:
  * - On a first launch, creating the profile replaces the whole document. If
- *   the push token is saved in the same moment, the create can wipe it. #108
- *   makes the app save the token again on every start to cover this.
+ *   the push token is saved in the same moment, the create can wipe it.
+ *   ProfileController.onPushTokenAvailable saves it again on every app
+ *   start, which puts it back.
  * - Deleting a profile (US 01.08.01) has to sign the user out too, or
  *   currentProfile creates a new empty profile straight away. That story
  *   isn't built yet.

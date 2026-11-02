@@ -1,9 +1,19 @@
 /*
+ * Purpose: unit tests for ProfileController (US 01.10.01, 03.07.01,
+ * 03.11.01). They run against FakeProfileRepository, so they need no
+ * Firebase.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * these tests in October 2026. It helped with the test cases and the JUnit,
  * coroutines and Kotlin syntax. It also helped add the load error test when
  * the profile moved to Firestore. Sashreek Addanki reviewed them, ran them and
  * committed them.
+ *
+ * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+ * Sashreek Addanki add the push token tests, on November 1, 2026. Sashreek
+ * Addanki reviewed them.
  */
 package com.lambda.campsite.controller
 
@@ -17,7 +27,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
-/** Tests for [ProfileController]: switching roles and becoming an owner (US 03.07.01, US 03.11.01). */
+/**
+ * Tests for [ProfileController]: switching roles, becoming an owner and
+ * saving the push token (US 01.10.01, US 03.07.01, US 03.11.01).
+ */
 class ProfileControllerTest {
 
     @get:Rule
@@ -108,6 +121,36 @@ class ProfileControllerTest {
 
         assertNull(controller.state.value.profile)
         assertEquals(ProfileError.LOAD_FAILED, controller.state.value.error)
+    }
+
+    @Test
+    fun `a push token the profile doesn't have yet is saved`() {
+        val repository = FakeProfileRepository(entrant)
+        val controller = ProfileController(repository)
+
+        controller.onPushTokenAvailable("token-1")
+
+        assertEquals(listOf("token-1"), repository.savedPushTokens)
+    }
+
+    @Test
+    fun `a push token the profile already has isn't saved again`() {
+        val repository = FakeProfileRepository(entrant.copy(pushToken = "token-1"))
+        val controller = ProfileController(repository)
+
+        controller.onPushTokenAvailable("token-1")
+
+        assertTrue(repository.savedPushTokens.isEmpty())
+    }
+
+    @Test
+    fun `a failed push token save shows no error`() {
+        val repository = FakeProfileRepository(entrant).apply { failSaves = true }
+        val controller = ProfileController(repository)
+
+        controller.onPushTokenAvailable("token-1")
+
+        assertNull(controller.state.value.error)
     }
 
     @Test

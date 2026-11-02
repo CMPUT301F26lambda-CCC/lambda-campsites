@@ -1,9 +1,23 @@
 /*
+ * Purpose: the controller (an Android ViewModel) for the profile screen and
+ * for which role the app is used as. It sits between the profile screens
+ * and ProfileRepository in the app's MVC design.
+ *
+ * Outstanding issues:
+ * - onPushTokenAvailable isn't a user action like the other `on` methods.
+ *   It lives here because this controller already owns the profile.
+ *   Running it from LambdaApplication instead would also run it during
+ *   every instrumented test, racing the tests' own profile writes.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, the ViewModel and
  * StateFlow setup, syntax and KDoc. It also helped add the load error when the
  * profile moved to Firestore. Sashreek Addanki reviewed it, ran the tests and
  * committed it.
+ *
+ * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+ * Sashreek Addanki add onPushTokenAvailable, on November 1, 2026. Sashreek
+ * Addanki reviewed it.
  */
 package com.lambda.campsite.controller
 
@@ -21,6 +35,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -57,7 +72,8 @@ data class ProfileUiState(
  * (US 03.11.01). It's an Android [ViewModel], so it survives screen rotation.
  *
  * It listens to [repository] for profile changes and publishes [state] for the
- * screens to show. Each `on` method handles one user action.
+ * screens to show. Each `on` method handles one user action, except
+ * [onPushTokenAvailable], which `MainActivity` calls when the app starts.
  *
  * @param repository where the profile is loaded from and saved to.
  */
@@ -113,6 +129,28 @@ class ProfileController(
                 throw e
             } catch (e: Exception) {
                 _state.update { it.copy(error = ProfileError.SAVE_FAILED) }
+            }
+        }
+    }
+
+    /**
+     * Saves [token], this device's current FCM token, if the profile doesn't
+     * hold it yet (US 01.10.01). `MainActivity` calls it every time the app
+     * starts, so a token `FcmTokenService` couldn't save, or one the first
+     * launch's profile create wiped, is put back.
+     *
+     * A failed save shows no error, since the user didn't ask for it. The
+     * next start tries again.
+     */
+    fun onPushTokenAvailable(token: String) {
+        viewModelScope.launch {
+            try {
+                val profile = repository.currentProfile().first()
+                if (profile.pushToken != token) repository.savePushToken(token)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Nothing to show the user. The next start tries again.
             }
         }
     }
