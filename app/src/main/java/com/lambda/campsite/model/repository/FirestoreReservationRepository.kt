@@ -5,14 +5,11 @@
  * declines stays as transactions.
  *
  * Outstanding issues:
- * - decline isn't written yet. It comes in the next step of #108, and until
- *   then it throws NotImplementedError. Nothing in the app uses this class
- *   yet, so nothing can reach it.
  * - After a cancel or a reject, the winning entry stays BOOKED, so the win
  *   is used up. Otherwise a winner could cancel and book again as often as
  *   they liked, holding nights the whole time.
  * - firestore.rules has no reservation rules yet, so the server refuses
- *   book's writes until #108 adds them.
+ *   the writes of book, cancel, reject and decline until #108 adds them.
  * - The lists are sorted on the phone instead of in the query. Sorting in
  *   the query would need a composite index for each list, and one person
  *   has few reservations.
@@ -23,8 +20,8 @@
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped
  * Sashreek Addanki write this file on November 2, 2026, following the
  * pattern in FirestoreLotteryRepository. It helped with the Kotlin code,
- * the Firestore queries, the booking, cancel and reject transactions,
- * syntax and KDoc. Sashreek Addanki reviewed it.
+ * the Firestore queries, the booking, cancel, reject and decline
+ * transactions, syntax and KDoc. Sashreek Addanki reviewed it.
  */
 package com.lambda.campsite.model.repository
 
@@ -112,7 +109,7 @@ class FirestoreReservationRepository(
     ): String {
         val uid = auth.signedInUserId().first()
         val reservationRef = reservations.document()
-        val entryRef = lotteries.document(lotteryId).collection(ENTRIES).document(uid)
+        val entryRef = entry(lotteryId, uid)
         val calendarRef = calendar(campsiteId)
         firestore.runTransaction { transaction ->
             // A transaction has to do all its reads before it writes.
@@ -171,7 +168,21 @@ class FirestoreReservationRepository(
     override suspend fun reject(reservationId: String) =
         change(reservationId, ReservationStatus.REJECTED) { reservation, uid -> reservation.ownerId == uid }
 
-    override suspend fun decline(lotteryId: String): Unit = TODO("#108: the decline transaction")
+    /**
+     * Only the entry changes. A declined win never held any nights, so the
+     * calendar stays as it is. It's a transaction so the check and the write
+     * happen together, and a booking can't land in between and be
+     * overwritten with DECLINED.
+     */
+    override suspend fun decline(lotteryId: String) {
+        val uid = auth.signedInUserId().first()
+        val entryRef = entry(lotteryId, uid)
+        firestore.runTransaction { transaction ->
+            val entry = transaction.get(entryRef).data?.let { LotteryEntryFields.fromMap(lotteryId, uid, it) }
+            if (entry?.status != EntryStatus.WON) refuse(ReservationException.Reason.NOT_A_WINNER)
+            transaction.update(entryRef, LotteryEntryFields.STATUS, EntryStatus.DECLINED.name)
+        }.await()
+    }
 
     /**
      * Sets the reservation with this [reservationId] to [status] and frees
@@ -216,6 +227,10 @@ class FirestoreReservationRepository(
     /** A campsite's calendar, `campsites/{campsiteId}/availability/calendar`. */
     private fun calendar(campsiteId: String) =
         campsites.document(campsiteId).collection(AVAILABILITY).document(CALENDAR)
+
+    /** This [uid]'s entry on a lottery's waiting list, `lotteries/{lotteryId}/entries/{uid}`. */
+    private fun entry(lotteryId: String, uid: String) =
+        lotteries.document(lotteryId).collection(ENTRIES).document(uid)
 
     /**
      * Reads the reservation at [ref] inside [transaction], or `null` if there
