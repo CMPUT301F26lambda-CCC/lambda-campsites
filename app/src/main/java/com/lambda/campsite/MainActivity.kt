@@ -7,6 +7,12 @@
  * assistance of Claude Sonnet 5 (Anthropic), through Claude Code, in
  * November 2026. Aarush Bhat reviewed and committed it.
  */
+/*
+ * AI use: ChatGPT (OpenAI), used through the ChatGPT website, helped with
+ * resolve errors while connecting ProfileController with MainActivity and revising
+ *  the KDoc documentation for this file in November 2026.
+ * Harmanjoth Kaur reviewed and tested the changes.
+ */
 package com.lambda.campsite
 
 import android.Manifest
@@ -20,10 +26,27 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.lambda.campsite.view.LambdaCampsiteApp
 import com.lambda.campsite.view.theme.LambdaCampsiteTheme
+import com.lambda.campsite.view.screens.FirstLaunchScreen
+import androidx.compose.runtime.*
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.lambda.campsite.controller.ProfileController
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lambda.campsite.controller.ProfileError
 
 /**
- * The app's only activity. It draws [LambdaCampsiteApp], which holds the
- * navigation and the nav bar, inside the brand theme.
+ * The app's only activity and entry point.
+ *
+ * Sets up the app's theme and observes the user's profile through
+ * ProfileController to determine which screen to display.
+ *
+ * While the profile is loading, the activity waits before displaying
+ * the app content. If the user has not yet agreed to the app policy,
+ * it displays [FirstLaunchScreen], allowing the user to enter their
+ * name and review and accept the policy.
+ *
+ * Once the profile is saved and the policy agreement is recorded,
+ * the activity displays [LambdaCampsiteApp], which handles the
+ * app's navigation and role-based navigation bar.
  */
 class MainActivity : ComponentActivity() {
 
@@ -35,9 +58,33 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         askForNotificationPermission()
         setContent {
-            LambdaCampsiteTheme {
-                LambdaCampsiteApp()
-            }
+
+                LambdaCampsiteTheme(darkTheme = false) {
+
+                    val profileController: ProfileController =
+                        viewModel(factory = ProfileController.Factory)
+
+                    val state by profileController.state.collectAsStateWithLifecycle()
+                    val profile = state.profile
+
+                    when {
+                        profile == null -> {
+                            // Wait until the profile has loaded.
+                        }
+
+                        profile.policyVersionAgreed == null -> {
+                            FirstLaunchScreen(
+                                onGetStarted = { name ->
+                                    profileController.onFinishFirstLaunch(name)
+                                },saveFailed = state.error == ProfileError.SAVE_FAILED
+                            )
+                        }
+
+                        else -> {
+                            LambdaCampsiteApp()
+                        }
+                    }
+                }
         }
     }
 

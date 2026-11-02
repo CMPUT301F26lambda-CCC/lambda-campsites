@@ -117,6 +117,33 @@ class ProfileController(
         }
     }
 
+    /**
+     * Saves the user's name and their agreement to the current app policy
+     * when they finish the first-launch screen (US 01.11.01).
+     *
+     * @param name the name entered by the user.
+     */
+    fun onFinishFirstLaunch(name: String) {
+        val profile = _state.value.profile ?: return
+
+        viewModelScope.launch {
+            try {
+                repository.save(
+                    profile.copy(
+                        name = name.trim(),
+                        policyVersionAgreed = 1
+                    )
+                )
+                _state.update { it.copy(error = null) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(error = ProfileError.SAVE_FAILED)
+                }
+            }
+        }
+    }
     /** Clears the error once the screen has shown it. */
     fun onErrorShown() {
         _state.update { it.copy(error = null) }
