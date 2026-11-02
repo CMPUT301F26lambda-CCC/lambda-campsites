@@ -18,6 +18,7 @@
 package com.lambda.campsite.model.repository
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldValue
 import com.lambda.campsite.model.Reservation
 import com.lambda.campsite.model.ReservationStatus
 import java.time.LocalDate
@@ -50,8 +51,8 @@ object ReservationFields {
     const val CANCELLED_AT = "cancelledAt"
 
     /**
-     * The document fields for [reservation]. When booking, the repository
-     * replaces [CREATED_AT] with the server's time.
+     * The document fields for [reservation]. Booking writes
+     * [newReservationFields] instead, which leaves the times to the server.
      */
     fun toMap(reservation: Reservation): Map<String, Any?> = mapOf(
         GUEST_ID to reservation.guestId,
@@ -68,6 +69,17 @@ object ReservationFields {
         STATUS to reservation.status.name,
         CANCELLED_AT to reservation.cancelledAt,
     )
+
+    /**
+     * The fields the booking writes for a new [reservation]. The server fills
+     * in [CREATED_AT] and [RULES_AGREED_AT], so a phone with the wrong clock
+     * can't change when the guest booked or agreed to the rules.
+     */
+    fun newReservationFields(reservation: Reservation): Map<String, Any?> =
+        toMap(reservation) + mapOf(
+            CREATED_AT to FieldValue.serverTimestamp(),
+            RULES_AGREED_AT to FieldValue.serverTimestamp(),
+        )
 
     /**
      * The reservation stored in the document with ID [id] and these

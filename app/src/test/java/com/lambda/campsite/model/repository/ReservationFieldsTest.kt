@@ -11,6 +11,7 @@
 package com.lambda.campsite.model.repository
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldValue
 import com.lambda.campsite.model.Reservation
 import com.lambda.campsite.model.ReservationStatus
 import java.time.LocalDate
@@ -60,6 +61,15 @@ class ReservationFieldsTest {
         assertEquals("2027-07-02", fields[ReservationFields.CHECK_IN])
         assertEquals("2027-07-04", fields[ReservationFields.CHECK_OUT])
         assertEquals("CONFIRMED", fields[ReservationFields.STATUS])
+    }
+
+    @Test
+    fun `a new reservation leaves both times to the server`() {
+        val fields = ReservationFields.newReservationFields(reservation)
+
+        assertEquals(FieldValue.serverTimestamp(), fields[ReservationFields.CREATED_AT])
+        assertEquals(FieldValue.serverTimestamp(), fields[ReservationFields.RULES_AGREED_AT])
+        assertEquals("2027-07-02", fields[ReservationFields.CHECK_IN])
     }
 
     @Test
