@@ -1,9 +1,24 @@
 /*
+ * Purpose: unit tests for ProfileController (US 01.10.01, 03.07.01,
+ * 03.11.01). They run against FakeProfileRepository, so they need no
+ * Firebase.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * these tests in October 2026. It helped with the test cases and the JUnit,
  * coroutines and Kotlin syntax. It also helped add the load error test when
  * the profile moved to Firestore. Sashreek Addanki reviewed them, ran them and
  * committed them.
+ *
+ * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+ * Sashreek Addanki add the push token tests, on November 1, 2026. Sashreek
+ * Addanki reviewed them.
+ * AI use: GPT-6 (OpenAI), used through the ChatGPT website, helped write
+ * the two first-launch controller tests in November 2026. It helped with
+ * structuring the test cases and testing the SAVE_FAILED
+ * error when saving the profile fails. Harmanjoth Kaur reviewed and tested
+ * the changes.
  */
 package com.lambda.campsite.controller
 
@@ -17,7 +32,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
-/** Tests for [ProfileController]: switching roles and becoming an owner (US 03.07.01, US 03.11.01). */
+/**
+ * Tests for [ProfileController]: switching roles, becoming an owner and
+ * saving the push token (US 01.10.01, US 03.07.01, US 03.11.01).
+ */
 class ProfileControllerTest {
 
     @get:Rule
@@ -111,6 +129,36 @@ class ProfileControllerTest {
     }
 
     @Test
+    fun `a push token the profile doesn't have yet is saved`() {
+        val repository = FakeProfileRepository(entrant)
+        val controller = ProfileController(repository)
+
+        controller.onPushTokenAvailable("token-1")
+
+        assertEquals(listOf("token-1"), repository.savedPushTokens)
+    }
+
+    @Test
+    fun `a push token the profile already has isn't saved again`() {
+        val repository = FakeProfileRepository(entrant.copy(pushToken = "token-1"))
+        val controller = ProfileController(repository)
+
+        controller.onPushTokenAvailable("token-1")
+
+        assertTrue(repository.savedPushTokens.isEmpty())
+    }
+
+    @Test
+    fun `a failed push token save shows no error`() {
+        val repository = FakeProfileRepository(entrant).apply { failSaves = true }
+        val controller = ProfileController(repository)
+
+        controller.onPushTokenAvailable("token-1")
+
+        assertNull(controller.state.value.error)
+    }
+
+    @Test
     fun `onErrorShown clears the error`() {
         val controller = ProfileController(FakeProfileRepository(entrant))
         controller.onSwitchRole(Role.ADMIN)
@@ -118,5 +166,31 @@ class ProfileControllerTest {
         controller.onErrorShown()
 
         assertNull(controller.state.value.error)
+    }
+
+    @Test
+    fun `finishing first launch saves the name and policy version`() {
+        val repository = FakeProfileRepository(entrant)
+        val controller = ProfileController(repository)
+
+        controller.onFinishFirstLaunch("  Alex Smith  ")
+
+        assertEquals("Alex Smith", repository.saved.last().name)
+        assertEquals(1, repository.saved.last().policyVersionAgreed)
+    }
+
+    @Test
+    fun `finishing first launch shows SAVE_FAILED when the save fails`() {
+        val repository = FakeProfileRepository(entrant).apply {
+            failSaves = true
+        }
+        val controller = ProfileController(repository)
+
+        controller.onFinishFirstLaunch("Alex Smith")
+
+        assertEquals(
+            ProfileError.SAVE_FAILED,
+            controller.state.value.error
+        )
     }
 }

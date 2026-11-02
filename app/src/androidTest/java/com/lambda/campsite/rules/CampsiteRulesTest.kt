@@ -1,8 +1,18 @@
 /*
+ * Purpose: tests the Firestore security rules for campsites against the
+ * emulator (US 01.12.01, 02.01.01, 02.01.02, 02.01.03, 02.03.01,
+ * 03.07.01): who can read, list and edit one, and which photo it can use.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026, following the campsite rules in
  * docs/architecture.md section 4. It helped with the Kotlin code, syntax and
  * KDoc. Sashreek Addanki reviewed it and committed it.
+ *
+ * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+ * Sashreek Addanki add the photo tests, on November 1, 2026. Sashreek
+ * Addanki reviewed them.
  */
 package com.lambda.campsite.rules
 
@@ -25,7 +35,7 @@ import org.junit.runner.RunWith
 
 /**
  * Tests the security rules for `campsites/{campsiteId}` (US 01.12.01,
- * 02.01.01, 02.01.03, 02.03.01, 03.07.01).
+ * 02.01.01, 02.01.02, 02.01.03, 02.03.01, 03.07.01).
  *
  * The first tests check that normal use is allowed, so the rules aren't just
  * denying everything. The rest each try one thing a modified app might do and
@@ -230,6 +240,40 @@ class CampsiteRulesTest {
         assertPermissionDenied(error)
     }
 
+    @Test
+    fun ownerCanListACampsiteWithTheirOwnPhoto() {
+        FirestoreEmulator.setIgnoringRules("images/mine", mapOf("ownerId" to uid))
+
+        val error = firestoreErrorFrom {
+            campsites.document("new").set(campsiteFields(ownerId = uid, imageId = "mine")).await()
+        }
+
+        assertNull(error)
+    }
+
+    @Test
+    fun ownerCantListACampsiteWithSomeoneElsesPhoto() {
+        FirestoreEmulator.setIgnoringRules("images/theirs", mapOf("ownerId" to "someone-else"))
+
+        val error = firestoreErrorFrom {
+            campsites.document("new").set(campsiteFields(ownerId = uid, imageId = "theirs")).await()
+        }
+
+        assertPermissionDenied(error)
+    }
+
+    @Test
+    fun ownerCantSwitchTheirCampsiteToSomeoneElsesPhoto() {
+        FirestoreEmulator.setIgnoringRules("campsites/mine", campsiteFields(ownerId = uid))
+        FirestoreEmulator.setIgnoringRules("images/theirs", mapOf("ownerId" to "someone-else"))
+
+        val error = firestoreErrorFrom {
+            campsites.document("mine").set(mapOf("imageId" to "theirs"), SetOptions.merge()).await()
+        }
+
+        assertPermissionDenied(error)
+    }
+
     private fun assertPermissionDenied(error: FirebaseFirestoreException?) {
         assertEquals(FirebaseFirestoreException.Code.PERMISSION_DENIED, error?.code)
     }
@@ -239,6 +283,7 @@ class CampsiteRulesTest {
         ownerId: String,
         name: String = "Moose Lake Campsite",
         published: Boolean = true,
+        imageId: String? = null,
     ): Map<String, Any?> = mapOf(
         "ownerId" to ownerId,
         "name" to name,
@@ -252,6 +297,7 @@ class CampsiteRulesTest {
         "pricePerNight" to null,
         "rules" to "No pets.",
         "published" to published,
+        "imageId" to imageId,
     )
 
     /** The fields only the `updateRatingStats` Cloud Function writes. */

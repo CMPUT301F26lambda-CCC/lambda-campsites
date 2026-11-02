@@ -2,9 +2,22 @@
 <!--
   AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped add the
   LambdaApplication entry in October 2026. Sashreek Addanki reviewed and committed it.
+
+  The notification permission and the FCM token service registration were
+  added by Aarush Bhat with the assistance of Claude Sonnet 5 (Anthropic),
+  through Claude Code, in November 2026. Aarush Bhat reviewed and committed
+  them.
+
+  Claude Opus 5.5 (Anthropic), used through Claude Code, also helped Sashreek
+  Addanki add the default push icon and channel on November 1, 2026. Sashreek
+  Addanki reviewed them.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Android 13 and later need this to show any notification, including
+         a push (US 01.10.01). MainActivity asks for it at startup. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".LambdaApplication"
@@ -28,6 +41,25 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Saves this device's FCM token on its profile (US 01.10.01). -->
+        <service
+            android:name=".FcmTokenService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- How FCM shows a push while the app is in the background: a white
+             tent in the status bar instead of a blank square, in the channel
+             LambdaApplication creates (US 01.10.01). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="@string/notification_channel_id" />
     </application>
 
 </manifest>
