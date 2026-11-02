@@ -36,8 +36,9 @@
 // Addanki reviewed them.
 //
 // Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
-// Sashreek Addanki add the reservation rules, on November 2, 2026. Sashreek
-// Addanki reviewed them.
+// Sashreek Addanki add the reservation rules, and fix the profile rule so a
+// profile missing its ownerBanned or removed field can still be saved, on
+// November 2, 2026. Sashreek Addanki reviewed them.
 rules_version = '2';
 
 service cloud.firestore {
@@ -288,10 +289,14 @@ service cloud.firestore {
 
       // Only admins and Cloud Functions set ownerBanned and removed, and they
       // skip these rules. A removed profile can't be changed (US 03.02.01),
-      // and a banned one can't become an owner again (US 03.07.01).
+      // and a banned one can't become an owner again (US 03.07.01). The two
+      // fields are compared by value, with a missing one counting as false,
+      // so a profile that doesn't have them yet can still be saved with them
+      // set to false.
       allow update: if isSelf(uid)
         && resource.data.get('removed', false) == false
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerBanned', 'removed'])
+        && request.resource.data.get('ownerBanned', false) == resource.data.get('ownerBanned', false)
+        && request.resource.data.get('removed', false) == resource.data.get('removed', false)
         && (!('ADMIN' in newRoles()) || 'ADMIN' in oldRoles())
         && (!('OWNER' in newRoles()) || 'OWNER' in oldRoles()
             || resource.data.get('ownerBanned', false) == false);
