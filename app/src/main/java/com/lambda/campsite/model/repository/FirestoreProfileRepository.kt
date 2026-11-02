@@ -20,13 +20,17 @@
  * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
  * Sashreek Addanki add savePushToken, on November 1, 2026. Sashreek Addanki
  * reviewed it.
+ *
+ * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+ * Sashreek Addanki make savePushToken an update, so it can't create a
+ * profile holding only the token, on November 2, 2026. Sashreek Addanki
+ * reviewed it.
  */
 package com.lambda.campsite.model.repository
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.MetadataChanges
-import com.google.firebase.firestore.SetOptions
 import com.lambda.campsite.model.Profile
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -106,23 +110,27 @@ class FirestoreProfileRepository(
     }
 
     /**
-     * Saves [token] to `profiles/{uid}` as a merge, which changes only the
-     * `pushToken` field (US 01.10.01). A profile change made at the same
+     * Saves [token] in the `pushToken` field of `profiles/{uid}`, changing
+     * only that field (US 01.10.01). A profile change made at the same
      * moment, like the user saving their name, stays.
      *
-     * If the profile doesn't exist yet, the merge creates it with just the
-     * token, and the other fields read back as their defaults. Firebase can
-     * hand out the token before the first launch creates the profile.
+     * It's an update, so it never creates the profile. Firebase can hand out
+     * the token before the first launch creates the profile, and a profile
+     * created here would hold nothing but the token, which [currentProfile]
+     * would then never fill in. In that case this throws, and `MainActivity`
+     * saves the token through `ProfileController.onPushTokenAvailable` once
+     * the profile exists.
      *
      * Waits for sign-in first. Returns once the server accepts the token.
      * Offline, it waits until the connection comes back, like [save].
      *
      * @throws com.google.firebase.firestore.FirebaseFirestoreException if the
-     *   server refuses the write.
+     *   profile doesn't exist yet, which the rules refuse as PERMISSION_DENIED,
+     *   or if the server refuses the write for another reason.
      */
     override suspend fun savePushToken(token: String) {
         val uid = auth.signedInUserId().first()
-        profiles.document(uid).set(mapOf(ProfileFields.PUSH_TOKEN to token), SetOptions.merge()).await()
+        profiles.document(uid).update(ProfileFields.PUSH_TOKEN, token).await()
     }
 
     private companion object {
