@@ -3,6 +3,10 @@
  * this file in October 2026, following the Campsite class in the team's class
  * diagram. It helped with the Kotlin code, syntax and KDoc. Sashreek Addanki
  * reviewed it and committed it.
+ *
+ * The imageId field was added by Aarush Bhat with the assistance of Claude
+ * Sonnet 5 (Anthropic), through Claude Code, in November 2026. Aarush Bhat
+ * reviewed and committed it.
  */
 package com.lambda.campsite.model
 
@@ -12,10 +16,10 @@ package com.lambda.campsite.model
  * Like [Profile], a campsite never changes in place. Make an edited copy with
  * `copy()` and save it through the repository.
  *
- * The class diagram's `image` and `availability` attributes arrive with the
- * Image and Availability classes. Its `owner: Profile` is [ownerId] here,
- * because profiles are private: the security rules don't let other users load
- * the owner's profile.
+ * The class diagram's `availability` attribute arrives with the Availability
+ * class. Its `owner: Profile` is [ownerId] here, because profiles are
+ * private: the security rules don't let other users load the owner's
+ * profile.
  *
  * @property id the campsite's document ID. It never changes, so a printed QR
  *   code keeps working after the owner edits the campsite (US 02.01.03).
@@ -39,6 +43,8 @@ package com.lambda.campsite.model
  *   changes it.
  * @property ratingSum all its star ratings added together. Only a Cloud
  *   Function changes it.
+ * @property imageId the ID of its photo, or `null` if the owner didn't upload
+ *   one (US 02.01.02).
  */
 data class Campsite(
     val id: String,
@@ -56,7 +62,8 @@ data class Campsite(
     val published: Boolean = true,
     val ratingCount: Int = 0,
     val ratingSum: Int = 0,
-) {
+    override val imageId: String? = null,
+) : ImageOwner {
 
     /** The average star rating, or `null` if nobody has rated it yet (US 01.01.04, 02.01.04). */
     val averageRating: Double?

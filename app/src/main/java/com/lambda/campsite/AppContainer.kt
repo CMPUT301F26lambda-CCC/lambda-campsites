@@ -9,6 +9,10 @@
  * The notification repository was added by Aarush Bhat with the assistance
  * of Claude Sonnet 5 (Anthropic), through Claude Code, in November 2026.
  * Aarush Bhat reviewed and committed it.
+ *
+ * The image repository and the Storage property were also added by Aarush
+ * Bhat with the assistance of Claude Sonnet 5 (Anthropic), through Claude
+ * Code, in November 2026. Aarush Bhat reviewed and committed them.
  */
 package com.lambda.campsite
 
@@ -17,11 +21,15 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.storage
 import com.lambda.campsite.model.repository.CampsiteRepository
 import com.lambda.campsite.model.repository.FirestoreCampsiteRepository
+import com.lambda.campsite.model.repository.FirestoreImageRepository
 import com.lambda.campsite.model.repository.FirestoreLotteryRepository
 import com.lambda.campsite.model.repository.FirestoreNotificationRepository
 import com.lambda.campsite.model.repository.FirestoreProfileRepository
+import com.lambda.campsite.model.repository.ImageRepository
 import com.lambda.campsite.model.repository.LotteryRepository
 import com.lambda.campsite.model.repository.NotificationRepository
 import com.lambda.campsite.model.repository.ProfileRepository
@@ -48,6 +56,9 @@ class AppContainer {
     /** The Firestore database. Tests point it at the emulator before the app starts. */
     val firestore: FirebaseFirestore by lazy { Firebase.firestore }
 
+    /** Where photo files are kept. Tests point it at the emulator before the app starts. */
+    val storage: FirebaseStorage by lazy { Firebase.storage }
+
     /** This device's profile, stored in Firestore. */
     val profileRepository: ProfileRepository by lazy { FirestoreProfileRepository(auth, firestore) }
 
@@ -59,4 +70,7 @@ class AppContainer {
 
     /** This device's notifications, stored in Firestore. */
     val notificationRepository: NotificationRepository by lazy { FirestoreNotificationRepository(auth, firestore) }
+
+    /** Campsite photos, stored in Storage and Firestore. */
+    val imageRepository: ImageRepository by lazy { FirestoreImageRepository(auth, firestore, storage) }
 }

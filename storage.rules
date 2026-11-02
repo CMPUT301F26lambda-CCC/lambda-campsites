@@ -1,10 +1,25 @@
+/*
+ * AI use: Coded by Aarush Bhat with the assistance of Claude Sonnet 5
+ * (Anthropic), through Claude Code, in November 2026, following
+ * docs/architecture.md section 4. Aarush Bhat reviewed and committed it.
+ */
 rules_version = '2';
 
-// Craft rules based on data in your Firestore database
-// allow write: if firestore.get(
-//    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
 service firebase.storage {
   match /b/{bucket}/o {
+
+    // A campsite photo, shrunk to about 800 pixels wide before upload
+    // (around 150 KB). The size limit is well above that, to allow for a
+    // less compressed JPEG without letting a modified app upload something
+    // huge (US 02.01.02).
+    match /images/{imageId} {
+      allow read: if request.auth != null;
+
+      allow write: if request.auth != null
+        && request.resource.contentType == 'image/jpeg'
+        && request.resource.size < 2 * 1024 * 1024;
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

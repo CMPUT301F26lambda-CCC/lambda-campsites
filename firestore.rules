@@ -7,6 +7,10 @@
 // Claude Sonnet 5 (Anthropic), through Claude Code, in November 2026. Aarush
 // Bhat reviewed and committed them.
 //
+// The image rules were also coded by Aarush Bhat with the assistance of
+// Claude Sonnet 5 (Anthropic), through Claude Code, in November 2026. Aarush
+// Bhat reviewed and committed them.
+//
 // Claude Opus 5.5 (Anthropic), used through Claude Code, also helped Sashreek
 // Addanki add the check that read is true or false, the availability rules
 // and the lottery rules, in November 2026. Sashreek Addanki reviewed them.
@@ -297,6 +301,16 @@ service cloud.firestore {
       allow update: if isSelf(resource.data.recipientId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
         && request.resource.data.read is bool;
+    }
+
+    // Any signed-in user can read an image, since campsite photos are shown
+    // to every entrant browsing campsites. Only the uploader's own document
+    // is created, and nothing about an image ever changes once it exists
+    // (US 02.01.02).
+    match /images/{imageId} {
+      allow read: if signedIn();
+
+      allow create: if isSelf(request.resource.data.ownerId);
     }
 
     // Everything not matched above is denied.

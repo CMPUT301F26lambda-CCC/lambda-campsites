@@ -11,6 +11,10 @@
 > tests, and the note on unused IDs with the availability tests, and the
 > notes on writes that go together and on a second user with the lottery
 > tests. The team reviewed and edited it in its pull requests.
+>
+> Claude Sonnet 5 (Anthropic), used through Claude Code, also helped
+> Aarush Bhat add the note on testing Storage rules in November 2026.
+> Aarush Bhat reviewed and committed it.
 
 This document is for everyone writing code in this app. It covers
 which tests each user story needs, where test files go and what to
@@ -87,6 +91,7 @@ Test files mirror the package of the class they test.
 | Shared test helper | `app/src/test/java/com/lambda/campsite/testutil/` | `MainDispatcherRule` |
 | UI or intent test for a screen | `app/src/androidTest/java/com/lambda/campsite/view/screens/` | `LotteryScreenTest` |
 | Security rules test | `app/src/androidTest/java/com/lambda/campsite/rules/` | `ProfileRulesTest` |
+| Storage rules test | `app/src/androidTest/java/com/lambda/campsite/rules/` | `ImageStorageRulesTest` |
 | Cloud Functions test | `functions/tests/` | `test_draw_lotteries.py` |
 
 Name each test after the behaviour it checks, so a failing test tells
@@ -184,6 +189,14 @@ Some writes only pass the rules together with another one, like joining a
 waiting list and adding one to `entryCount`. Send those as one batch, the
 way `LotteryEntryRulesTest` does. The rules check a batch the same way as
 the app's transaction.
+
+Storage rules tests follow the same shape, but call the Firebase Storage
+SDK directly instead of Firestore's, and check for a `StorageException`
+whose `errorCode` is `StorageException.ERROR_NOT_AUTHORIZED` instead of
+`PERMISSION_DENIED`. There's no `setIgnoringRules` for Storage: every
+write in `storage.rules` is open to any signed-in user, so a test can set
+up a file it needs with a normal upload instead of an admin bypass.
+`ImageStorageRulesTest` shows the pattern.
 
 If a test fails with "No answer from the Firestore emulator", the
 Firebase emulators aren't running.
