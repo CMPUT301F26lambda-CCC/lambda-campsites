@@ -15,6 +15,10 @@
 > Claude Sonnet 5 (Anthropic), used through Claude Code, also helped
 > Aarush Bhat add the note on testing Storage rules in November 2026.
 > Aarush Bhat reviewed and committed it.
+>
+> Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+> Sashreek Addanki update the note on testing Storage rules on November
+> 1, 2026, when photos became upload-only. Sashreek Addanki reviewed it.
 
 This document is for everyone writing code in this app. It covers
 which tests each user story needs, where test files go and what to
@@ -193,10 +197,11 @@ the app's transaction.
 Storage rules tests follow the same shape, but call the Firebase Storage
 SDK directly instead of Firestore's, and check for a `StorageException`
 whose `errorCode` is `StorageException.ERROR_NOT_AUTHORIZED` instead of
-`PERMISSION_DENIED`. There's no `setIgnoringRules` for Storage: every
-write in `storage.rules` is open to any signed-in user, so a test can set
-up a file it needs with a normal upload instead of an admin bypass.
-`ImageStorageRulesTest` shows the pattern.
+`PERMISSION_DENIED`. There's no `setIgnoringRules` for Storage, so a test
+sets up a file it needs with a normal upload. Give each uploaded file a
+name no earlier run has used. The Storage emulator keeps files until it
+restarts, and a photo can't be replaced, so a reused name fails on the
+second run. `ImageStorageRulesTest` shows the pattern.
 
 If a test fails with "No answer from the Firestore emulator", the
 Firebase emulators aren't running.

@@ -3,6 +3,10 @@
  * (Anthropic), through Claude Code, in November 2026, following the
  * Firestore rules tests in NotificationRulesTest. Aarush Bhat reviewed
  * and committed it.
+ *
+ * Claude Opus 5.5 (Anthropic), used through Claude Code, helped Sashreek
+ * Addanki add the test for replacing someone else's photo and give each
+ * upload its own name, on November 1, 2026. Sashreek Addanki reviewed them.
  */
 package com.lambda.campsite.rules
 
@@ -13,8 +17,10 @@ import com.google.firebase.storage.StorageException
 import com.google.firebase.storage.StorageMetadata
 import com.google.firebase.storage.storage
 import com.lambda.campsite.testutil.awaitSignIn
+import com.lambda.campsite.testutil.signInAsNewUser
 import com.lambda.campsite.testutil.storageErrorFrom
 import java.io.ByteArrayOutputStream
+import java.util.UUID
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import org.junit.Assert.assertEquals
@@ -44,16 +50,17 @@ class ImageStorageRulesTest {
 
     @Test
     fun signedInUserCanUploadAJpegUnderTheSizeLimit() {
-        val error = storageErrorFrom { images.child("underLimit.jpg").putBytes(jpeg(), jpegMetadata()).await() }
+        val error = storageErrorFrom { images.child(newName()).putBytes(jpeg(), jpegMetadata()).await() }
 
         assertNull(error)
     }
 
     @Test
     fun signedInUserCanReadAnUploadedImage() {
-        runBlocking { images.child("toRead.jpg").putBytes(jpeg(), jpegMetadata()).await() }
+        val name = newName()
+        runBlocking { images.child(name).putBytes(jpeg(), jpegMetadata()).await() }
 
-        val error = storageErrorFrom { images.child("toRead.jpg").getBytes(MAX_DOWNLOAD_BYTES).await() }
+        val error = storageErrorFrom { images.child(name).getBytes(MAX_DOWNLOAD_BYTES).await() }
 
         assertNull(error)
     }
@@ -76,6 +83,19 @@ class ImageStorageRulesTest {
         assertNotAuthorized(error)
     }
 
+    @Test
+    fun userCantReplaceSomeoneElsesImage() {
+        val name = newName()
+        runBlocking {
+            images.child(name).putBytes(jpeg(), jpegMetadata()).await()
+            signInAsNewUser()
+        }
+
+        val error = storageErrorFrom { images.child(name).putBytes(jpeg(), jpegMetadata()).await() }
+
+        assertNotAuthorized(error)
+    }
+
     private fun assertNotAuthorized(error: StorageException?) {
         assertEquals(StorageException.ERROR_NOT_AUTHORIZED, error?.errorCode)
     }
@@ -90,6 +110,13 @@ class ImageStorageRulesTest {
             stream.toByteArray()
         }
     }
+
+    /**
+     * A file name no earlier run has used. The Storage emulator keeps files
+     * until it restarts, and a photo can't be replaced, so reusing a name
+     * would make the upload fail on the second run.
+     */
+    private fun newName(): String = "${UUID.randomUUID()}.jpg"
 
     private companion object {
         const val MAX_DOWNLOAD_BYTES = 1024L * 1024L
