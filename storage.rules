@@ -1,7 +1,24 @@
 /*
+ * Purpose: the Cloud Storage security rules. They decide who can read and
+ * upload campsite photos, and close every other path in the bucket.
+ *
+ * Outstanding issues:
+ * - Any signed-in user can upload a photo, not just campsite owners.
+ *   Checking the owner role would cost a Firestore read on every upload,
+ *   and the type and size limits already stop a modified app from
+ *   uploading anything large.
+ * - If a photo uploads but its Firestore document then fails to save, the
+ *   file stays in Storage with nothing pointing to it. Nothing cleans
+ *   these up yet.
+ *
  * AI use: Coded by Aarush Bhat with the assistance of Claude Sonnet 5
  * (Anthropic), through Claude Code, in November 2026, following
  * docs/architecture.md section 4. Aarush Bhat reviewed and committed it.
+ *
+ * Claude Opus 5.5 (Anthropic), used through Claude Code, helped Sashreek
+ * Addanki change the image rule so a photo can be uploaded but never
+ * replaced, including the check that no file is there yet, on November 1,
+ * 2026. Sashreek Addanki reviewed it.
  */
 rules_version = '2';
 
@@ -12,10 +29,18 @@ service firebase.storage {
     // (around 150 KB). The size limit is well above that, to allow for a
     // less compressed JPEG without letting a modified app upload something
     // huge (US 02.01.02).
+    //
+    // Only new files are allowed. Each photo gets its own ID, so the app
+    // never needs to replace one, and nobody can upload over someone
+    // else's. Storage checks an upload over an existing file as a create,
+    // not an update, so `resource == null` is what blocks it: `resource` is
+    // the file already at this path. Cloud Functions delete photos, and
+    // they skip these rules.
     match /images/{imageId} {
       allow read: if request.auth != null;
 
-      allow write: if request.auth != null
+      allow create: if request.auth != null
+        && resource == null
         && request.resource.contentType == 'image/jpeg'
         && request.resource.size < 2 * 1024 * 1024;
     }

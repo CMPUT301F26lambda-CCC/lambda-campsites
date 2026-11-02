@@ -1,3 +1,12 @@
+// Purpose: the Firestore security rules, the server-side check on every read
+// and write the app makes. The app can be modified, so anything that must
+// hold, like who owns a campsite or which nights are free, is enforced here.
+//
+// Outstanding issues:
+// - Admins have no access yet. It comes with the admin stories.
+// - Reservations have no rules yet, so the app can't create one. #108 adds
+//   them.
+//
 // AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
 // the profile rules in October 2026, following docs/architecture.md section 4.
 // It helped with the rules syntax and comments. It also helped add the
@@ -14,6 +23,11 @@
 // Claude Opus 5.5 (Anthropic), used through Claude Code, also helped Sashreek
 // Addanki add the check that read is true or false, the availability rules
 // and the lottery rules, in November 2026. Sashreek Addanki reviewed them.
+//
+// Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+// Sashreek Addanki add the check that a campsite's photo is its owner's,
+// and limit image documents to ownerId, on November 1, 2026. Sashreek
+// Addanki reviewed them.
 rules_version = '2';
 
 service cloud.firestore {
@@ -57,6 +71,15 @@ service cloud.firestore {
     function ownsCampsite(campsiteId) {
       return activeOwner()
         && get(/databases/$(database)/documents/campsites/$(campsiteId)).data.ownerId == request.auth.uid;
+    }
+
+    // A campsite's photo has to be one its owner uploaded, or none, so
+    // deleting the campsite can't take someone else's photo with it
+    // (US 02.01.02). Checking the photo costs one more document read, and a
+    // photo that doesn't exist fails the check.
+    function ownPhotoOrNone(data) {
+      return data.get('imageId', null) == null
+        || get(/databases/$(database)/documents/images/$(data.imageId)).data.ownerId == request.auth.uid;
     }
 
     // Text like 2027-07-02, which is how dates without a time are stored.
@@ -188,19 +211,23 @@ service cloud.firestore {
             || resource.data.published == true
             || resource.data.ownerId == request.auth.uid);
 
-      // An owner lists a campsite as themselves, with no ratings yet
-      // (US 02.01.01).
+      // An owner lists a campsite as themselves, with no ratings yet and a
+      // photo they uploaded, if any (US 02.01.01).
       allow create: if activeOwner()
         && request.resource.data.ownerId == request.auth.uid
-        && !request.resource.data.keys().hasAny(['ratingCount', 'ratingSum']);
+        && !request.resource.data.keys().hasAny(['ratingCount', 'ratingSum'])
+        && ownPhotoOrNone(request.resource.data);
 
-      // An owner edits their own campsites (US 02.01.03). Only Cloud Functions
-      // change the rating totals, and only admins unpublish (US 03.07.01).
-      // Deleting comes with the admin stories (US 03.01.01).
+      // An owner edits their own campsites (US 02.01.03). A new photo has to
+      // be one they uploaded. Only Cloud Functions change the rating totals,
+      // and only admins unpublish (US 03.07.01). Deleting comes with the
+      // admin stories (US 03.01.01).
       allow update: if activeOwner()
         && resource.data.ownerId == request.auth.uid
         && !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['ownerId', 'published', 'ratingCount', 'ratingSum']);
+            .hasAny(['ownerId', 'published', 'ratingCount', 'ratingSum'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['imageId'])
+            || ownPhotoOrNone(request.resource.data));
 
       // Each campsite has one calendar, `availability/calendar`, with its
       // season and booked nights. Anyone signed in can see which nights are
@@ -305,12 +332,13 @@ service cloud.firestore {
 
     // Any signed-in user can read an image, since campsite photos are shown
     // to every entrant browsing campsites. Only the uploader's own document
-    // is created, and nothing about an image ever changes once it exists
-    // (US 02.01.02).
+    // is created, holding nothing but who uploaded it, and nothing about an
+    // image ever changes once it exists (US 02.01.02).
     match /images/{imageId} {
       allow read: if signedIn();
 
-      allow create: if isSelf(request.resource.data.ownerId);
+      allow create: if isSelf(request.resource.data.ownerId)
+        && request.resource.data.keys().hasOnly(['ownerId']);
     }
 
     // Everything not matched above is denied.
