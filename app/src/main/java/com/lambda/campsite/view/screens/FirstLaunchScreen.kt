@@ -76,7 +76,7 @@ fun FirstLaunchScreen(onGetStarted: (String) -> Unit,
                       saveFailed: Boolean = false) {
 
     var name by rememberSaveable { mutableStateOf("") }
-    var hasAgreed by remember { mutableStateOf(false) }
+    var hasAgreed by rememberSaveable { mutableStateOf(false) }
     var showPolicySheet by remember { mutableStateOf(false) }
     // reference- https://developer.android.com/reference/kotlin/androidx/compose/material3/ModalBottomSheet.composable
     val sheetState = rememberModalBottomSheetState(
@@ -85,9 +85,8 @@ fun FirstLaunchScreen(onGetStarted: (String) -> Unit,
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(0.dp)
             .background(ForestGreen)
-            .systemBarsPadding()
+            .statusBarsPadding()
             .imePadding()
 
     ) {
@@ -137,6 +136,7 @@ fun FirstLaunchScreen(onGetStarted: (String) -> Unit,
                     )
                 )
                 .background(Mint)
+                .navigationBarsPadding()
                 .verticalScroll(rememberScrollState())
 
         ) {
@@ -185,7 +185,7 @@ fun FirstLaunchScreen(onGetStarted: (String) -> Unit,
                 Text(
                     text = stringResource(R.string.policy_agreement)
                 )
-
+                Spacer(Modifier.width(4.dp))
                 Text(
                     text = stringResource(R.string.policy_link),
                     color = if (name.isNotBlank()) DeepGreen else DeepGreen.copy(alpha = 0.38f),
@@ -197,15 +197,17 @@ fun FirstLaunchScreen(onGetStarted: (String) -> Unit,
                     }.testTag("policy_link")
                 )
             }
-            Row(
-                modifier = Modifier.padding(bottom=15.dp)
+            Column(
+                modifier = Modifier.padding(start = 24.dp, end = 24.dp,bottom=15.dp)
             ) {
                 Button(
                     onClick = {
                         onGetStarted(name.trim())
                     },
                     enabled = name.isNotBlank() && hasAgreed,
-                    modifier = Modifier.fillMaxWidth().testTag("get_started_button").height(56.dp)
+                    modifier = Modifier.fillMaxWidth()
+                        .height(56.dp)
+                        .testTag("get_started_button")
 
                 ) {
                     Text(stringResource(R.string.get_started_button))
@@ -213,7 +215,11 @@ fun FirstLaunchScreen(onGetStarted: (String) -> Unit,
                 if (saveFailed) {
                     Text(
                         text = stringResource(R.string.profile_save_failed),
-                        color = MaterialTheme.colorScheme.error
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
                     )
                 }
             }

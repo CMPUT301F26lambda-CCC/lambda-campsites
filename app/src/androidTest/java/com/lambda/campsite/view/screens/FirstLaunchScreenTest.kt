@@ -2,7 +2,7 @@
  * AI use: Claude Sonnet 5.5 (Anthropic), used through the Claude chat app,
  * helped write these tests in November 2026. It helped with the test cases,
  * the Compose UI testing syntax and finding why the tests would not run as
- * instrumented tests. Harmanjoth Kaur reviewed them and committed them.
+ * instrumented tests. Harmanjoth Kaur reviewed, ran and committed them.
  */
 
 package com.lambda.campsite.view.screens
@@ -22,6 +22,9 @@ import org.junit.Rule
 import org.junit.Test
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.onNodeWithText
+import androidx.test.platform.app.InstrumentationRegistry
+import com.lambda.campsite.R
 
 class FirstLaunchScreenTest {
 
@@ -52,6 +55,9 @@ class FirstLaunchScreenTest {
                 .fetchSemanticsNodes().isNotEmpty()
         }
     }
+    private fun saveFailedText(): String =
+        InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(R.string.profile_save_failed)
 
     @Test
     fun getStartedIsDisabledAtFirst() {
@@ -133,5 +139,23 @@ class FirstLaunchScreenTest {
         composeTestRule.onNodeWithTag("get_started_button").performScrollTo().performClick()
 
         assertEquals("Harman", receivedName)
+    }
+
+    @Test
+    fun saveFailedMessageIsShown() {
+        composeTestRule.setContent {
+            FirstLaunchScreen(onGetStarted = {}, saveFailed = true)
+        }
+
+        composeTestRule.onNodeWithText(saveFailedText())
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun saveFailedMessageIsHiddenByDefault() {
+        launchScreen()
+
+        composeTestRule.onNodeWithText(saveFailedText()).assertDoesNotExist()
     }
 }

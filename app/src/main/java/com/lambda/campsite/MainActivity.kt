@@ -6,11 +6,16 @@
  *
  * Outstanding issues:
  * - While the profile loads it draws nothing, and if loading fails the
- *   screen stays blank. The follow-up to #139 adds a spinner and an error
+ *   screen stays blank(Fixed). The follow-up to #139 adds a spinner and an error
  *   message.
  * - The permission prompt shows straight away, before the user has seen
  *   anything. Asking at a moment that explains why, like joining a first
  *   lottery, would be friendlier.
+ *
+ * AI use: Claude Sonnet 5.5 (Anthropic), used through the Claude chat app, helped
+ * Harmanjoth Kaur in resolving the blank screen issue that occurred when profile loading failed.
+ * This outstanding issue is fixed in November 2026.
+ * Harmanjoth Kaur reviewed and tested the changes.
  *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped change
  * this file in October 2026 to show LambdaCampsiteApp instead of the template's
@@ -35,7 +40,7 @@
  * deprecation, on November 2, 2026. Sashreek Addanki reviewed them.
  */
 package com.lambda.campsite
-
+import androidx.compose.ui.Modifier
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -55,6 +60,16 @@ import com.lambda.campsite.view.screens.FirstLaunchScreen
 import androidx.compose.runtime.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lambda.campsite.controller.ProfileError
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 
 /**
  * The app's only activity and entry point.
@@ -62,8 +77,10 @@ import com.lambda.campsite.controller.ProfileError
  * Sets up the app's theme and observes the user's profile through
  * ProfileController to determine which screen to display.
  *
- * While the profile is loading, the activity waits before displaying
- * the app content. If the user has not yet agreed to the app policy,
+ * While the profile is loading, the activity shows a progress spinner.
+ * If the profile cannot be loaded, it shows an error message asking the
+ * user to check their connection and restart the app.
+ * If the user has not yet agreed to the app policy,
  * it displays [FirstLaunchScreen], allowing the user to enter their
  * name and review and accept the policy.
  *
@@ -95,23 +112,16 @@ class MainActivity : ComponentActivity() {
 
                     val state by profileController.state.collectAsStateWithLifecycle()
                     val profile = state.profile
-
                     when {
-                        profile == null -> {
-                            // Wait until the profile has loaded.
-                        }
-
+                        profile == null && state.error == ProfileError.LOAD_FAILED -> ProfileLoadError()
+                        profile == null -> ProfileLoading()
                         profile.policyVersionAgreed == null -> {
                             FirstLaunchScreen(
-                                onGetStarted = { name ->
-                                    profileController.onFinishFirstLaunch(name)
-                                },saveFailed = state.error == ProfileError.SAVE_FAILED
+                                onGetStarted = { name -> profileController.onFinishFirstLaunch(name) },
+                                saveFailed = state.error == ProfileError.SAVE_FAILED
                             )
                         }
-
-                        else -> {
-                            LambdaCampsiteApp()
-                        }
+                        else -> LambdaCampsiteApp()
                     }
                 }
         }
@@ -148,3 +158,23 @@ class MainActivity : ComponentActivity() {
         Firebase.messaging.token.addOnSuccessListener(profileController::onPushTokenAvailable)
     }
 }
+/** It shows a progress spinner while the profile is loading. */
+@Composable
+private fun ProfileLoading() {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator()
+    }
+}
+/** It shows an error message when the profile could not be loaded. */
+@Composable
+private fun ProfileLoadError() {
+    Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+        Text(
+            text = stringResource(R.string.profile_load_failed),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.error,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
