@@ -3,6 +3,9 @@
 // setup, the Firebase setup and the emulator test runner in October 2026.
 // Sashreek Addanki reviewed and committed them.
 //
+// The Coil dependencies were added by Aarush Bhat with the assistance of
+// Claude Sonnet 5 (Anthropic), through Claude Code, in November 2026, for
+// loading campsite photos. Aarush Bhat reviewed and committed them.
 // The firebase-messaging dependency was added by Aarush Bhat with the
 // assistance of Claude Sonnet 5 (Anthropic), through Claude Code, in
 // November 2026. Aarush Bhat reviewed and committed it.
@@ -68,6 +71,9 @@ dependencies {
     implementation(libs.firebase.messaging)
     // Adds await(), so suspend functions can wait for Firebase calls.
     implementation(libs.kotlinx.coroutines.play.services)
+    // Loads campsite photos from their Storage download URL.
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(platform(libs.androidx.compose.bom))

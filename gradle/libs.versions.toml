@@ -3,6 +3,9 @@
 # plugin entry, and the Firebase and Google services entries in October 2026.
 # Sashreek Addanki reviewed and committed them.
 #
+# The Coil entries were added by Aarush Bhat with the assistance of Claude
+# Sonnet 5 (Anthropic), through Claude Code, in November 2026. Aarush Bhat
+# reviewed and committed them.
 # The firebase-messaging entry was added by Aarush Bhat with the assistance
 # of Claude Sonnet 5 (Anthropic), through Claude Code, in November 2026.
 # Aarush Bhat reviewed and committed it.
@@ -22,6 +25,7 @@ dokka = "2.2.0"
 # BoM 35 and newer need Kotlin 2.3 or later, and we are on 2.2.10.
 firebaseBom = "34.19.0"
 googleServices = "4.5.0"
+coil = "3.3.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -48,6 +52,8 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.r
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
 firebase-storage = { group = "com.google.firebase", name = "firebase-storage" }
+coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
+coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
 firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
 
 [plugins]

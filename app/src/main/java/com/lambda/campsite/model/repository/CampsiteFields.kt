@@ -2,6 +2,10 @@
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, syntax and KDoc.
  * Sashreek Addanki reviewed it and committed it.
+ *
+ * The imageId field was added by Aarush Bhat with the assistance of Claude
+ * Sonnet 5 (Anthropic), through Claude Code, in November 2026. Aarush Bhat
+ * reviewed and committed it.
  */
 package com.lambda.campsite.model.repository
 
@@ -33,6 +37,7 @@ object CampsiteFields {
     const val PUBLISHED = "published"
     const val RATING_COUNT = "ratingCount"
     const val RATING_SUM = "ratingSum"
+    const val IMAGE_ID = "imageId"
 
     /**
      * The document fields for [campsite]. It leaves out [RATING_COUNT] and
@@ -52,6 +57,7 @@ object CampsiteFields {
         PRICE_PER_NIGHT to campsite.pricePerNight,
         RULES to campsite.rules,
         PUBLISHED to campsite.published,
+        IMAGE_ID to campsite.imageId,
     )
 
     /**
@@ -80,6 +86,7 @@ object CampsiteFields {
             published = fields[PUBLISHED] as? Boolean ?: false,
             ratingCount = (fields[RATING_COUNT] as? Number)?.toInt() ?: defaults.ratingCount,
             ratingSum = (fields[RATING_SUM] as? Number)?.toInt() ?: defaults.ratingSum,
+            imageId = fields[IMAGE_ID] as? String,
         )
     }
 
