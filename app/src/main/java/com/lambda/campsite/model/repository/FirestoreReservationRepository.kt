@@ -8,8 +8,6 @@
  * - After a cancel or a reject, the winning entry stays BOOKED, so the win
  *   is used up. Otherwise a winner could cancel and book again as often as
  *   they liked, holding nights the whole time.
- * - firestore.rules doesn't allow decline yet, so the server refuses it
- *   until the last step of #108 adds that rule.
  * - The lists are sorted on the phone instead of in the query. Sorting in
  *   the query would need a composite index for each list, and one person
  *   has few reservations.

@@ -1,8 +1,8 @@
 /*
  * Purpose: tests the Firestore security rules for reservations against the
- * emulator (US 01.04.02, 01.06.01, 01.07.01, 02.06.01, 02.07.01, 02.08.01):
- * who can read one, which queries are allowed, and booking, cancelling and
- * rejecting a stay.
+ * emulator (US 01.04.02, 01.04.03, 01.06.01, 01.07.01, 02.06.01, 02.07.01,
+ * 02.08.01): who can read one, which queries are allowed, and booking,
+ * cancelling, rejecting and declining.
  *
  * Outstanding issues: None known.
  *
@@ -275,6 +275,30 @@ class ReservationRulesTest {
         assertPermissionDenied(change("stay", "CANCELLED"))
     }
 
+    @Test
+    fun winnerCanDeclineTheirWin() {
+        assertNull(decline())
+    }
+
+    @Test
+    fun decliningWithoutAWinIsRefused() {
+        setUpEntry(EntryStatus.WAITING)
+
+        assertPermissionDenied(decline())
+    }
+
+    @Test
+    fun decliningSomeoneElsesWinIsRefused() {
+        setUpEntry(EntryStatus.WON, entrantId = "someone-else")
+
+        assertPermissionDenied(decline(entrantId = "someone-else"))
+    }
+
+    @Test
+    fun decliningCantChangeAnythingElseOnTheEntry() {
+        assertPermissionDenied(decline(alsoSet = mapOf(LotteryEntryFields.RESERVATION_ID to "made-up")))
+    }
+
     private fun assertPermissionDenied(error: FirebaseFirestoreException?) {
         assertEquals(FirebaseFirestoreException.Code.PERMISSION_DENIED, error?.code)
     }
@@ -390,6 +414,16 @@ class ReservationRulesTest {
         batch.commit().await()
     }
 
+    /** Sets [entrantId]'s entry in lottery-1 to DECLINED, plus any fields in [alsoSet]. */
+    private fun decline(
+        entrantId: String = uid,
+        alsoSet: Map<String, Any> = emptyMap(),
+    ): FirebaseFirestoreException? = firestoreErrorFrom {
+        firestore.document("lotteries/lottery-1/entries/$entrantId")
+            .update(mapOf(LotteryEntryFields.STATUS to "DECLINED") + alsoSet)
+            .await()
+    }
+
     /** A drawn lottery for campsite-1 whose winners can stay between July 1 and 31. */
     private fun lottery() = Lottery(
         id = "lottery-1",
@@ -410,11 +444,11 @@ class ReservationRulesTest {
         )
     }
 
-    private fun setUpEntry(status: EntryStatus) {
+    private fun setUpEntry(status: EntryStatus, entrantId: String = uid) {
         FirestoreEmulator.setIgnoringRules(
-            "lotteries/lottery-1/entries/$uid",
+            "lotteries/lottery-1/entries/$entrantId",
             LotteryEntryFields.toMap(
-                LotteryEntry(lotteryId = "lottery-1", entrantId = uid, joinedAt = Timestamp(1_800_500_000, 0), status = status),
+                LotteryEntry(lotteryId = "lottery-1", entrantId = entrantId, joinedAt = Timestamp(1_800_500_000, 0), status = status),
             ),
         )
     }

@@ -4,7 +4,6 @@
 //
 // Outstanding issues:
 // - Admins have no access yet. It comes with the admin stories.
-// - Winners can't decline a win yet. The last step of #108 adds that rule.
 // - Cancelling and rejecting are allowed until the end of check-in day in
 //   UTC, a few hours past what the app allows, because the rules don't
 //   know the phone's time zone. The app stops them at local midnight.
@@ -425,6 +424,14 @@ service cloud.firestore {
           && request.resource.data.status == 'BOOKED'
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reservationId'])
           && newReservationFor(request.resource.data.reservationId, lotteryId);
+
+        // A winner turns down their own win without booking (US 01.04.03).
+        // Only the status changes. A declined win never held any nights, and
+        // there's no second draw, so nothing else changes with it.
+        allow update: if isSelf(entrantId)
+          && resource.data.status == 'WON'
+          && request.resource.data.status == 'DECLINED'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
       }
     }
 

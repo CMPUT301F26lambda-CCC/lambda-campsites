@@ -1,13 +1,11 @@
 /*
  * Purpose: tests FirestoreReservationRepository against the Firestore
- * emulator (US 01.04.02, 01.06.01, 01.07.01, 02.06.01, 02.07.01, 02.08.01):
- * which reservations each of the three lists shows, booking a stay,
- * including two phones booking the same night at once, and cancelling and
- * rejecting.
+ * emulator (US 01.04.02, 01.04.03, 01.06.01, 01.07.01, 02.06.01, 02.07.01,
+ * 02.08.01): which reservations each of the three lists shows, booking a
+ * stay, including two phones booking the same night at once, and
+ * cancelling, rejecting and declining.
  *
- * Outstanding issues:
- * - decline isn't tested yet, because its rule comes in the last step of
- *   #108.
+ * Outstanding issues: None known.
  *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped
  * Sashreek Addanki write these tests on November 2, 2026, following
@@ -255,6 +253,22 @@ class FirestoreReservationRepositoryTest {
         setUpOnServer(reservation("started", guestId = uid, checkIn = "2020-07-02", checkOut = "2020-07-04"))
 
         assertEquals(ReservationException.Reason.CANT_CHANGE, refusalFrom { repository.cancel("started") }.reason)
+    }
+
+    @Test
+    fun decliningUsesUpTheWinWithoutTakingNights() {
+        runBlocking { withTimeout(TIMEOUT_MS) { repository.decline("lottery-1") } }
+
+        assertEquals(EntryStatus.DECLINED, entryOnServer(uid)?.status)
+        assertEquals(emptyList<String>(), bookedNightsOnServer())
+        assertEquals(ReservationException.Reason.NOT_A_WINNER, refusalFrom { book() }.reason)
+    }
+
+    @Test
+    fun decliningTwiceIsRefused() {
+        runBlocking { withTimeout(TIMEOUT_MS) { repository.decline("lottery-1") } }
+
+        assertEquals(ReservationException.Reason.NOT_A_WINNER, refusalFrom { repository.decline("lottery-1") }.reason)
     }
 
     /** Books July 2 to 4 at campsite-1 with the lottery-1 win, changing one part at a time. */
