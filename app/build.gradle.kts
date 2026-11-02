@@ -6,6 +6,9 @@
 // The Coil dependencies were added by Aarush Bhat with the assistance of
 // Claude Sonnet 5 (Anthropic), through Claude Code, in November 2026, for
 // loading campsite photos. Aarush Bhat reviewed and committed them.
+// The firebase-messaging dependency was added by Aarush Bhat with the
+// assistance of Claude Sonnet 5 (Anthropic), through Claude Code, in
+// November 2026. Aarush Bhat reviewed and committed it.
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -65,6 +68,7 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
+    implementation(libs.firebase.messaging)
     // Adds await(), so suspend functions can wait for Firebase calls.
     implementation(libs.kotlinx.coroutines.play.services)
     // Loads campsite photos from their Storage download URL.
