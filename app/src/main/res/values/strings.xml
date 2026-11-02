@@ -2,6 +2,10 @@
   AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write the
   tab, role, profile and error strings in October 2026. Sashreek Addanki reviewed
   and committed them.
+
+  Claude Opus 5.5 (Anthropic), used through Claude Code, also helped Sashreek
+  Addanki add the push notification channel strings on November 1, 2026.
+  Sashreek Addanki reviewed them.
 -->
 <resources>
     <string name="app_name">Lambda Campsite</string>
@@ -32,4 +36,9 @@
     <string name="error_owner_banned">An admin removed your owner role, so you can\'t list campsites.</string>
     <string name="error_save_failed">Couldn\'t save your profile. Check your connection and try again.</string>
     <string name="error_load_failed">Couldn\'t load your profile. Close the app and open it again.</string>
+
+    <!-- Push notifications. The channel ID is a key, not text the user sees. -->
+    <string name="notification_channel_id" translatable="false">updates</string>
+    <string name="notification_channel_name">Lottery and booking updates</string>
+    <string name="notification_channel_description">Lottery results, booking confirmations and changes to your stays.</string>
 </resources>
