@@ -155,6 +155,7 @@ class ProfileController(
         }
     }
 
+    /**
      * Saves the user's name and their agreement to the current app policy
      * when they finish the first-launch screen (US 01.11.01).
      *
@@ -181,6 +182,7 @@ class ProfileController(
             }
         }
     }
+
     /** Clears the error once the screen has shown it. */
     fun onErrorShown() {
         _state.update { it.copy(error = null) }

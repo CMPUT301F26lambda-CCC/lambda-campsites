@@ -47,8 +47,6 @@ import com.lambda.campsite.view.LambdaCampsiteApp
 import com.lambda.campsite.view.theme.LambdaCampsiteTheme
 import com.lambda.campsite.view.screens.FirstLaunchScreen
 import androidx.compose.runtime.*
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.lambda.campsite.controller.ProfileController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lambda.campsite.controller.ProfileError
 
@@ -88,9 +86,6 @@ class MainActivity : ComponentActivity() {
         setContent {
 
                 LambdaCampsiteTheme(darkTheme = false) {
-
-                    val profileController: ProfileController =
-                        viewModel(factory = ProfileController.Factory)
 
                     val state by profileController.state.collectAsStateWithLifecycle()
                     val profile = state.profile
