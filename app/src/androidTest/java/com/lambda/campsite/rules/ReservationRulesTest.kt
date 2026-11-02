@@ -1,11 +1,10 @@
 /*
  * Purpose: tests the Firestore security rules for reservations against the
- * emulator (US 01.04.02, 01.06.01, 02.06.01, 02.07.01): who can read one,
- * which queries are allowed, and booking a stay.
+ * emulator (US 01.04.02, 01.06.01, 01.07.01, 02.06.01, 02.07.01, 02.08.01):
+ * who can read one, which queries are allowed, and booking, cancelling and
+ * rejecting a stay.
  *
- * Outstanding issues:
- * - Cancelling and rejecting have no rules yet, so there are no tests for
- *   them. The rest of #108 adds both.
+ * Outstanding issues: None known.
  *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped
  * Sashreek Addanki write these tests on November 2, 2026, following
@@ -17,6 +16,7 @@ package com.lambda.campsite.rules
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.firebase.Firebase
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.firestore
@@ -27,6 +27,7 @@ import com.lambda.campsite.model.LotteryEntry
 import com.lambda.campsite.model.LotteryStatus
 import com.lambda.campsite.model.Profile
 import com.lambda.campsite.model.Reservation
+import com.lambda.campsite.model.ReservationStatus
 import com.lambda.campsite.model.repository.AvailabilityFields
 import com.lambda.campsite.model.repository.CampsiteFields
 import com.lambda.campsite.model.repository.LotteryEntryFields
@@ -213,12 +214,80 @@ class ReservationRulesTest {
         assertPermissionDenied(error)
     }
 
+    @Test
+    fun guestCanCancelTheirStay() {
+        setUpBookedStay(guestId = uid)
+
+        assertNull(change("stay", "CANCELLED"))
+    }
+
+    @Test
+    fun ownerCanRejectAStayAtTheirCampsite() {
+        FirestoreEmulator.setIgnoringRules(
+            "profiles/$uid",
+            ProfileFields.toMap(Profile(deviceId = uid, name = "Jordan Lee", email = "").becomeOwner()),
+        )
+        setUpBookedStay(ownerId = uid)
+
+        assertNull(change("stay", "REJECTED"))
+    }
+
+    @Test
+    fun cancellingWithoutFreeingTheNightsIsRefused() {
+        setUpBookedStay(guestId = uid)
+
+        assertPermissionDenied(change("stay", "CANCELLED", freeNights = false))
+    }
+
+    @Test
+    fun freeingOnlySomeOfTheNightsIsRefused() {
+        setUpBookedStay(guestId = uid)
+
+        assertPermissionDenied(change("stay", "CANCELLED", nightsLeft = listOf("2027-07-03")))
+    }
+
+    @Test
+    fun cancellingSomeoneElsesStayIsRefused() {
+        setUpBookedStay()
+
+        assertPermissionDenied(change("stay", "CANCELLED"))
+    }
+
+    @Test
+    fun guestCantRejectTheirOwnStay() {
+        setUpBookedStay(guestId = uid)
+
+        assertPermissionDenied(change("stay", "REJECTED"))
+    }
+
+    @Test
+    fun cancellingAStayThatsAlreadyCancelledIsRefused() {
+        setUpBookedStay(guestId = uid, status = ReservationStatus.CANCELLED)
+
+        assertPermissionDenied(change("stay", "CANCELLED"))
+    }
+
+    @Test
+    fun cancellingAStayThatsOverIsRefused() {
+        setUpReservation("stay", guestId = uid, checkIn = "2020-07-02", checkOut = "2020-07-04")
+        setUpCalendar(bookedNights = listOf("2020-07-02", "2020-07-03"))
+
+        assertPermissionDenied(change("stay", "CANCELLED"))
+    }
+
     private fun assertPermissionDenied(error: FirebaseFirestoreException?) {
         assertEquals(FirebaseFirestoreException.Code.PERMISSION_DENIED, error?.code)
     }
 
-    /** Puts a confirmed reservation at `reservations/[id]`, skipping the rules. */
-    private fun setUpReservation(id: String, guestId: String = "someone-else", ownerId: String = "another-owner") {
+    /** Puts a reservation at `reservations/[id]`, skipping the rules. */
+    private fun setUpReservation(
+        id: String,
+        guestId: String = "someone-else",
+        ownerId: String = "another-owner",
+        status: ReservationStatus = ReservationStatus.CONFIRMED,
+        checkIn: String = "2027-07-02",
+        checkOut: String = "2027-07-04",
+    ) {
         val reservation = Reservation(
             id = id,
             guestId = guestId,
@@ -227,11 +296,12 @@ class ReservationRulesTest {
             campsiteId = "campsite-1",
             campsiteName = "Moose Lake Campsite",
             lotteryId = "lottery-1",
-            checkIn = LocalDate.parse("2027-07-02"),
-            checkOut = LocalDate.parse("2027-07-04"),
+            checkIn = LocalDate.parse(checkIn),
+            checkOut = LocalDate.parse(checkOut),
             guests = 2,
             rulesAgreedAt = Timestamp(1_810_000_000, 0),
             createdAt = Timestamp(1_810_000_000, 0),
+            status = status,
         )
         FirestoreEmulator.setIgnoringRules("reservations/$id", ReservationFields.toMap(reservation))
     }
@@ -280,6 +350,41 @@ class ReservationRulesTest {
             batch.update(
                 firestore.document("lotteries/lottery-1/entries/$uid"),
                 mapOf(LotteryEntryFields.STATUS to "BOOKED", LotteryEntryFields.RESERVATION_ID to stay.id),
+            )
+        }
+        batch.commit().await()
+    }
+
+    /** A stay "stay" for July 2 to 4, with both nights held in the calendar. */
+    private fun setUpBookedStay(
+        guestId: String = "someone-else",
+        ownerId: String = "another-owner",
+        status: ReservationStatus = ReservationStatus.CONFIRMED,
+    ) {
+        setUpReservation("stay", guestId = guestId, ownerId = ownerId, status = status)
+        setUpCalendar(bookedNights = listOf("2027-07-02", "2027-07-03"))
+    }
+
+    /**
+     * Sets the reservation [id] to [status] as one batch, the way the app's
+     * transaction writes it, leaving [nightsLeft] in the calendar.
+     * [freeNights] leaves the calendar out, so a test can break that part.
+     */
+    private fun change(
+        id: String,
+        status: String,
+        nightsLeft: List<String> = emptyList(),
+        freeNights: Boolean = true,
+    ): FirebaseFirestoreException? = firestoreErrorFrom {
+        val batch = firestore.batch()
+        batch.update(
+            reservations.document(id),
+            mapOf(ReservationFields.STATUS to status, ReservationFields.CANCELLED_AT to FieldValue.serverTimestamp()),
+        )
+        if (freeNights) {
+            batch.update(
+                calendar,
+                mapOf(AvailabilityFields.BOOKED_NIGHTS to nightsLeft, AvailabilityFields.LAST_RESERVATION_ID to id),
             )
         }
         batch.commit().await()

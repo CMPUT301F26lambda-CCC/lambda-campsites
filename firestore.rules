@@ -4,8 +4,10 @@
 //
 // Outstanding issues:
 // - Admins have no access yet. It comes with the admin stories.
-// - Reservations can be read and booked, but not cancelled or rejected
-//   yet. The rest of #108 adds those rules.
+// - Winners can't decline a win yet. The last step of #108 adds that rule.
+// - Cancelling and rejecting are allowed until the end of check-in day in
+//   UTC, a few hours past what the app allows, because the rules don't
+//   know the phone's time zone. The app stops them at local midnight.
 // - A booking's rules check how many new nights it adds to the calendar,
 //   that check-in is one of them and that none were booked before, but not
 //   that the others are exactly the nights up to check-out. Rules can't loop
@@ -260,6 +262,20 @@ service cloud.firestore {
         && getAfter(path).data.lotteryId == lotteryId;
     }
 
+    // The same write takes this stay's nights out of the calendar: it names
+    // this reservation, adds no nights, and drops exactly as many as the stay
+    // has, check-in included (US 01.07.01, 02.08.01).
+    function freesNights(reservationId, r) {
+      let calendar = /databases/$(database)/documents/campsites/$(r.campsiteId)/availability/calendar;
+      let before = get(calendar).data.get('bookedNights', []);
+      let after = getAfter(calendar).data;
+      let removed = before.toSet().difference(after.bookedNights.toSet());
+      return after.lastReservationId == reservationId
+        && before.toSet().hasAll(after.bookedNights)
+        && r.checkIn in removed
+        && removed.size() * 86400000 == day(r.checkOut).toMillis() - day(r.checkIn).toMillis();
+    }
+
     // One profile per install. The document ID is its Firebase Auth user ID
     // (US 01.09.01). Admin access comes with the admin stories.
     match /profiles/{uid} {
@@ -437,6 +453,19 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(reservationFields())
         && request.resource.data.keys().hasAll(reservationFields())
         && booksStay(reservationId, request.resource.data);
+
+      // The guest cancels, or the campsite's owner rejects, a stay that's
+      // still confirmed (US 01.07.01, 02.08.01). Only the status and when it
+      // changed can change, and the same write frees the stay's nights.
+      allow update: if signedIn()
+        && resource.data.status == 'CONFIRMED'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelledAt'])
+        && request.resource.data.cancelledAt == request.time
+        && ((request.resource.data.status == 'CANCELLED' && resource.data.guestId == request.auth.uid)
+            || (request.resource.data.status == 'REJECTED' && resource.data.ownerId == request.auth.uid
+                && activeOwner()))
+        && request.time < day(resource.data.checkIn) + duration.value(1, 'd')
+        && freesNights(reservationId, resource.data);
     }
 
     // Only a Cloud Function creates a notification (US 01.03.01, 01.03.02).

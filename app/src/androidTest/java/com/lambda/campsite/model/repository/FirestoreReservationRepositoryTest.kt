@@ -1,12 +1,13 @@
 /*
  * Purpose: tests FirestoreReservationRepository against the Firestore
- * emulator (US 01.04.02, 01.06.01, 02.06.01, 02.07.01): which reservations
- * each of the three lists shows, and booking a stay, including two phones
- * booking the same night at once.
+ * emulator (US 01.04.02, 01.06.01, 01.07.01, 02.06.01, 02.07.01, 02.08.01):
+ * which reservations each of the three lists shows, booking a stay,
+ * including two phones booking the same night at once, and cancelling and
+ * rejecting.
  *
  * Outstanding issues:
- * - cancel, reject and decline aren't tested yet, because their rules come
- *   in the next steps of #108.
+ * - decline isn't tested yet, because its rule comes in the last step of
+ *   #108.
  *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped
  * Sashreek Addanki write these tests on November 2, 2026, following
@@ -36,6 +37,7 @@ import com.lambda.campsite.model.LotteryEntry
 import com.lambda.campsite.model.LotteryStatus
 import com.lambda.campsite.model.Profile
 import com.lambda.campsite.model.Reservation
+import com.lambda.campsite.model.ReservationStatus
 import com.lambda.campsite.testutil.FirestoreEmulator
 import com.lambda.campsite.testutil.LambdaTestRunner
 import com.lambda.campsite.testutil.signInAsNewUser
@@ -200,6 +202,59 @@ class FirestoreReservationRepositoryTest {
         val reservations = firstValue(repository.myReservations()) + firstValue(secondRepository.myReservations())
         assertEquals(1, reservations.size)
         assertEquals(listOf("2027-07-02", "2027-07-03"), bookedNightsOnServer())
+    }
+
+    @Test
+    fun cancellingFreesTheNightsAndKeepsTheWinUsed() {
+        val id = runBlocking { withTimeout(TIMEOUT_MS) { book() } }
+
+        runBlocking { withTimeout(TIMEOUT_MS) { repository.cancel(id) } }
+
+        val saved = requireNotNull(reservationOnServer(id))
+        assertEquals(ReservationStatus.CANCELLED, saved.status)
+        assertNotEquals(null, saved.cancelledAt)
+        assertEquals(emptyList<String>(), bookedNightsOnServer())
+        assertEquals(EntryStatus.BOOKED, entryOnServer(uid)?.status)
+    }
+
+    @Test
+    fun rejectingFreesTheNights() {
+        FirestoreEmulator.setIgnoringRules(
+            "profiles/$uid",
+            ProfileFields.toMap(Profile(deviceId = uid, name = "Alex Kim", email = "").becomeOwner()),
+        )
+        setUpOnServer(reservation("atMine", ownerId = uid))
+        setUpCalendar(bookedNights = listOf("2027-07-02", "2027-07-03"))
+
+        runBlocking { withTimeout(TIMEOUT_MS) { repository.reject("atMine") } }
+
+        assertEquals(ReservationStatus.REJECTED, reservationOnServer("atMine")?.status)
+        assertEquals(emptyList<String>(), bookedNightsOnServer())
+    }
+
+    @Test
+    fun cancellingSomeoneElsesStayIsRefused() {
+        setUpOnServer(reservation("theirs"))
+
+        assertEquals(
+            ReservationException.Reason.NO_SUCH_RESERVATION,
+            refusalFrom { repository.cancel("theirs") }.reason,
+        )
+    }
+
+    @Test
+    fun cancellingTwiceIsRefused() {
+        val id = runBlocking { withTimeout(TIMEOUT_MS) { book() } }
+        runBlocking { withTimeout(TIMEOUT_MS) { repository.cancel(id) } }
+
+        assertEquals(ReservationException.Reason.CANT_CHANGE, refusalFrom { repository.cancel(id) }.reason)
+    }
+
+    @Test
+    fun cancellingAStayThatsStartedIsRefused() {
+        setUpOnServer(reservation("started", guestId = uid, checkIn = "2020-07-02", checkOut = "2020-07-04"))
+
+        assertEquals(ReservationException.Reason.CANT_CHANGE, refusalFrom { repository.cancel("started") }.reason)
     }
 
     /** Books July 2 to 4 at campsite-1 with the lottery-1 win, changing one part at a time. */
