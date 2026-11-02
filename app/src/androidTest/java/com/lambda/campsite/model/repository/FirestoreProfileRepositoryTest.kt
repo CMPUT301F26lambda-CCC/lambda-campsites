@@ -1,8 +1,20 @@
 /*
+ * Purpose: tests FirestoreProfileRepository against the Firestore emulator
+ * (US 01.09.01, 01.10.01): creating, saving and reading back a profile,
+ * and saving the push token on its own.
+ *
+ * Outstanding issues:
+ * - Nothing tests the offline behaviour, because the tests can't cut the
+ *   emulator off partway through.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * these tests in October 2026. It helped with the test cases, the coroutines
  * code and the Kotlin syntax. Sashreek Addanki reviewed them, ran them and
  * committed them.
+ *
+ * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+ * Sashreek Addanki add the push token tests, on November 1, 2026. Sashreek
+ * Addanki reviewed them.
  */
 package com.lambda.campsite.model.repository
 
@@ -83,6 +95,24 @@ class FirestoreProfileRepositoryTest {
         val error = firestoreErrorFrom { repository.save(someoneElse) }
 
         assertEquals(FirebaseFirestoreException.Code.PERMISSION_DENIED, error?.code)
+    }
+
+    @Test
+    fun savingThePushTokenKeepsTheRestOfTheProfile() {
+        val named = firstProfile { true }.copy(name = "Alex Kim", email = "alex@example.com")
+        runBlocking { withTimeout(TIMEOUT_MS) { repository.save(named) } }
+
+        runBlocking { withTimeout(TIMEOUT_MS) { repository.savePushToken("token-1") } }
+
+        assertEquals(named.copy(pushToken = "token-1"), profileOnServer())
+    }
+
+    @Test
+    fun pushTokenSavedBeforeTheProfileExistsReadsBack() {
+        // Firebase can hand out the token before the first launch creates the profile.
+        runBlocking { withTimeout(TIMEOUT_MS) { repository.savePushToken("token-1") } }
+
+        assertEquals(Profile(deviceId = uid, name = "", email = "", pushToken = "token-1"), firstProfile { true })
     }
 
     /** The first profile from [FirestoreProfileRepository.currentProfile] that matches [predicate]. */

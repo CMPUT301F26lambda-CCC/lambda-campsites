@@ -1,7 +1,23 @@
 /*
+ * Purpose: receives this device's FCM push token from Firebase and saves it
+ * on the profile, so the sendPush Cloud Function knows where to send a push
+ * (US 01.10.01). Registered in AndroidManifest.xml.
+ *
+ * Outstanding issues:
+ * - The save runs in a coroutine after onNewToken returns, so Android can
+ *   stop the app before it finishes, and nothing saves the token again
+ *   later. #108 fixes this.
+ * - onNewToken is deprecated but kept, because its replacement,
+ *   onRegistered, hands back a Firebase Installation ID, not a token
+ *   sendPush can send to.
+ *
  * AI use: Coded by Aarush Bhat with the assistance of Claude Sonnet 5
  * (Anthropic), through Claude Code, in November 2026, following the
  * pattern in LambdaApplication. Aarush Bhat reviewed and committed it.
+ *
+ * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+ * Sashreek Addanki switch the save to savePushToken, on November 1, 2026.
+ * Sashreek Addanki reviewed it.
  */
 package com.lambda.campsite
 
@@ -11,7 +27,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -33,8 +48,9 @@ class FcmTokenService : FirebaseMessagingService() {
         val repository = (application as LambdaApplication).container.profileRepository
         scope.launch {
             try {
-                val profile = repository.currentProfile().first()
-                repository.save(profile.copy(pushToken = token))
+                // Only the token field changes, so this can't undo a profile
+                // change made at the same moment.
+                repository.savePushToken(token)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
