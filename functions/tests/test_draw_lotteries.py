@@ -14,8 +14,8 @@
 #
 # Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
 # Sashreek Addanki add the tests for a lottery that can't be drawn and for
-# one reopened after the query found it, and this file's purpose and
-# outstanding issues, on November 1, 2026. Sashreek Addanki reviewed them.
+# one reopened after the query found it, on November 1, 2026. Sashreek
+# Addanki reviewed them.
 """Tests for draw_lotteries, against the Firestore emulator (US 02.05.01).
 
 Run with the Firebase emulators started (`firebase emulators:start`) and,

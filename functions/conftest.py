@@ -9,9 +9,8 @@
 # reviewed and committed it.
 #
 # Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
-# Sashreek Addanki fix the docstring a merge doubled and add this file's
-# purpose and outstanding issues, on November 1, 2026. Sashreek Addanki
-# reviewed them.
+# Sashreek Addanki fix the docstring a merge doubled, on November 1, 2026.
+# Sashreek Addanki reviewed it.
 """Empty on purpose: a conftest.py here puts `functions` on the path pytest
 collects with, so the tests in `tests/` can `import main`.
 """
