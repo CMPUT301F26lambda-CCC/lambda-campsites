@@ -2,6 +2,9 @@
   AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write the
   tab, role, profile and error strings in October 2026. Sashreek Addanki reviewed
   and committed them.
+
+  Campsite owner strings were added in November 2026 with Gemini 3.8 Flash (Google DeepMind).
+  Raghav Sethi reviewed and committed them.
 -->
 <resources>
     <string name="app_name">Lambda Campsite</string>
@@ -32,4 +35,79 @@
     <string name="error_owner_banned">An admin removed your owner role, so you can\'t list campsites.</string>
     <string name="error_save_failed">Couldn\'t save your profile. Check your connection and try again.</string>
     <string name="error_load_failed">Couldn\'t load your profile. Close the app and open it again.</string>
+
+    <!-- Campsite owner: list -->
+    <string name="my_campsites_title">My campsites</string>
+    <string name="register_campsite_button">Register campsite</string>
+    <string name="campsite_count_one">1 campsite</string>
+    <string name="campsite_count_many">%d campsites</string>
+    <string name="no_campsites_empty">No campsites listed yet. Tap Register campsite to list your first campsite.</string>
+    <string name="no_photo_yet">No photo yet</string>
+
+    <!-- Campsite owner: register & edit forms -->
+    <string name="register_campsite_title">Register campsite</string>
+    <string name="edit_campsite_title">Edit campsite</string>
+    <string name="save_changes_button">Save changes</string>
+    <string name="section_photo">Photo</string>
+    <string name="add_photo_optional">Add a photo (optional)</string>
+    <string name="add_photo_button">Add photo</string>
+    <string name="replace_photo_button">Replace photo</string>
+    <string name="remove_photo_button">Remove photo</string>
+    <string name="photo_selected">Photo selected</string>
+    <string name="section_details">Details</string>
+    <string name="label_name_required">Name*</string>
+    <string name="placeholder_name">Campsite name</string>
+    <string name="error_enter_name">Enter a name</string>
+    <string name="label_location_required">Location*</string>
+    <string name="placeholder_location">Park or town, province</string>
+    <string name="error_enter_location">Enter a location</string>
+    <string name="label_description">Description (amenities)</string>
+    <string name="placeholder_description">Water, fire pits, showers…</string>
+    <string name="supporting_description">Describe what the campsite offers</string>
+    <string name="label_max_occupancy_required">Max occupancy*</string>
+    <string name="supporting_max_occupancy">Whole number greater than 0</string>
+    <string name="action_fewer_guests">Fewer guests</string>
+    <string name="action_more_guests">More guests</string>
+    <string name="section_availability">Availability</string>
+    <string name="season_opens_label">Season opens</string>
+    <string name="season_closes_label">Season closes</string>
+    <string name="season_range_hint">Winners can only book nights in this range.</string>
+    <string name="section_map_location">Map location</string>
+    <string name="action_set_map_location">Set map location</string>
+    <string name="action_change_map_location">Pin set · change map location</string>
+    <string name="section_tags">Tags</string>
+    <string name="label_add_tag">Add a tag</string>
+    <string name="placeholder_add_tag">lakeside</string>
+    <string name="action_add_tag">Add tag</string>
+    <string name="error_campsite_save_failed">Couldn\'t save campsite. Check your connection and try again.</string>
+
+    <!-- Campsite owner: map location -->
+    <string name="set_map_location_title">Set map location</string>
+    <string name="search_location_placeholder">Search park or town, province…</string>
+    <string name="drag_map_hint">Drag the map to move the pin</string>
+    <string name="pin_location_heading">Pin location</string>
+    <string name="use_this_location_button">Use this location</string>
+
+    <!-- Campsite owner: details -->
+    <string name="campsite_details_title">Campsite details</string>
+    <string name="action_edit_details">Edit details</string>
+    <string name="action_booked_dates">Booked dates</string>
+    <string name="heading_about">About</string>
+    <string name="guests_format">Up to %d guests</string>
+    <string name="price_per_night_format">$%.2f per night</string>
+    <string name="heading_amenities">Amenities</string>
+    <string name="heading_location">Location</string>
+    <string name="no_map_pin_set">No map pin set</string>
+    <string name="action_view_qr_code">View QR code</string>
+    <string name="no_ratings_yet">No ratings yet</string>
+    <string name="ratings_count_format">%.1f · %d ratings</string>
+
+    <!-- Campsite owner: QR code -->
+    <string name="campsite_qr_title">Campsite QR code</string>
+    <string name="qr_scan_prompt">Scan to open this campsite in Lambda Campsite</string>
+    <string name="qr_auto_generated_note">Generated automatically when this campsite is registered.</string>
+    <string name="qr_campsite_id_format">Demo campsite ID: %s</string>
+    <string name="action_share">Share</string>
+    <string name="action_save_image">Save image</string>
+    <string name="qr_image_saved_message">QR code image saved</string>
 </resources>
