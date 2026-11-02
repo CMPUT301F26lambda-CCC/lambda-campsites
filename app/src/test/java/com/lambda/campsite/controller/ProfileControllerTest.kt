@@ -14,6 +14,11 @@
  * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
  * Sashreek Addanki add the push token tests, on November 1, 2026. Sashreek
  * Addanki reviewed them.
+ * AI use: GPT-6 (OpenAI), used through the ChatGPT website, helped write
+ * the two first-launch controller tests in November 2026. It helped with
+ * structuring the test cases and testing the SAVE_FAILED
+ * error when saving the profile fails. Harmanjoth Kaur reviewed and tested
+ * the changes.
  */
 package com.lambda.campsite.controller
 
@@ -161,5 +166,31 @@ class ProfileControllerTest {
         controller.onErrorShown()
 
         assertNull(controller.state.value.error)
+    }
+
+    @Test
+    fun `finishing first launch saves the name and policy version`() {
+        val repository = FakeProfileRepository(entrant)
+        val controller = ProfileController(repository)
+
+        controller.onFinishFirstLaunch("  Alex Smith  ")
+
+        assertEquals("Alex Smith", repository.saved.last().name)
+        assertEquals(1, repository.saved.last().policyVersionAgreed)
+    }
+
+    @Test
+    fun `finishing first launch shows SAVE_FAILED when the save fails`() {
+        val repository = FakeProfileRepository(entrant).apply {
+            failSaves = true
+        }
+        val controller = ProfileController(repository)
+
+        controller.onFinishFirstLaunch("Alex Smith")
+
+        assertEquals(
+            ProfileError.SAVE_FAILED,
+            controller.state.value.error
+        )
     }
 }

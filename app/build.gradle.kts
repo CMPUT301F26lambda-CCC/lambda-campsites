@@ -65,6 +65,7 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.core)
     // The BoM picks versions of the Firebase libraries that work together.
     implementation(platform(libs.firebase.bom))
+    //implementation(libs.androidx.ui.test.junit4)
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
