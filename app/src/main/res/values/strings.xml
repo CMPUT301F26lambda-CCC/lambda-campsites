@@ -59,9 +59,11 @@
     <string name="get_started_heading">What should we call you?</string>
     <string name="get_started_description">Campsite owners will see this name when you join a lottery.</string>
     <string name="name_label">Your name</string>
-    <string name="policy_agreement">I agree to the</string>
-    <string name="policy_link">App Policy and Guidelines</string>
+    <string name="policy_agreement">I agree to the </string>
+    <string name="policy_link"> App Policy and Guidelines</string>
     <string name="get_started_button">Get started</string>
     <string name="profile_save_failed">Unable to save your profile. Please try again.</string>
+    <!--Error loading the profile-->
+    <string name="profile_load_failed">We couldn\'t load your profile. Check your connection and restart the app.</string>
 
 </resources>
