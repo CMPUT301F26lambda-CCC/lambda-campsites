@@ -13,9 +13,9 @@
 # ran and committed them.
 #
 # Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
-# Sashreek Addanki add the test for a lottery that can't be drawn and this
-# file's purpose and outstanding issues, on November 1, 2026. Sashreek
-# Addanki reviewed them.
+# Sashreek Addanki add the tests for a lottery that can't be drawn and for
+# one reopened after the query found it, and this file's purpose and
+# outstanding issues, on November 1, 2026. Sashreek Addanki reviewed them.
 """Tests for draw_lotteries, against the Firestore emulator (US 02.05.01).
 
 Run with the Firebase emulators started (`firebase emulators:start`) and,
@@ -61,12 +61,12 @@ def test_a_lottery_is_never_drawn_twice(db):
     now = datetime.now(timezone.utc)
     lottery_ref = _create_lottery(db, number_of_winners=1, registration_closes=now - timedelta(days=1))
     _create_entries(lottery_ref, ["alice", "bob"])
-    main._draw_lottery(db, lottery_ref)
+    main._draw_lottery(db, lottery_ref, now)
     drawn_once = _entry_statuses(lottery_ref)
 
     # Calls the per-lottery draw directly, the way an overlapping or retried
     # schedule run would, instead of going through the status == OPEN query.
-    main._draw_lottery(db, lottery_ref)
+    main._draw_lottery(db, lottery_ref, now)
 
     assert _entry_statuses(lottery_ref) == drawn_once
     assert len(_notifications(db)) == 2
@@ -95,6 +95,22 @@ def test_a_lottery_that_cant_be_drawn_doesnt_stop_the_others(db):
 
     assert broken_ref.get().get("status") == "OPEN"
     assert lottery_ref.get().get("status") == "DRAWN"
+
+
+def test_a_lottery_reopened_after_the_query_isnt_drawn(db):
+    now = datetime.now(timezone.utc)
+    lottery_ref = _create_lottery(db, number_of_winners=1, registration_closes=now - timedelta(days=1))
+    _create_entries(lottery_ref, ["alice"])
+    # The owner moves the closing time back after the query found the
+    # lottery, which the rules allow while it's OPEN.
+    lottery_ref.update({"registrationCloses": now + timedelta(days=1)})
+
+    # Calls the per-lottery draw directly, the way the loop would once the
+    # query had already returned this lottery.
+    main._draw_lottery(db, lottery_ref, now)
+
+    assert lottery_ref.get().get("status") == "OPEN"
+    assert _notifications(db) == []
 
 
 def _create_lottery(db, number_of_winners, registration_closes):

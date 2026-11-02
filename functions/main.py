@@ -7,9 +7,6 @@
 # Outstanding issues:
 # - updateRatingStats, cleanUpCampsite and cleanUpProfile aren't written
 #   yet. Each one comes with its own issue.
-# - The draw transaction only rechecks the status, not that registration
-#   has closed, so an owner who reopens registration just before a run can
-#   still have the lottery drawn. #108 fixes this.
 # - send_push doesn't catch a stale push token, so it logs an error every
 #   time and never clears the token. #108 fixes this.
 # - send_push only runs for notifications. Messages get a trigger with #112.
@@ -29,7 +26,8 @@
 #
 # Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
 # Sashreek Addanki make the draw skip a lottery it can't draw instead of
-# stopping, and add this file's purpose and outstanding issues, on
+# stopping, recheck inside the draw transaction that registration has
+# closed, and add this file's purpose and outstanding issues, on
 # November 1, 2026. Sashreek Addanki reviewed them.
 """Cloud Functions for Lambda Campsite.
 
@@ -78,21 +76,25 @@ def draw_due_lotteries(db, now):
         # first on every run and block every lottery that closes after it.
         # It stays OPEN, so the log says which one to look at.
         try:
-            _draw_lottery(db, snapshot.reference)
+            _draw_lottery(db, snapshot.reference, now)
         except Exception as error:
             logger.error(f"Couldn't draw lottery {snapshot.id}: {error!r}")
 
 
-def _draw_lottery(db, lottery_ref):
-    _draw_in_transaction(db.transaction(), db, lottery_ref)
+def _draw_lottery(db, lottery_ref, now):
+    _draw_in_transaction(db.transaction(), db, lottery_ref, now)
 
 
 @firestore.transactional
-def _draw_in_transaction(transaction, db, lottery_ref):
+def _draw_in_transaction(transaction, db, lottery_ref, now):
     lottery = lottery_ref.get(transaction=transaction).to_dict()
     # Drawn by an earlier run already: the schedule can fire more than once
     # for the same lottery before a draw finishes.
     if lottery is None or lottery.get("status") != "OPEN":
+        return
+    # The owner can still move registrationCloses while the lottery is OPEN,
+    # so registration may have reopened since the query found it.
+    if lottery["registrationCloses"] > now:
         return
 
     waiting = (
