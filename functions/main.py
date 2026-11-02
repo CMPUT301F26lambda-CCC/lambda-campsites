@@ -1,12 +1,36 @@
+# Purpose: the app's Cloud Functions, the server side of the design in
+# docs/architecture.md section 4. They do the work the app can't be
+# trusted to do itself, like drawing lotteries and sending pushes. They run
+# with the Admin SDK, which skips the security rules, so each one checks
+# what it needs on its own.
+#
+# Outstanding issues:
+# - updateRatingStats, cleanUpCampsite and cleanUpProfile aren't written
+#   yet. Each one comes with its own issue.
+# - The draw transaction only rechecks the status, not that registration
+#   has closed, so an owner who reopens registration just before a run can
+#   still have the lottery drawn. #108 fixes this.
+# - send_push doesn't catch a stale push token, so it logs an error every
+#   time and never clears the token. #108 fixes this.
+# - send_push only runs for notifications. Messages get a trigger with #112.
+# - A lottery the draw can't finish is logged and left OPEN instead of
+#   being marked failed. That way nothing about it changes until someone
+#   reads the log and fixes its document, and the next run tries again.
+#
 # AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
 # this file in October 2026, starting from the file `firebase init` creates.
 # It helped with the comments and the Python syntax. Sashreek Addanki reviewed
 # it and committed it.
 #
-# drawLotteries was coded by Aarush Bhat with the assistance of Claude Sonnet 5
-# sendPush was coded by Aarush Bhat with the assistance of Claude Sonnet 5
-# (Anthropic), through Claude Code, in November 2026, following
-# docs/architecture.md section 4. Aarush Bhat reviewed and committed it.
+# drawLotteries and sendPush were coded by Aarush Bhat with the assistance of
+# Claude Sonnet 5 (Anthropic), through Claude Code, in November 2026,
+# following docs/architecture.md section 4. Aarush Bhat reviewed and
+# committed them.
+#
+# Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+# Sashreek Addanki make the draw skip a lottery it can't draw instead of
+# stopping, and add this file's purpose and outstanding issues, on
+# November 1, 2026. Sashreek Addanki reviewed them.
 """Cloud Functions for Lambda Campsite.
 
 docs/architecture.md section 4 lists every function: drawLotteries,
@@ -20,7 +44,7 @@ from datetime import datetime, timezone
 from firebase_admin import firestore, initialize_app
 from firebase_functions import scheduler_fn
 from firebase_admin import firestore, initialize_app, messaging
-from firebase_functions import firestore_fn
+from firebase_functions import firestore_fn, logger
 from firebase_functions.options import set_global_options
 from google.cloud.firestore_v1.base_query import FieldFilter
 
@@ -49,7 +73,14 @@ def draw_due_lotteries(db, now):
         .where(filter=FieldFilter("registrationCloses", "<=", now))
     )
     for snapshot in due.stream():
-        _draw_lottery(db, snapshot.reference)
+        # One lottery that can't be drawn mustn't stop the rest. Results come
+        # in registrationCloses order, so the same broken lottery would come
+        # first on every run and block every lottery that closes after it.
+        # It stays OPEN, so the log says which one to look at.
+        try:
+            _draw_lottery(db, snapshot.reference)
+        except Exception as error:
+            logger.error(f"Couldn't draw lottery {snapshot.id}: {error!r}")
 
 
 def _draw_lottery(db, lottery_ref):

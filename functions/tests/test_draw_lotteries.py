@@ -1,7 +1,21 @@
+# Purpose: tests for the draw_lotteries Cloud Function (US 02.04.06,
+# 02.05.01). They call draw_due_lotteries against the Firestore emulator
+# with a `now` of their own, so they don't have to wait for the schedule.
+#
+# Outstanding issues:
+# - They don't check that the schedule fires every 5 minutes, because the
+#   emulator doesn't run scheduled functions on their schedule.
+# - Winners are random, so the tests check how many won, not who.
+#
 # AI use: Coded by Aarush Bhat with the assistance of Claude Sonnet 5
 # (Anthropic), through Claude Code, in November 2026, following
 # docs/testing.md's Cloud Functions tests section. Aarush Bhat reviewed,
 # ran and committed them.
+#
+# Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+# Sashreek Addanki add the test for a lottery that can't be drawn and this
+# file's purpose and outstanding issues, on November 1, 2026. Sashreek
+# Addanki reviewed them.
 """Tests for draw_lotteries, against the Firestore emulator (US 02.05.01).
 
 Run with the Firebase emulators started (`firebase emulators:start`) and,
@@ -10,6 +24,8 @@ and macOS). See docs/testing.md.
 """
 
 from datetime import datetime, timedelta, timezone
+
+from google.cloud import firestore
 
 import main
 
@@ -65,6 +81,20 @@ def test_a_lottery_whose_registration_hasnt_closed_isnt_drawn(db):
 
     assert lottery_ref.get().get("status") == "OPEN"
     assert _notifications(db) == []
+
+
+def test_a_lottery_that_cant_be_drawn_doesnt_stop_the_others(db):
+    now = datetime.now(timezone.utc)
+    # Closes first, so the draw reaches it before the good one.
+    broken_ref = _create_lottery(db, number_of_winners=1, registration_closes=now - timedelta(days=2))
+    broken_ref.update({"numberOfWinners": firestore.DELETE_FIELD})
+    lottery_ref = _create_lottery(db, number_of_winners=1, registration_closes=now - timedelta(days=1))
+    _create_entries(lottery_ref, ["alice"])
+
+    main.draw_due_lotteries(db, now)
+
+    assert broken_ref.get().get("status") == "OPEN"
+    assert lottery_ref.get().get("status") == "DRAWN"
 
 
 def _create_lottery(db, number_of_winners, registration_closes):
