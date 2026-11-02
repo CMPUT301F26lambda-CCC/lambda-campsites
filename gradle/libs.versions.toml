@@ -2,6 +2,10 @@
 # the navigation, lifecycle, icon and coroutines-test entries, the Dokka
 # plugin entry, and the Firebase and Google services entries in October 2026.
 # Sashreek Addanki reviewed and committed them.
+#
+# The firebase-messaging entry was added by Aarush Bhat with the assistance
+# of Claude Sonnet 5 (Anthropic), through Claude Code, in November 2026.
+# Aarush Bhat reviewed and committed it.
 [versions]
 agp = "9.4.1"
 coreKtx = "1.19.1"
@@ -44,6 +48,7 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.r
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
 firebase-storage = { group = "com.google.firebase", name = "firebase-storage" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
