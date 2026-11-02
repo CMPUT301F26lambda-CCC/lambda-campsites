@@ -1,6 +1,24 @@
+/**
+ * Displays the first-launch screen for the Lambda Campsite application.
+ *
+ * Users must enter their name before they can open and review the app policy.
+ * After reviewing the policy, they must check the agreement checkbox.
+ * The Get Started button is enabled only when the user has entered a
+ * non-blank name and checked the agreement checkbox.
+ *
+ * When the user selects Get Started, the entered name is passed to the
+ * ProfileController, which handles creating and saving the user's profile.
+ *
+ * After the profile is successfully saved, the application displays
+ * LambdaCampsiteApp. The user is taken to the first tab associated
+ * with their active role.
+ **/
 /*
- * AI use: ChatGPT (OpenAI) helped write the KDoc comments for this file
- * in November 2026. Harmanjoth Kaur reviewed and edited the documentation.
+ * AI use: GPT-6 (OpenAI), used through the ChatGPT website, helped resolve
+ * errors while connecting this screen with ProfileController and the
+ * profile-saving functionality. It also helped draft and revise the KDoc
+ * documentation for this file in November 2026. Harmanjoth Kaur reviewed,
+ * edited and tested the changes.
  */
 package com.lambda.campsite.view.screens
 
@@ -26,26 +44,38 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.material3.Button
 import com.lambda.campsite.view.theme.ForestGreen
-import com.lambda.campsite.view.theme.LightSageGreen
+import com.lambda.campsite.view.theme.Mint
 import com.lambda.campsite.view.theme.DeepGreen
-import com.lambda.campsite.view.theme.PureWhite
 import  androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.testTag
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.graphics.Color
 
 /**
- * The first-launch screen: introduces Lambda Campsite and collects
- * the user's name and agreement to the app policy before entering
- * the application.
+ * Displays the first-launch screen and handles user interactions.
  *
- * @param onGetStarted callback invoked when the user completes the
- * onboarding requirements and clicks the Get Started button.
+ * The user must enter a non-blank name and agree to the app policy
+ * before proceeding. The entered name is passed to [onGetStarted]
+ * when the Get Started button is selected.
+ *
+ * @param onGetStarted callback invoked with the user's trimmed name
+ * when they select Get Started.
  */
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-fun FirstLaunchScreen( onGetStarted: () -> Unit) {
+fun FirstLaunchScreen(onGetStarted: (String) -> Unit,
+                      saveFailed: Boolean = false) {
 
-    var name by remember { mutableStateOf("") }
+    var name by rememberSaveable { mutableStateOf("") }
     var hasAgreed by remember { mutableStateOf(false) }
     var showPolicySheet by remember { mutableStateOf(false) }
     // reference- https://developer.android.com/reference/kotlin/androidx/compose/material3/ModalBottomSheet.composable
@@ -57,19 +87,22 @@ fun FirstLaunchScreen( onGetStarted: () -> Unit) {
             .fillMaxSize()
             .padding(0.dp)
             .background(ForestGreen)
+            .systemBarsPadding()
+            .imePadding()
 
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
+
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Row {
                 Image(
                     painter = painterResource(R.drawable.camp_logo),
-                    contentDescription = stringResource(R.string.app_name),
+                    contentDescription = null,
                     modifier = Modifier.size(180.dp)
                 )
             }
@@ -77,7 +110,7 @@ fun FirstLaunchScreen( onGetStarted: () -> Unit) {
                 Text(
                     text = stringResource(R.string.app_name),
                     style = MaterialTheme.typography.headlineLarge,
-                    color = PureWhite
+                    color = Color.White
                 )
             }
 
@@ -86,8 +119,8 @@ fun FirstLaunchScreen( onGetStarted: () -> Unit) {
             ) {
                 Text(
                     text = stringResource(R.string.app_tagline),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = PureWhite,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White,
                     textAlign = TextAlign.Center
 
                 )
@@ -97,30 +130,34 @@ fun FirstLaunchScreen( onGetStarted: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(0.5f)
-                .background(LightSageGreen)
+                .clip(
+                    RoundedCornerShape(
+                        topStart = 28.dp,
+                        topEnd = 28.dp
+                    )
+                )
+                .background(Mint)
+                .verticalScroll(rememberScrollState())
 
         ) {
 
             Row(
                 modifier = Modifier.padding(top = 20.dp)
-                    .padding(start=10.dp)
+                    .padding(start=15.dp)
 
             ) {
                 Text(
                     text = stringResource(R.string.get_started_heading),
                     style = MaterialTheme.typography.titleLarge
-
                 )
             }
 
             Row(
-                modifier = Modifier.padding(10.dp),
+                modifier = Modifier.padding(15.dp),
             ) {
                 Text(
                     text = stringResource(R.string.get_started_description),
                     style = MaterialTheme.typography.bodyMedium,
-
                 )
             }
 
@@ -128,24 +165,22 @@ fun FirstLaunchScreen( onGetStarted: () -> Unit) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    placeholder = {
+                    label = {
                         Text(stringResource(R.string.name_label))
                     },
-                    modifier = Modifier.fillMaxWidth().padding(10.dp)
+                    modifier = Modifier.fillMaxWidth().padding(10.dp).testTag("name_field")
                 )
             }
 
             Row(
-                modifier = Modifier.padding(10.dp),
+                modifier = Modifier.padding(15.dp),
                 verticalAlignment = Alignment.CenterVertically
             ){
                 Checkbox(
                     checked = hasAgreed,
                     onCheckedChange = { checked ->
-                        if (!checked) {
-                            hasAgreed = false
-                        }
-                    }
+                        hasAgreed = checked
+                    },modifier = Modifier.testTag("policy_checkbox")
                 )
                 Text(
                     text = stringResource(R.string.policy_agreement)
@@ -153,24 +188,33 @@ fun FirstLaunchScreen( onGetStarted: () -> Unit) {
 
                 Text(
                     text = stringResource(R.string.policy_link),
-                    color =  DeepGreen,
+                    color = if (name.isNotBlank()) DeepGreen else DeepGreen.copy(alpha = 0.38f),
                     textDecoration = TextDecoration.Underline,
-                    modifier = Modifier.clickable {
+                    modifier = Modifier.clickable(
+                        enabled = name.isNotBlank()
+                    ,role = Role.Button ){
                         showPolicySheet = true
-                    }
+                    }.testTag("policy_link")
                 )
             }
             Row(
-                modifier = Modifier.padding(bottom=10.dp)
+                modifier = Modifier.padding(bottom=15.dp)
             ) {
                 Button(
                     onClick = {
-                        onGetStarted()
+                        onGetStarted(name.trim())
                     },
                     enabled = name.isNotBlank() && hasAgreed,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().testTag("get_started_button").height(56.dp)
+
                 ) {
                     Text(stringResource(R.string.get_started_button))
+                }
+                if (saveFailed) {
+                    Text(
+                        text = stringResource(R.string.profile_save_failed),
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             }
         }
@@ -180,14 +224,22 @@ fun FirstLaunchScreen( onGetStarted: () -> Unit) {
                 sheetState = sheetState,
                 onDismissRequest = {
                     showPolicySheet = false
+                },
+
+                containerColor =  Mint,
+                dragHandle = {
+                    BottomSheetDefaults.DragHandle(
+                        color = DeepGreen
+                    )
                 }
 
             ) {
                 AppPolicySheet(
-                    ClickCloseAppPolicy = {
+                    name = name,
+                    CloseAppPolicy = {
                         showPolicySheet = false
                     },
-                    ClickAgreeAppPolicy = {
+                    AgreeAppPolicy = {
                         hasAgreed = true
                         showPolicySheet = false
                     }

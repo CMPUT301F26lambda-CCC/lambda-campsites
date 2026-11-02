@@ -1,9 +1,18 @@
 package com.lambda.campsite.view.components
-/*
- * AI use: ChatGPT (OpenAI) helped write the KDoc comments for this file
- * in November 2026. Harmanjoth Kaur reviewed and edited the documentation.
- */
 
+/**
+* Displays the app policy in a bottom sheet so users can review the
+* guidelines and information about using the Lambda Campsite application.
+*
+* The sheet provides users with the option to close it without agreeing
+* or select I Agree to accept the policy. The agreement callback allows
+* the parent screen to update the policy agreement checkbox.
+**/
+/*
+ * AI use: ChatGPT (OpenAI), used through the ChatGPT website, helped with
+ * revising the KDoc comments for this file in November 2026.
+ * Harmanjoth Kaur reviewed and edited the documentation.
+ */
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -22,36 +31,42 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
-
+import com.lambda.campsite.view.theme.Mint
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.Alignment
 /**
  * Displays the app policy and guidelines in a bottom sheet.
  *
  * The user can either close the policy without agreeing or accept
- * the policy to continue the onboarding process.
+ * the policy to continue the getStarted process.
  *
- * @param ClickCloseAppPolicy callback invoked when the user closes
+ * @param CloseAppPolicy callback invoked when the user closes
  * the policy sheet.
- * @param ClickAgreeAppPolicy callback invoked when the user agrees
+ * @param AgreeAppPolicy callback invoked when the user agrees
  * to the app policy.
  */
 @Composable
 
 
 fun AppPolicySheet(
-    ClickCloseAppPolicy: () -> Unit = {},
-    ClickAgreeAppPolicy: () -> Unit = {}
+    name: String,
+    CloseAppPolicy: () -> Unit = {},
+    AgreeAppPolicy: () -> Unit = {}
 ){
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(5.dp)
+            .background(Mint)
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center
+            horizontalArrangement = Arrangement.Start
         ) {
             Text(
                 text = stringResource(R.string.app_policy_title),
@@ -64,12 +79,12 @@ fun AppPolicySheet(
             Text(
                 text = stringResource(R.string.policy_lottery_heading),
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.onBackground
             )
             Text(
                 text = stringResource(R.string.policy_lottery_description),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onBackground
+                color = MaterialTheme.colorScheme.primary
             )
         }
 
@@ -77,12 +92,13 @@ fun AppPolicySheet(
             Text(
                 text = stringResource(R.string.policy_camper_heading),
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                text = stringResource(R.string.policy_camper_description),
+
+                text = "$name ${stringResource(R.string.policy_camper_description)}",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onBackground
+                color = MaterialTheme.colorScheme.primary
             )
         }
 
@@ -90,23 +106,23 @@ fun AppPolicySheet(
             Text(
                 text = stringResource(R.string.policy_information_heading),
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.onBackground
             )
             Text(
                 text = stringResource(R.string.policy_information_description),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onBackground
+                color = MaterialTheme.colorScheme.primary
             )
         }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Button(
-                onClick = { ClickCloseAppPolicy() },
+            TextButton(
+                onClick = { CloseAppPolicy() },
                 modifier = Modifier
-                    .weight(1f)
                     .testTag("close_policy_button")
             ) {
                 Text(text = stringResource(R.string.close))
@@ -115,9 +131,9 @@ fun AppPolicySheet(
             Spacer(modifier = Modifier.width(12.dp))
 
             Button(
-                onClick = { ClickAgreeAppPolicy() },
+                onClick = { AgreeAppPolicy() },
                 modifier = Modifier
-                    .weight(1f)
+
                     .testTag("agree_policy_button")
             ) {
                 Text(text = stringResource(R.string.agree))

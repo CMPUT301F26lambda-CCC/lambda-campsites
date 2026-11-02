@@ -38,9 +38,11 @@
     <string name="policy_lottery_heading">How the lottery works</string>
     <string name="policy_lottery_description">Join a campsite waiting list while registration is open. When it closes, the app draws winners at random. Winners then book their dates first come, first served.</string>
     <string name="policy_camper_heading">Be a good camper</string>
-    <string name="policy_camper_description">Entrants must follow campsite rules and treat each other respectfully. Profiles that break these guidelines can be removed.</string>
+    <string name="policy_camper_description">, follow each campsite rules, and be respectful to owners and other campers. Profiles that break these guidelines can be removed.</string>
+
+
     <string name="policy_information_heading">Your information</string>
-    <string name="policy_information_description">We store your profile information and details about the lotteries and reservations you participate in, linked to your device. You can delete your profile at any time from Settings.</string>
+    <string name="policy_information_description">We store your name and the lotteries and reservations you make, linked to this device. You can delete your profile at any time from Settings</string>
     <string name="close">Close</string>
     <string name="agree">I agree</string>
     <!--First Launch  -->
@@ -51,6 +53,6 @@
     <string name="policy_agreement">I agree to the</string>
     <string name="policy_link">App Policy and Guidelines</string>
     <string name="get_started_button">Get started</string>
-
+    <string name="profile_save_failed">Unable to save your profile. Please try again.</string>
 
 </resources>
