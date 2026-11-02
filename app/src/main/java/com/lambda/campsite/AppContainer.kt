@@ -9,6 +9,10 @@
  * The notification repository was added by Aarush Bhat with the assistance
  * of Claude Sonnet 5 (Anthropic), through Claude Code, in November 2026.
  * Aarush Bhat reviewed and committed it.
+ *
+ * InMemoryCampsiteRepository wiring was added in November 2026 with Gemini 3.8
+ * Flash (Google DeepMind) for dummy sample data testing. Raghav Sethi reviewed
+ * and committed it.
  */
 package com.lambda.campsite
 
@@ -18,10 +22,10 @@ import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
 import com.lambda.campsite.model.repository.CampsiteRepository
-import com.lambda.campsite.model.repository.FirestoreCampsiteRepository
 import com.lambda.campsite.model.repository.FirestoreLotteryRepository
 import com.lambda.campsite.model.repository.FirestoreNotificationRepository
 import com.lambda.campsite.model.repository.FirestoreProfileRepository
+import com.lambda.campsite.model.repository.InMemoryCampsiteRepository
 import com.lambda.campsite.model.repository.LotteryRepository
 import com.lambda.campsite.model.repository.NotificationRepository
 import com.lambda.campsite.model.repository.ProfileRepository
@@ -51,8 +55,11 @@ class AppContainer {
     /** This device's profile, stored in Firestore. */
     val profileRepository: ProfileRepository by lazy { FirestoreProfileRepository(auth, firestore) }
 
-    /** Every campsite, stored in Firestore. */
-    val campsiteRepository: CampsiteRepository by lazy { FirestoreCampsiteRepository(auth, firestore) }
+    /**
+     * Every campsite, provided in-memory with sample dummy data for UI testing
+     * (US 02.01 – 02.03) until connecting to Firestore.
+     */
+    val campsiteRepository: CampsiteRepository by lazy { InMemoryCampsiteRepository() }
 
     /** Every lottery and waiting list, stored in Firestore. */
     val lotteryRepository: LotteryRepository by lazy { FirestoreLotteryRepository(auth, firestore) }

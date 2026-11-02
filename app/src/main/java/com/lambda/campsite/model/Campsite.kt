@@ -3,6 +3,11 @@
  * this file in October 2026, following the Campsite class in the team's class
  * diagram. It helped with the Kotlin code, syntax and KDoc. Sashreek Addanki
  * reviewed it and committed it.
+ *
+ * The validate method and CampsiteRequiredField were added in November 2026
+ * with GLM 5.3 (Z.ai), used through OpenCode, following the rules checks in
+ * docs/testing.md. Raghav Sethi planned the owner screens they support and
+ * reviewed the change.
  */
 package com.lambda.campsite.model
 
@@ -61,4 +66,30 @@ data class Campsite(
     /** The average star rating, or `null` if nobody has rated it yet (US 01.01.04, 02.01.04). */
     val averageRating: Double?
         get() = if (ratingCount == 0) null else ratingSum.toDouble() / ratingCount
+
+    /**
+     * The required details that are still missing (US 02.01.02). An empty set
+     * means the campsite can be saved (US 02.01.01).
+     */
+    fun validate(): Set<CampsiteRequiredField> = buildSet {
+        if (name.isBlank()) add(CampsiteRequiredField.NAME)
+        if (location.isBlank()) add(CampsiteRequiredField.LOCATION)
+        if (maxOccupancy < 1) add(CampsiteRequiredField.MAX_OCCUPANCY)
+    }
+}
+
+/**
+ * The details an owner has to fill in before a campsite can be saved
+ * (US 02.01.02). [Campsite.validate] reports the ones still missing, and the
+ * register form shows one message per field (US 02.01.01).
+ */
+enum class CampsiteRequiredField {
+    /** The campsite has no name yet. */
+    NAME,
+
+    /** The campsite has no location yet. */
+    LOCATION,
+
+    /** The campsite allows 0 guests, which no campsite can. */
+    MAX_OCCUPANCY,
 }

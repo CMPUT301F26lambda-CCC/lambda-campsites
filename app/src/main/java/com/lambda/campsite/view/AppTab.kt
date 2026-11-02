@@ -86,7 +86,7 @@ enum class AppTab(
         /** The nav bar tabs for [role], in order. Matches the Nav bar component in Figma. */
         fun forRole(role: Role): List<AppTab> = when (role) {
             Role.ENTRANT -> listOf(ENTRANT_HOME, ENTRANT_RESERVATIONS, PROFILE)
-            Role.OWNER -> listOf(OWNER_HOME, OWNER_CAMPSITES, OWNER_LOTTERIES)
+            Role.OWNER -> listOf(OWNER_HOME, OWNER_CAMPSITES, OWNER_LOTTERIES,PROFILE)
             Role.ADMIN -> listOf(ADMIN_CAMPSITES, ADMIN_PROFILES, ADMIN_IMAGES, ADMIN_LOGS)
         }
     }
