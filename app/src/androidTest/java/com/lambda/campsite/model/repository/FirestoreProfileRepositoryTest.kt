@@ -13,8 +13,9 @@
  * committed them.
  *
  * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
- * Sashreek Addanki add the push token tests, on November 1, 2026. Sashreek
- * Addanki reviewed them.
+ * Sashreek Addanki add the push token tests, on November 1, 2026, and change
+ * the one for a token saved before the profile exists, on November 2, 2026.
+ * Sashreek Addanki reviewed them.
  */
 package com.lambda.campsite.model.repository
 
@@ -34,6 +35,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -108,11 +110,16 @@ class FirestoreProfileRepositoryTest {
     }
 
     @Test
-    fun pushTokenSavedBeforeTheProfileExistsReadsBack() {
-        // Firebase can hand out the token before the first launch creates the profile.
-        runBlocking { withTimeout(TIMEOUT_MS) { repository.savePushToken("token-1") } }
+    fun savingThePushTokenBeforeTheProfileExistsDoesntCreateIt() {
+        // Firebase can hand out the token before the first launch creates the
+        // profile. A profile created by the token save would hold only the
+        // token, and the profile rules would refuse every save after it.
+        val error = firestoreErrorFrom { repository.savePushToken("token-1") }
 
-        assertEquals(Profile(deviceId = uid, name = "", email = "", pushToken = "token-1"), firstProfile { true })
+        // The rules refuse an update to a profile that doesn't exist, before
+        // Firestore gets as far as NOT_FOUND. Either way nothing is created.
+        assertNotNull(error)
+        assertEquals(Profile(deviceId = uid, name = "", email = ""), firstProfile { true })
     }
 
     /** The first profile from [FirestoreProfileRepository.currentProfile] that matches [predicate]. */
