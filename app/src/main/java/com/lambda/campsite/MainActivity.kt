@@ -1,10 +1,13 @@
 /*
- * Purpose: the app's only activity, the entry point Android starts. It
- * draws LambdaCampsiteApp inside the brand theme, asks for the
- * notification permission, and hands the current push token to
- * ProfileController.
+ * Purpose: the app's only activity, the entry point Android starts. Inside
+ * the brand theme it draws FirstLaunchScreen until the user has agreed to
+ * the app policy, then LambdaCampsiteApp. It also asks for the notification
+ * permission and hands the current push token to ProfileController.
  *
  * Outstanding issues:
+ * - While the profile loads it draws nothing, and if loading fails the
+ *   screen stays blank. The follow-up to #139 adds a spinner and an error
+ *   message.
  * - The permission prompt shows straight away, before the user has seen
  *   anything. Asking at a moment that explains why, like joining a first
  *   lottery, would be friendlier.
@@ -21,12 +24,15 @@
  * Sashreek Addanki hand the push token to ProfileController on each start,
  * and ask for the notification permission only on a fresh start, on
  * November 1, 2026. Sashreek Addanki reviewed them.
- */
-/*
+ *
  * AI use: ChatGPT (OpenAI), used through the ChatGPT website, helped with
  * resolve errors while connecting ProfileController with MainActivity and revising
  *  the KDoc documentation for this file in November 2026.
  * Harmanjoth Kaur reviewed and tested the changes.
+ *
+ * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+ * Sashreek Addanki repair the merge with main and explain the getToken()
+ * deprecation, on November 2, 2026. Sashreek Addanki reviewed them.
  */
 package com.lambda.campsite
 
@@ -133,7 +139,12 @@ class MainActivity : ComponentActivity() {
      * can't give a token right now, for example offline, the next start
      * tries again.
      */
+    @Suppress("DEPRECATION")
     private fun savePushToken() {
+        // getToken() is deprecated in favour of the Firebase Installation ID,
+        // but sendPush sends to the FCM token, the same one FcmTokenService
+        // saves from onNewToken. Both stay on the token until Firebase ships
+        // a token-based replacement.
         Firebase.messaging.token.addOnSuccessListener(profileController::onPushTokenAvailable)
     }
 }
