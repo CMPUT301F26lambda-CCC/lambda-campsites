@@ -16,6 +16,8 @@ Sashreek and Sreeman · original architecture updated November 1, 2026
 > (OpenAI), through Codex, assisted with the entrant navigation/state notes
 > below. Follow-up human review remains pending.
 
+> Flow 9 summary: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted with the booking summary; human review pending.
+>
 > Documentation organization: Lalith Valluru, 2026-11-03 (#151). OpenAI GPT-6
 > (OpenAI), through Codex, assisted with shortening the Flow 12 addition to a
 > high-level summary; follow-up human review is pending.
@@ -239,6 +241,8 @@ A document that belongs to another one can share its parent's repository. A camp
 - Slow work, like shrinking a photo before upload or building a CSV file, runs on a background thread inside the controller's `viewModelScope`, so the screen stays responsive.
 
 ### Features
+
+Winner booking (Flow 9) uses `WinnerBookingController` and the existing lottery, campsite and reservation repositories. Live calendars constrain selection; the booking transaction consumes one win and the confirmation reads the saved reservation.
 
 | Screen | Controller | Model it calls | Stories |
 |---|---|---|---|

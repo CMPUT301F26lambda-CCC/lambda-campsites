@@ -21,6 +21,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -212,10 +214,14 @@ fun WinnerBookingContent(
 
 @Composable
 private fun DateValue(label: String, date: LocalDate?, onEdit: () -> Unit) {
-    Surface(onClick = onEdit, shape = RoundedCornerShape(12.dp), color = CampField) {
-        Column(Modifier.fillMaxWidth().padding(16.dp)) {
-            Text(label, style = MaterialTheme.typography.labelMedium)
-            Text(date?.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)) ?: "—")
+    Surface(onClick = onEdit, shape = RoundedCornerShape(12.dp), color = CampField,
+        border = BorderStroke(1.dp, CampOutline)) {
+        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(label, style = MaterialTheme.typography.labelMedium)
+                Text(date?.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)) ?: "—")
+            }
+            Icon(Icons.Outlined.DateRange, null)
         }
     }
 }

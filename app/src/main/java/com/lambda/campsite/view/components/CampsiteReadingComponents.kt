@@ -4,6 +4,7 @@
  * Outstanding issues: rating submission belongs to its own user story.
  * AI use: OpenAI GPT-6 (OpenAI), through Codex, assisted with layout and semantics;
  * human review pending.
+ * Flow 9 (#126): optional selection callback keeps View details separate from choosing a campsite.
  */
 package com.lambda.campsite.view.components
 
