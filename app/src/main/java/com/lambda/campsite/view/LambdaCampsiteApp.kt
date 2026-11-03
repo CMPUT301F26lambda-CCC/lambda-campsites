@@ -62,6 +62,7 @@ import com.lambda.campsite.controller.OwnerCampsiteEditController
 import com.lambda.campsite.controller.OwnerCampsiteListController
 import com.lambda.campsite.controller.OwnerBookedDatesController
 import com.lambda.campsite.controller.OwnerReservationsController
+import com.lambda.campsite.controller.OwnerReservationTab
 import com.lambda.campsite.controller.SearchController
 import com.lambda.campsite.controller.CampsiteController
 import com.lambda.campsite.controller.LotteryController
@@ -69,6 +70,7 @@ import com.lambda.campsite.controller.ProfileController
 import com.lambda.campsite.controller.OwnerWaitingListController
 import com.lambda.campsite.view.screens.OwnerWaitingListScreen
 import com.lambda.campsite.view.theme.WaitingListColors
+import com.lambda.campsite.view.theme.Flow11Colors
 import com.lambda.campsite.model.Role
 import com.lambda.campsite.view.screens.CampsiteQrCodeScreen
 import com.lambda.campsite.view.screens.MapLocationScreen
@@ -78,6 +80,7 @@ import com.lambda.campsite.view.screens.OwnerCampsiteEditScreen
 import com.lambda.campsite.view.screens.OwnerCampsiteListScreen
 import com.lambda.campsite.view.screens.OwnerBookedDatesScreen
 import com.lambda.campsite.view.screens.OwnerReservationsScreen
+import com.lambda.campsite.view.screens.OwnerHomeScreen
 import com.lambda.campsite.view.screens.PlaceholderScreen
 import com.lambda.campsite.view.screens.SearchScreen
 import com.lambda.campsite.view.screens.CampsiteScreen
@@ -91,6 +94,8 @@ private const val OWNER_DETAILS_ROUTE = "owner/campsites/details/{campsiteId}"
 private const val OWNER_EDIT_ROUTE = "owner/campsites/edit/{campsiteId}"
 private const val OWNER_QR_ROUTE = "owner/campsites/qr/{campsiteId}"
 private const val OWNER_BOOKED_DATES_ROUTE = "owner/campsites/booked/{campsiteId}"
+private const val OWNER_HOME_BOOKED_DATES_ROUTE = "owner/home/booked"
+private const val OWNER_RESERVATIONS_ROUTE = "owner/home/reservations/{tab}"
 
 /** Opens the map picker with exact initial coordinates, and returnTo = [OWNER_PICKER_RETURN_ADD]/[OWNER_PICKER_RETURN_EDIT]. */
 private const val OWNER_MAP_PICKER_ROUTE =
@@ -164,7 +169,12 @@ fun LambdaCampsiteApp(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             bottomBar = {
                 val waitingListOpen = currentRoute == AppTab.OWNER_LOTTERIES.route
-                NavigationBar(containerColor = if (waitingListOpen) WaitingListColors.sheet else NavigationBarDefaults.containerColor) {
+                val flow11Open = currentRoute?.startsWith("owner/home") == true || currentRoute == OWNER_BOOKED_DATES_ROUTE
+                NavigationBar(containerColor = when {
+                    waitingListOpen -> WaitingListColors.sheet
+                    flow11Open -> Flow11Colors.card
+                    else -> NavigationBarDefaults.containerColor
+                }) {
                     tabs.forEach { tab ->
                         NavigationBarItem(
                             selected = isSelectedTab(tab, currentRoute),
@@ -172,12 +182,12 @@ fun LambdaCampsiteApp(
                             // The label below names the tab, so the icon needs no description.
                             icon = { Icon(tab.icon, contentDescription = null) },
                             label = { Text(stringResource(tab.labelRes)) },
-                            colors = if (waitingListOpen) NavigationBarItemDefaults.colors(
-                                indicatorColor = WaitingListColors.avatar,
-                                selectedIconColor = WaitingListColors.text,
-                                selectedTextColor = WaitingListColors.text,
-                                unselectedIconColor = WaitingListColors.secondaryText,
-                                unselectedTextColor = WaitingListColors.secondaryText,
+                            colors = if (waitingListOpen || flow11Open) NavigationBarItemDefaults.colors(
+                                indicatorColor = if (waitingListOpen) WaitingListColors.avatar else Flow11Colors.selected,
+                                selectedIconColor = if (waitingListOpen) WaitingListColors.text else Flow11Colors.text,
+                                selectedTextColor = if (waitingListOpen) WaitingListColors.text else Flow11Colors.text,
+                                unselectedIconColor = if (waitingListOpen) WaitingListColors.secondaryText else Flow11Colors.secondaryText,
+                                unselectedTextColor = if (waitingListOpen) WaitingListColors.secondaryText else Flow11Colors.secondaryText,
                             ) else NavigationBarItemDefaults.colors(),
                         )
                     }
@@ -204,7 +214,9 @@ fun LambdaCampsiteApp(
                             AppTab.OWNER_HOME -> {
                                 val reservationsController: OwnerReservationsController =
                                     viewModel(factory = OwnerReservationsController.Factory)
-                                OwnerReservationsScreen(reservationsController)
+                                OwnerHomeScreen(reservationsController, state.profile?.name.orEmpty(),
+                                    onReservations = { tab -> navController.navigate("owner/home/reservations/${tab.name.lowercase()}") },
+                                    onBookedDates = { navController.navigate(OWNER_HOME_BOOKED_DATES_ROUTE) })
                             }
                             AppTab.OWNER_CAMPSITES -> OwnerCampsitesList(navController)
                             AppTab.OWNER_LOTTERIES -> {
@@ -217,6 +229,24 @@ fun LambdaCampsiteApp(
                             else -> PlaceholderScreen(tab)
                         }
                     }
+                }
+
+                composable(OWNER_RESERVATIONS_ROUTE,
+                    arguments = listOf(navArgument("tab") { type = NavType.StringType })) { entry ->
+                    val tabName = entry.arguments?.getString("tab").orEmpty()
+                    val tab = OwnerReservationTab.entries.firstOrNull { it.name.equals(tabName, ignoreCase = true) }
+                        ?: OwnerReservationTab.ACTIVE
+                    val homeEntry = navController.getBackStackEntry(AppTab.OWNER_HOME.route)
+                    val reservationsController: OwnerReservationsController = viewModel(
+                        viewModelStoreOwner = homeEntry, factory = OwnerReservationsController.Factory)
+                    OwnerReservationsScreen(reservationsController,
+                        onBack = { navController.popBackStack() }, initialTab = tab)
+                }
+
+                composable(OWNER_HOME_BOOKED_DATES_ROUTE) {
+                    val bookedDatesController: OwnerBookedDatesController = viewModel(
+                        factory = OwnerBookedDatesController.createFactory())
+                    OwnerBookedDatesScreen(bookedDatesController, onBack = { navController.popBackStack() })
                 }
 
                 composable(
