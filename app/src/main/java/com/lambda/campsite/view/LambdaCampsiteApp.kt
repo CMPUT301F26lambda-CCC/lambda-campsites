@@ -17,10 +17,14 @@
  * OpenAI GPT-6 (OpenAI), through Codex, assisted with Flow 6/7 entrant search,
  * selected-lottery routing and shared parent ViewModels, and Flow 12 owner
  * waiting-list navigation. Follow-up human review remains pending.
-  * Layout follow-up (#154): Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI),
+ * Layout follow-up (#154): Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI),
  * through Codex, assisted with Figma layout/status/navigation-color integration
  * or its regression checks. Follow-up human review remains pending.
  */
+// Flow 11 feature owner: Sreeman Reddy. GPT-6 (OpenAI), through Codex,
+// also helped route the owner reservation lists
+// and booked-date calendar for Flow 11 (US 02.06.01 and 02.07.01 to 02.07.03).
+// Human review is pending.
 package com.lambda.campsite.view
 
 import android.net.Uri
@@ -28,16 +32,13 @@ import android.os.Bundle
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -61,6 +62,9 @@ import com.lambda.campsite.controller.OwnerCampsiteAddController
 import com.lambda.campsite.controller.OwnerCampsiteDetailsController
 import com.lambda.campsite.controller.OwnerCampsiteEditController
 import com.lambda.campsite.controller.OwnerCampsiteListController
+import com.lambda.campsite.controller.OwnerBookedDatesController
+import com.lambda.campsite.controller.OwnerReservationsController
+import com.lambda.campsite.controller.OwnerReservationTab
 import com.lambda.campsite.controller.SearchController
 import com.lambda.campsite.controller.CampsiteController
 import com.lambda.campsite.controller.LotteryController
@@ -74,6 +78,9 @@ import com.lambda.campsite.view.screens.OwnerCampsiteAddScreen
 import com.lambda.campsite.view.screens.OwnerCampsiteDetailsScreen
 import com.lambda.campsite.view.screens.OwnerCampsiteEditScreen
 import com.lambda.campsite.view.screens.OwnerCampsiteListScreen
+import com.lambda.campsite.view.screens.OwnerBookedDatesScreen
+import com.lambda.campsite.view.screens.OwnerReservationsScreen
+import com.lambda.campsite.view.screens.OwnerHomeScreen
 import com.lambda.campsite.view.screens.PlaceholderScreen
 import com.lambda.campsite.view.screens.SearchScreen
 import com.lambda.campsite.view.screens.CampsiteScreen
@@ -94,6 +101,9 @@ private const val OWNER_ADD_ROUTE = "owner/campsites/add"
 private const val OWNER_DETAILS_ROUTE = "owner/campsites/details/{campsiteId}"
 private const val OWNER_EDIT_ROUTE = "owner/campsites/edit/{campsiteId}"
 private const val OWNER_QR_ROUTE = "owner/campsites/qr/{campsiteId}"
+private const val OWNER_BOOKED_DATES_ROUTE = "owner/campsites/booked/{campsiteId}"
+private const val OWNER_HOME_BOOKED_DATES_ROUTE = "owner/home/booked"
+private const val OWNER_RESERVATIONS_ROUTE = "owner/home/reservations/{tab}"
 
 /** Opens the map picker with exact initial coordinates, and returnTo = [OWNER_PICKER_RETURN_ADD]/[OWNER_PICKER_RETURN_EDIT]. */
 private const val OWNER_MAP_PICKER_ROUTE =
@@ -114,6 +124,9 @@ private fun ownerEditRoute(campsiteId: String) = "owner/campsites/edit/$campsite
 
 /** Builds the QR code route for [campsiteId]. */
 private fun ownerQrRoute(campsiteId: String) = "owner/campsites/qr/$campsiteId"
+
+/** Builds the owner's calendar route for [campsiteId]. */
+private fun ownerBookedDatesRoute(campsiteId: String) = "owner/campsites/booked/${Uri.encode(campsiteId)}"
 
 /** Builds the map picker route with the pin's [initialLat]/[initialLng]/[initialPinName] already on the map. */
 private fun ownerMapPickerRoute(
@@ -206,6 +219,14 @@ fun LambdaCampsiteApp(
                                     navController.navigate("entrant/reservations/book/${Uri.encode(id)}")
                                 })
                             }
+
+                            AppTab.OWNER_HOME -> {
+                                val reservationsController: OwnerReservationsController =
+                                    viewModel(factory = OwnerReservationsController.Factory)
+                                OwnerHomeScreen(reservationsController, state.profile?.name.orEmpty(),
+                                    onReservations = { tab -> navController.navigate("owner/home/reservations/${tab.name.lowercase()}") },
+                                    onBookedDates = { navController.navigate(OWNER_HOME_BOOKED_DATES_ROUTE) })
+                            }
                             AppTab.OWNER_CAMPSITES -> OwnerCampsitesList(navController)
                             AppTab.OWNER_LOTTERIES -> {
                                 val waitingListController: OwnerWaitingListController = viewModel(
@@ -226,6 +247,24 @@ fun LambdaCampsiteApp(
                     WinnerBookingScreen(booking, onClose = { navController.popBackStack() }, onCampsite = { campsiteId ->
                         navController.navigate("entrant/home/details/${Uri.encode(campsiteId)}")
                     })
+                }
+
+                composable(OWNER_RESERVATIONS_ROUTE,
+                    arguments = listOf(navArgument("tab") { type = NavType.StringType })) { entry ->
+                    val tabName = entry.arguments?.getString("tab").orEmpty()
+                    val tab = OwnerReservationTab.entries.firstOrNull { it.name.equals(tabName, ignoreCase = true) }
+                        ?: OwnerReservationTab.ACTIVE
+                    val homeEntry = navController.getBackStackEntry(AppTab.OWNER_HOME.route)
+                    val reservationsController: OwnerReservationsController = viewModel(
+                        viewModelStoreOwner = homeEntry, factory = OwnerReservationsController.Factory)
+                    OwnerReservationsScreen(reservationsController,
+                        onBack = { navController.popBackStack() }, initialTab = tab)
+                }
+
+                composable(OWNER_HOME_BOOKED_DATES_ROUTE) {
+                    val bookedDatesController: OwnerBookedDatesController = viewModel(
+                        factory = OwnerBookedDatesController.createFactory())
+                    OwnerBookedDatesScreen(bookedDatesController, onBack = { navController.popBackStack() })
                 }
 
                 composable(
@@ -360,7 +399,7 @@ fun LambdaCampsiteApp(
                         onBack = { navController.popBackStack() },
                         onEditClick = { navController.navigate(ownerEditRoute(campsiteId)) },
                         onBookedDatesClick = {
-                            // Handled when BookedDates screen is implemented (US 02.06)
+                            navController.navigate(ownerBookedDatesRoute(campsiteId))
                         },
                         onQrCodeClick = { navController.navigate(ownerQrRoute(campsiteId)) },
                     )
@@ -401,6 +440,15 @@ fun LambdaCampsiteApp(
                         controller = qrController,
                         onBack = { navController.popBackStack() },
                     )
+                }
+
+                composable(OWNER_BOOKED_DATES_ROUTE) { entry ->
+                    val campsiteId = entry.arguments?.getString("campsiteId").orEmpty()
+                    val bookedDatesController: OwnerBookedDatesController = viewModel(
+                        key = "booked_${campsiteId}",
+                        factory = OwnerBookedDatesController.createFactory(campsiteId),
+                    )
+                    OwnerBookedDatesScreen(bookedDatesController, onBack = { navController.popBackStack() })
                 }
             }
         }

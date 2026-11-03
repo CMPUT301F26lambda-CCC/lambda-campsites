@@ -2,6 +2,7 @@
 
 Sashreek and Sreeman · original architecture updated November 1, 2026
 
+Flow 11 update: Sreeman Reddy · last updated 2026-11-03.
 > AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped
 > write this document and its diagrams in October 2026, working from
 > decisions the team made. It also checked the free-tier figures in
@@ -12,6 +13,9 @@ Sashreek and Sreeman · original architecture updated November 1, 2026
 > availability calendar to sections 4, 5 and 7, and helped add lotteries
 > to sections 3, 4, 5 and 7. Sashreek reviewed and edited it.
 >
+> GPT-6 (OpenAI), through Codex, helped update the feature table for the
+> owner reservations and booked-date screens in Flow 11 on November 3, 2026.
+> Human review is pending.
 > Flow 6/7 follow-up: Lalith Valluru, 2026-11-03 (#149). OpenAI GPT-6
 > (OpenAI), through Codex, assisted with the entrant navigation/state notes
 > below. Follow-up human review remains pending.
@@ -252,6 +256,9 @@ Winner booking (Flow 9) uses `WinnerBookingController` and the existing lottery,
 | Owner lottery setup/edit screens (Flow 4, #121; integration pending) | Owner configuration controller supplied by Flow 4 | LotteryRepository | 02.04.01 to 02.04.07, 02.10.01 |
 | OwnerWaitingListScreen | OwnerWaitingListController | LotteryRepository, ProfileRepository, WaitingListContactRepository | 02.09.01 |
 | ReservationsScreen | ReservationController | ReservationRepository | 01.04.01 to 01.07.02, 02.06.01 to 02.08.01, 02.11.01 |
+| OwnerHomeScreen | OwnerReservationsController | ReservationRepository | 02.06.01, 02.07.01 to 02.07.03 |
+| OwnerReservationsScreen | OwnerReservationsController | ReservationRepository | 02.07.01 to 02.07.03 |
+| OwnerBookedDatesScreen | OwnerBookedDatesController | CampsiteRepository, ReservationRepository | 02.06.01 |
 | ProfileScreen | ProfileController | ProfileRepository | 01.07.03 to 01.11.01, 03.11.01 |
 | InboxScreen | NotificationController | NotificationRepository | 01.03.01, 01.03.02, 02.10.02 |
 | ConversationScreen | ConversationController | ConversationRepository | 02.12.01 |
