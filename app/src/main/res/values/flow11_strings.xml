@@ -1,0 +1,74 @@
+<!--
+  AI use: GPT-6 (OpenAI), through Codex, helped write the owner calendar and
+  reservation list labels for Flow 11 (US 02.06.01 and 02.07.01 to 02.07.03).
+  Human review is pending.
+-->
+<resources>
+    <string name="owner_name_fallback">Owner</string>
+    <string name="owner_home_greeting">Welcome back, %1$s</string>
+    <string name="owner_home_reservations">Reservations</string>
+    <string name="owner_home_booked_dates_subtitle">View your campsite calendar</string>
+    <string name="owner_home_no_campsites">Add a campsite to view booked dates.</string>
+    <string name="owner_reservations_title">Reservations</string>
+    <string name="reservation_tab_active">Active</string>
+    <string name="reservation_tab_past">Past</string>
+    <string name="reservation_tab_cancelled">Cancelled</string>
+    <string name="no_active_reservations">No active reservations.</string>
+    <string name="no_past_reservations">No past reservations.</string>
+    <string name="no_cancelled_reservations">No cancelled reservations.</string>
+    <string name="reservations_load_failed">Unable to load reservations. Check your connection and try again.</string>
+    <string name="retry_button">Retry</string>
+    <string name="back_button">Back</string>
+    <string name="reservation_details_title">Reservation details</string>
+    <string name="close_reservation_details">Close reservation details</string>
+    <string name="reservation_number">Number</string>
+    <string name="reservation_check_in">Check-in</string>
+    <string name="reservation_check_out">Check-out</string>
+    <string name="reservation_guests">Guests</string>
+    <string name="reservation_booked_on">Booked on</string>
+    <string name="reservation_cancelled_on">Cancelled on</string>
+    <string name="reservation_status_confirmed">Confirmed</string>
+    <string name="reservation_status_cancelled">Cancelled</string>
+    <string name="reservation_status_rejected">Rejected</string>
+    <string name="reservation_status_completed">Completed</string>
+    <string name="reservation_stay_summary">%1$s · %2$s</string>
+    <string name="reservation_on_date">Reservation on %1$s</string>
+    <string name="view_reservation">View reservation</string>
+    <string name="campsite_field">Campsite</string>
+    <string name="choose_campsite">Choose a campsite</string>
+    <string name="booked_legend">Booked</string>
+    <string name="available_legend">Available</string>
+    <string name="unavailable_legend">Unavailable</string>
+    <string name="calendar_loading">Loading booked dates…</string>
+    <string name="calendar_updates">Calendar updates as reservations change.</string>
+    <string name="calendar_empty_hint">Use the arrows to browse other months.</string>
+    <string name="calendar_booked_hint">Peach dates are booked. Tap one for details.</string>
+    <string name="booked_dates_title">Booked dates</string>
+    <string name="previous_month">Previous month</string>
+    <string name="next_month">Next month</string>
+    <string name="no_bookings_this_month">No bookings for this month.</string>
+    <string name="booked_date_description">%1$s, booked. Double tap for reservation details.</string>
+    <string name="available_date_description">%1$s, available.</string>
+    <string name="outside_season_date_description">%1$s, outside the campsite season.</string>
+    <string name="no_season_date_description">%1$s, season not configured.</string>
+    <plurals name="flow11_reservation_count">
+        <item quantity="one">%1$d reservation</item>
+        <item quantity="other">%1$d reservations</item>
+    </plurals>
+    <plurals name="flow11_past_count">
+        <item quantity="one">%1$d completed stay</item>
+        <item quantity="other">%1$d completed stays</item>
+    </plurals>
+    <plurals name="flow11_cancelled_count">
+        <item quantity="one">%1$d cancellation</item>
+        <item quantity="other">%1$d cancellations</item>
+    </plurals>
+    <plurals name="flow11_nights">
+        <item quantity="one">%1$d night</item>
+        <item quantity="other">%1$d nights</item>
+    </plurals>
+    <plurals name="flow11_guests">
+        <item quantity="one">%1$d guest</item>
+        <item quantity="other">%1$d guests</item>
+    </plurals>
+</resources>
