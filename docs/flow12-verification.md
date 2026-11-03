@@ -51,7 +51,8 @@ the repository's deployment runtime stays Python 3.13. No deployment is included
 Final local run, November 3, 2026:
 
 - Debug app and Android-test APK builds succeeded.
-- 163 JVM tests passed (including 13 new Flow 12 controller cases).
+- 172 JVM tests passed on main including the merged Flow 7 recovery PR #147
+  (including 13 new Flow 12 controller cases).
 - 4 Flow 12 Compose tests passed, including long-list and contact-sheet scrolling
   at 200% font size and explicit missing-phone presentation.
 - 2 real-app Firebase tests passed against local Auth/Firestore/Functions,
