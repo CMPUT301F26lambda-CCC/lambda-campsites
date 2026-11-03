@@ -169,6 +169,10 @@ def _draw_in_transaction(transaction, db, lottery_ref, now):
         .where(filter=FieldFilter("status", "==", "WAITING"))
         .get(transaction=transaction)
     )
+    campsite_names = []
+    for campsite_id in lottery.get("campsiteIds", []):
+        campsite = db.collection("campsites").document(campsite_id).get(transaction=transaction).to_dict() or {}
+        campsite_names.append(campsite.get("name") or campsite_id)
     winners = random.sample(waiting, k=min(lottery["numberOfWinners"], len(waiting)))
     winner_ids = {entry.id for entry in winners}
 
@@ -176,12 +180,13 @@ def _draw_in_transaction(transaction, db, lottery_ref, now):
         won = entry.id in winner_ids
         transaction.update(entry.reference, {"status": "WON" if won else "NOT_SELECTED"})
         notification = db.collection("notifications").document()
-        transaction.set(notification, _lottery_notification(entry.get("entrantId"), lottery["name"], won, lottery_ref.id))
+        transaction.set(notification, _lottery_notification(entry.get("entrantId"), lottery["name"], won,
+            lottery_ref.id, campsite_names, lottery["registrationOpens"], lottery["registrationCloses"]))
 
     transaction.update(lottery_ref, {"status": "DRAWN"})
 
 
-def _lottery_notification(recipient_id, lottery_name, won, lottery_id):
+def _lottery_notification(recipient_id, lottery_name, won, lottery_id, campsite_names, registration_opens, registration_closes):
     """A WIN or LOSE notice with a stable source lottery ID for booking handoff."""
     if won:
         title = "You won the lottery"
@@ -191,6 +196,8 @@ def _lottery_notification(recipient_id, lottery_name, won, lottery_id):
         title = "You weren't selected"
         body = f"You weren't selected in the lottery for {lottery_name}."
         notification_type = "LOSE"
+    # Keep public campsite labels and the registration period readable even after a lottery is removed.
+    body += f" Campsites: {', '.join(campsite_names)}. Registration: {registration_opens.isoformat()} to {registration_closes.isoformat()}."
     return {
         "recipientId": recipient_id,
         "lotteryId": lottery_id,
