@@ -137,8 +137,14 @@ class FirestoreConversationRepository(
         batch.commit().await()
     }
 
+    /** Zeroes this device's own unread count, as the owner or the guest. */
     override suspend fun markRead(reservationId: String) {
-        TODO("zeroes this device's own unread count")
+        val uid = auth.signedInUserId().first()
+        val ref = conversations.document(reservationId)
+        val conversation = ref.get().await().data?.let { ConversationFields.fromMap(reservationId, it) } ?: return
+        if (conversation.unreadCountFor(uid) == 0) return
+        val field = if (uid == conversation.ownerId) ConversationFields.OWNER_UNREAD_COUNT else ConversationFields.GUEST_UNREAD_COUNT
+        ref.update(mapOf(field to 0)).await()
     }
 
     /** A conversation's messages, `conversations/{reservationId}/messages`. */

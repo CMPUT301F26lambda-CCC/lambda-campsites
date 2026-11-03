@@ -194,6 +194,25 @@ class FirestoreConversationRepositoryTest {
         assertEventuallySends(listOf("See you at noon"), mapToText(secondRepository.messages("shared")))
     }
 
+    @Test
+    fun markingReadZeroesThisDevicesOwnUnreadCount() {
+        setUpConversation("mine", ownerId = uid, guestId = "guest-1", ownerUnreadCount = 3, guestUnreadCount = 5)
+
+        runBlocking { withTimeout(TIMEOUT_MS) { repository.markRead("mine") } }
+
+        val saved = requireNotNull(conversationOnServer("mine"))
+        assertEquals(0, saved.ownerUnreadCount)
+        assertEquals(5, saved.guestUnreadCount)
+    }
+
+    @Test
+    fun markingReadWhenAlreadyZeroDoesNothing() {
+        // setUp already opened "mine" with both unread counts at zero.
+        runBlocking { withTimeout(TIMEOUT_MS) { repository.markRead("mine") } }
+
+        assertEquals(Conversation(id = "mine", ownerId = uid, guestId = "guest-1"), conversationOnServer("mine"))
+    }
+
     private fun mapToText(flow: Flow<List<Message>>): Flow<List<String>> =
         flow.map { messages -> messages.map { it.text } }
 
@@ -252,8 +271,17 @@ class FirestoreConversationRepositoryTest {
         ownerId: String,
         guestId: String,
         lastMessageAt: Timestamp? = null,
+        ownerUnreadCount: Int = 0,
+        guestUnreadCount: Int = 0,
     ): Conversation {
-        val conversation = Conversation(id = id, ownerId = ownerId, guestId = guestId, lastMessageAt = lastMessageAt)
+        val conversation = Conversation(
+            id = id,
+            ownerId = ownerId,
+            guestId = guestId,
+            lastMessageAt = lastMessageAt,
+            ownerUnreadCount = ownerUnreadCount,
+            guestUnreadCount = guestUnreadCount,
+        )
         FirestoreEmulator.setIgnoringRules("conversations/$id", ConversationFields.toMap(conversation))
         return conversation
     }
