@@ -324,6 +324,7 @@ A document that belongs to another one can share its parent's repository. A camp
 | LotteryScreen | LotteryController | LotteryRepository | 01.01.06 to 01.02.02, 02.04.01 to 02.05.01, 02.10.01 |
 | OwnerWaitingListScreen | OwnerWaitingListController | LotteryRepository, ProfileRepository, WaitingListContactRepository | 02.09.01 |
 | ReservationsScreen | ReservationController | ReservationRepository | 01.04.01 to 01.07.02, 02.06.01 to 02.08.01, 02.11.01 |
+| OwnerHomeScreen | OwnerReservationsController | ReservationRepository | 02.06.01, 02.07.01 to 02.07.03 |
 | OwnerReservationsScreen | OwnerReservationsController | ReservationRepository | 02.07.01 to 02.07.03 |
 | OwnerBookedDatesScreen | OwnerBookedDatesController | CampsiteRepository, ReservationRepository | 02.06.01 |
 | ProfileScreen | ProfileController | ProfileRepository | 01.07.03 to 01.11.01, 03.11.01 |
