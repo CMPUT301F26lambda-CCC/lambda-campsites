@@ -52,12 +52,12 @@ data class OwnerReservationsUiState(
     val past: List<Reservation>
         get() = reservations.filter { it.isCompleted(today) }.sortedByDescending { it.checkOut }
 
-    /** Guest-cancelled stays, retained after their nights become free. */
+    /** Cancelled and owner-rejected stays, as grouped in the Figma Cancelled tab. */
     val cancelled: List<Reservation>
-        get() = reservations.filter { it.status == ReservationStatus.CANCELLED }
+        get() = reservations.filter { it.status == ReservationStatus.CANCELLED || it.status == ReservationStatus.REJECTED }
             .sortedByDescending { it.cancelledAt?.seconds ?: 0L }
 
-    /** The list for [selectedTab]. Rejected reservations are excluded. */
+    /** The list for [selectedTab]. */
     val visibleReservations: List<Reservation>
         get() = when (selectedTab) {
             OwnerReservationTab.ACTIVE -> active

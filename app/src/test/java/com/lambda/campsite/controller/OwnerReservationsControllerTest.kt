@@ -39,7 +39,7 @@ class OwnerReservationsControllerTest {
             status = status,
         )
 
-    @Test fun `groups only active past and guest cancelled reservations`() {
+    @Test fun `groups active past and cancelled or rejected reservations`() {
         val active = reservation("active", today, today.plusDays(2), ReservationStatus.CONFIRMED)
         val past = reservation("past", today.minusDays(3), today, ReservationStatus.CONFIRMED)
         val cancelled = reservation("cancelled", today.plusDays(3), today.plusDays(5), ReservationStatus.CANCELLED)
@@ -50,7 +50,7 @@ class OwnerReservationsControllerTest {
 
         assertEquals(listOf("active"), controller.state.value.active.map { it.id })
         assertEquals(listOf("past"), controller.state.value.past.map { it.id })
-        assertEquals(listOf("cancelled"), controller.state.value.cancelled.map { it.id })
+        assertEquals(listOf("cancelled", "rejected"), controller.state.value.cancelled.map { it.id })
         assertEquals(false, controller.state.value.isLoading)
     }
 

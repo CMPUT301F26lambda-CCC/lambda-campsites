@@ -72,4 +72,26 @@ class OwnerBookedDatesControllerTest {
         assertEquals(emptySet<LocalDate>(), controller.state.value.bookedThisMonth)
         assertNull(controller.state.value.selectedReservation)
     }
+
+    @Test fun `selector changes calendars only among owned campsites`() {
+        val second = camp.copy(id = "site-2", name = "Cedar Point")
+        val foreign = camp.copy(id = "foreign", ownerId = "other-owner")
+        val secondNight = firstNight.plusDays(5)
+        val secondCalendar = calendar.copy(bookedNights = setOf(secondNight))
+        val secondBooking = booking.copy(id = "second-booking", campsiteId = second.id,
+            campsiteName = second.name, checkIn = secondNight, checkOut = secondNight.plusDays(1))
+        val campsites = FakeCampsiteRepository(initial = listOf(camp, second, foreign),
+            initialCalendars = mapOf(camp.id to calendar, second.id to secondCalendar))
+        val reservations = FakeReservationRepository(initial = listOf(booking, secondBooking))
+        val controller = OwnerBookedDatesController(camp.id, campsites, reservations, july)
+
+        assertEquals(listOf(camp.id, second.id), controller.state.value.campsites.map { it.id })
+        controller.onCampsiteSelected(foreign.id)
+        assertEquals(camp.id, controller.state.value.selectedCampsiteId)
+        controller.onCampsiteSelected(second.id)
+        assertEquals(second.id, controller.state.value.selectedCampsiteId)
+        assertEquals(setOf(secondNight), controller.state.value.bookedThisMonth)
+        controller.onBookedDateSelected(secondNight)
+        assertEquals(secondBooking.id, controller.state.value.selectedReservation?.id)
+    }
 }
