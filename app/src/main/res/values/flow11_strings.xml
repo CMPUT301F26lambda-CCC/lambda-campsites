@@ -1,0 +1,40 @@
+<!--
+  AI use: GPT-6 (OpenAI), through Codex, helped write the owner calendar and
+  reservation list labels for Flow 11 (US 02.06.01 and 02.07.01 to 02.07.03).
+  Human review is pending.
+-->
+<resources>
+    <string name="owner_reservations_title">Reservations</string>
+    <string name="reservation_tab_active">Active</string>
+    <string name="reservation_tab_past">Past</string>
+    <string name="reservation_tab_cancelled">Cancelled</string>
+    <string name="no_active_reservations">No active reservations.</string>
+    <string name="no_past_reservations">No past reservations.</string>
+    <string name="no_cancelled_reservations">No cancelled reservations.</string>
+    <string name="reservations_load_failed">Unable to load reservations. Check your connection and try again.</string>
+    <string name="retry_button">Retry</string>
+    <string name="back_button">Back</string>
+    <string name="reservation_dates_format">%1$s – %2$s</string>
+    <string name="reservation_entrant_format">Entrant: %1$s</string>
+    <string name="reservation_number_format">Reservation #%1$s</string>
+    <string name="reservation_details_title">Reservation details</string>
+    <string name="reservation_number">Number</string>
+    <string name="reservation_status">Status</string>
+    <string name="reservation_campsite">Campsite</string>
+    <string name="reservation_entrant">Entrant</string>
+    <string name="reservation_check_in">Check-in</string>
+    <string name="reservation_check_out">Check-out</string>
+    <string name="reservation_guests">Guests</string>
+    <string name="reservation_booked_on">Booked on</string>
+    <string name="reservation_cancelled_on">Cancelled on</string>
+    <string name="reservation_status_confirmed">Confirmed</string>
+    <string name="reservation_status_cancelled">Cancelled</string>
+    <string name="reservation_status_rejected">Rejected</string>
+    <string name="booked_dates_title">Booked dates</string>
+    <string name="previous_month">Previous month</string>
+    <string name="next_month">Next month</string>
+    <string name="no_bookings_this_month">No bookings for this month.</string>
+    <string name="booked_dates_hint">Select a booked date to view its reservation.</string>
+    <string name="booked_date_description">%1$s, booked. Double tap for reservation details.</string>
+    <string name="available_date_description">%1$s, available.</string>
+</resources>
