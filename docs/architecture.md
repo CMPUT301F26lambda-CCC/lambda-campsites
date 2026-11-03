@@ -15,6 +15,10 @@ manual accessibility review remain pending (#129, #36).
 > add the campsite repository to sections 3, 5 and 7, and helped add the
 > availability calendar to sections 4, 5 and 7, and helped add lotteries
 > to sections 3, 4, 5 and 7. Sashreek reviewed and edited it.
+>
+> Flow 6/7 follow-up: Lalith Valluru, 2026-11-03 (#149). OpenAI GPT-6
+> (OpenAI), through Codex, assisted with the entrant navigation/state notes
+> below. Follow-up human review remains pending.
 
 This page explains how the app is put together. It covers the class diagram and the reasons behind it, the backend on Firebase, and how the Android app splits into Model, View and Controller. Section 6 follows one entrant from tapping "Join" to holding a reservation, so you can see every layer working in one story. Section 7 is the practical part: where files live, what to name things, and how to add something to the frontend or the backend. If a term is new to you, like repository, Flow or transaction, `docs/glossary.md` explains it.
 
@@ -315,7 +319,7 @@ A document that belongs to another one can share its parent's repository. A camp
 |---|---|---|---|
 | SearchScreen | SearchController | CampsiteSearch | 01.01.01 to 01.01.04, 01.12.01 |
 | CampsiteScreen | CampsiteController | CampsiteRepository | 01.01.05, 01.13.01, 02.01.01 to 02.03.01 |
-| LotteryScreen | LotteryController | LotteryRepository | 01.01.06 to 01.02.02, 02.04.01 to 02.05.01, 02.10.01 |
+| EntrantLotteryDetailsScreen | LotteryController (entrant only) | LotteryRepository | 01.01.06 to 01.02.02 |
 | OwnerWaitingListScreen | OwnerWaitingListController | LotteryRepository, ProfileRepository, WaitingListContactRepository | 02.09.01 |
 | ReservationsScreen | ReservationController | ReservationRepository | 01.04.01 to 01.07.02, 02.06.01 to 02.08.01, 02.11.01 |
 | ProfileScreen | ProfileController | ProfileRepository | 01.07.03 to 01.11.01, 03.11.01 |
@@ -324,6 +328,22 @@ A document that belongs to another one can share its parent's repository. A camp
 | AdminScreen | AdminController | AdminModeration | 03.01.01 to 03.12.01 |
 
 `CampsiteSearch` and `AdminModeration` are services from the class diagram, and they call the repositories themselves.
+
+Entrant search now separates draft `query` from `submittedQuery` in
+`SearchUiState`. Typing edits only the draft; Search or the keyboard's Search
+action submits it. Live catalogue updates continue to match the submitted
+query. Both queries survive the pushed details routes through the Home
+controller's existing ViewModel scope.
+
+`CampsiteScreen` opens the selected lottery at
+`entrant/home/details/{campsiteId}/lottery/{lotteryId}`. The pushed screen reuses
+the campsite route's `CampsiteController` and `LotteryController`; Back returns
+to that same campsite, then to the retained search. `LotteryUiState.observedAt`
+refreshes on resume and at the next registration boundary, so Join and
+Withdraw disable even when no Firestore document changes. Model checks and
+server transactions still enforce eligibility when the action runs. The draw
+remains server-owned. Owner lottery configuration is separate work; the
+existing entrant controller does not implement the owner stories.
 
 The starter code already has the profile feature: `ProfileScreen`, `ProfileController`, `ProfileRepository` and their tests. Copy its shape when you build a new feature.
 

@@ -19,6 +19,9 @@
 > Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
 > Sashreek Addanki update the note on testing Storage rules on November
 > 1, 2026, when photos became upload-only. Sashreek Addanki reviewed it.
+>
+> Lalith Valluru, 2026-11-03 (#149): OpenAI GPT-6 (OpenAI), through Codex,
+> assisted with the entrant regression-test summary. Human review is pending.
 
 This document is for everyone writing code in this app. It covers
 which tests each user story needs, where test files go and what to
@@ -221,6 +224,29 @@ With the Firebase emulators running, run `pytest` inside `functions/`.
 
 Run all unit tests, and the UI tests for any screen you changed. A
 pull request that breaks an existing test doesn't get merged.
+
+## Entrant search and registration follow-up (#149)
+
+Updated by Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex,
+assisted with these regression scenarios and this summary; human review is
+pending. Outstanding checks: manual TalkBack and physical-device review.
+
+- `SearchControllerTest` checks draft-versus-submitted search and live updates.
+- `LotteryControllerTest` checks eligibility, pending writes, authoritative
+  failures and automatic clock refresh at registration opening/closing.
+- `SearchScreenTest`, `LotteryScreenTest` and `EntrantCampsiteFlowTest` cover
+  explicit Search/View details actions, selected-lottery navigation,
+  confirmation/cancel, disabled actions, Back and scrolling at 200% font size.
+- `EntrantFirebaseFlowTest` uses the real NavHost and repositories with local
+  Auth/Firestore emulators. It checks server entry/count changes, full/closed/
+  upcoming/drawn states, reopening membership and an unpublished campsite.
+  Its host guard rejects a non-emulator Firestore connection. No shared-project
+  records are seeded by these tests.
+- `StatusBarStyleTest` checks that disposing an outgoing screen cannot replace
+  the incoming screen's status-bar contrast choice.
+
+These tests cover the acceptance-criteria fixes; the broader Figma search-card
+polish and consolidation with owner campsite sections are not asserted here.
 
 ## Tests in CI
 
