@@ -6,6 +6,9 @@
  * accessibility semantics and callbacks. Human review pending.
  * Reference: Lambda Campsite UI / Sreeman / 59355:5791, 59355:5860, 59355:5935.
  * Names/contact details use an owner-authorized projection; full profiles remain private.
+ * Theme follow-up (#154), Lalith Valluru, 2026-11-03: OpenAI GPT-6 (OpenAI),
+ * through Codex, assisted with replacing duplicated colors by the shared scheme.
+ * Layout is unchanged; follow-up human review remains pending.
  */
 package com.lambda.campsite.view.screens
 
@@ -41,7 +44,6 @@ import com.lambda.campsite.model.EntryStatus
 import com.lambda.campsite.model.LotteryEntry
 import com.lambda.campsite.model.WaitingListContact
 import com.lambda.campsite.view.theme.StatusBarIconStyle
-import com.lambda.campsite.view.theme.WaitingListColors
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -80,16 +82,16 @@ fun OwnerWaitingListContent(
 ) {
     StatusBarIconStyle(darkIcons = false)
     var choosing by remember { mutableStateOf(false) }
-    Scaffold(containerColor = WaitingListColors.header, topBar = {
+    Scaffold(containerColor = MaterialTheme.colorScheme.primary, topBar = {
         TopAppBar(title = { Text(stringResource(R.string.flow12_title),
             style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() }) },
             navigationIcon = { IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.flow12_back))
-            } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = WaitingListColors.header,
+            } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primary,
                 titleContentColor = Color.White, navigationIconContentColor = Color.White))
     }) { padding ->
-        Surface(Modifier.fillMaxSize().padding(padding), color = WaitingListColors.surface,
-            contentColor = WaitingListColors.text,
+        Surface(Modifier.fillMaxSize().padding(padding), color = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)) {
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -98,13 +100,13 @@ fun OwnerWaitingListContent(
                     if (state.lotteries.isNotEmpty()) item {
                         Box {
                             Surface(onClick = { choosing = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
-                                shape = RoundedCornerShape(12.dp), color = WaitingListColors.field,
-                                border = BorderStroke(1.dp, WaitingListColors.outline)) {
+                                shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                         Text(stringResource(R.string.flow12_lottery), style = MaterialTheme.typography.labelSmall,
-                                            color = WaitingListColors.secondaryText)
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         Text(state.selectedLottery?.name ?: stringResource(R.string.flow12_choose),
                                             style = MaterialTheme.typography.bodyLarge)
                                     }
@@ -112,7 +114,7 @@ fun OwnerWaitingListContent(
                                 }
                             }
                             DropdownMenu(expanded = choosing, onDismissRequest = { choosing = false },
-                                containerColor = WaitingListColors.field) {
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest) {
                                 state.lotteries.forEach { lottery ->
                                     DropdownMenuItem(text = { Text(lottery.name) },
                                         modifier = Modifier.semantics { selected = lottery.id == state.selectedLotteryId },
@@ -129,7 +131,7 @@ fun OwnerWaitingListContent(
                     else if (state.loadingEntries) item { LoadingWaitingList(R.string.flow12_loading_entries) }
                     else if (state.selectedLottery != null) {
                         item { Text(pluralStringResource(R.plurals.flow12_count, state.entries.size, state.entries.size),
-                            style = MaterialTheme.typography.titleSmall, color = WaitingListColors.secondaryText,
+                            style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
                         if (state.entries.isEmpty()) item {
                             Text(stringResource(R.string.flow12_empty), style = MaterialTheme.typography.bodyMedium,
@@ -148,10 +150,10 @@ fun OwnerWaitingListContent(
                         }
                         if (state.entries.isNotEmpty()) item {
                             Text(stringResource(R.string.flow12_updates), style = MaterialTheme.typography.bodyMedium,
-                                color = WaitingListColors.secondaryText)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(Modifier.height(8.dp))
                             Text(stringResource(R.string.flow12_contacts_private), style = MaterialTheme.typography.bodySmall,
-                                color = WaitingListColors.secondaryText)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -160,8 +162,8 @@ fun OwnerWaitingListContent(
     }
     state.selectedEntrant?.let { entry ->
         val contact = state.contacts[entry.entrantId]
-        ModalBottomSheet(onDismissRequest = onDismissEntrant, containerColor = WaitingListColors.sheet,
-            contentColor = WaitingListColors.text, scrimColor = Color.Black.copy(alpha = 0.32f),
+        ModalBottomSheet(onDismissRequest = onDismissEntrant, containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            contentColor = MaterialTheme.colorScheme.onSurface, scrimColor = Color.Black.copy(alpha = 0.32f),
             properties = ModalBottomSheetProperties(isAppearanceLightStatusBars = false,
                 isAppearanceLightNavigationBars = true)) {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
@@ -198,10 +200,10 @@ fun OwnerWaitingListContent(
 
 @Composable
 private fun WaitingListEntrantRow(entry: LotteryEntry, contact: WaitingListContact?, onOpen: () -> Unit) {
-    Surface(onClick = onOpen, color = WaitingListColors.surface, modifier = Modifier.fillMaxWidth().heightIn(min = 68.dp)) {
+    Surface(onClick = onOpen, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth().heightIn(min = 68.dp)) {
         Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Surface(shape = CircleShape, color = WaitingListColors.avatar, contentColor = WaitingListColors.text) {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSurface) {
                 Box(Modifier.size(40.dp).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
                     Text((contact?.name?.split(" ")?.filter { it.isNotBlank() }?.take(2)?.map { it.first() }?.joinToString("")
                         ?.takeIf { it.isNotBlank() } ?: entry.entrantId.take(2)).uppercase(Locale.getDefault()), style = MaterialTheme.typography.labelLarge)
@@ -209,9 +211,9 @@ private fun WaitingListEntrantRow(entry: LotteryEntry, contact: WaitingListConta
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(contact?.name?.takeIf { it.isNotBlank() } ?: stringResource(R.string.flow12_entrant, entry.entrantId), style = MaterialTheme.typography.bodyLarge)
-                Text(joinedDate(entry), style = MaterialTheme.typography.bodyMedium, color = WaitingListColors.secondaryText)
+                Text(joinedDate(entry), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(20.dp), tint = WaitingListColors.secondaryText)
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -219,7 +221,7 @@ private fun WaitingListEntrantRow(entry: LotteryEntry, contact: WaitingListConta
 @Composable
 private fun LoadingWaitingList(label: Int) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        CircularProgressIndicator(color = WaitingListColors.header)
+        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
         Text(stringResource(label), modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
     }
 }

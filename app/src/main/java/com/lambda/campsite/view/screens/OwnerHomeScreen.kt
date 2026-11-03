@@ -37,7 +37,6 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -47,6 +46,7 @@ import com.lambda.campsite.controller.OwnerReservationTab
 import com.lambda.campsite.controller.OwnerReservationsController
 import com.lambda.campsite.controller.OwnerReservationsUiState
 import com.lambda.campsite.view.theme.Flow11Colors
+import com.lambda.campsite.view.theme.CampBrandName
 import com.lambda.campsite.view.theme.StatusBarIconStyle
 import java.util.Locale
 
@@ -83,7 +83,7 @@ fun OwnerHomeContent(
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Image(painterResource(R.drawable.camp_logo), null, Modifier.size(40.dp))
                 Text(stringResource(R.string.app_name), modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleLarge.copy(fontFamily = FontFamily.Serif), color = Color.White)
+                    style = CampBrandName, color = Color.White)
                 Box(Modifier.size(36.dp).background(Flow11Colors.selected, CircleShape), contentAlignment = Alignment.Center) {
                     Text(initials, style = MaterialTheme.typography.labelLarge, color = Flow11Colors.text)
                 }

@@ -1,4 +1,9 @@
-/* Purpose: Flow 6 search tests. AI use: OpenAI GPT-6 through Codex assisted; human review pending. */
+/*
+ * Purpose: Flow 6 search and explicit-submit tests (US 01.01.01).
+ * Feature owner: Lalith Valluru. Last updated: 2026-11-03 (#149).
+ * Outstanding issues: none known in these controller scenarios.
+ * AI use: OpenAI GPT-6 (OpenAI), through Codex, assisted with test cases; human review pending.
+ */
 package com.lambda.campsite.controller
 
 import com.lambda.campsite.model.Campsite
@@ -18,6 +23,20 @@ class SearchControllerTest {
     @get:Rule val dispatcher = MainDispatcherRule()
     private val aspen = Campsite("aspen", "owner", "Aspen Hollow", "Alberta", description = "Quiet forest", amenities = listOf("Fire pit"), maxOccupancy = 6, ratingCount = 2, ratingSum = 9)
     private val cedar = Campsite("cedar", "owner", "Cedar Point", "British Columbia", tags = listOf("lakeside"))
+
+    @Test fun `draft query waits for Search and live updates use submitted query`() {
+        val repository = FakeCampsiteRepository(initial = listOf(aspen, cedar))
+        val control = SearchController(repository)
+        control.onQueryChanged("aspen")
+        assertEquals(2, control.state.value.results.size)
+        control.onSubmitSearch()
+        assertEquals(listOf(aspen), control.state.value.results)
+        control.onQueryChanged("cedar")
+        repository.changeElsewhere(aspen.copy(name = "Aspen Updated"))
+        assertEquals("Aspen Updated", control.state.value.results.single().name)
+        control.onSubmitSearch()
+        assertEquals(listOf(cedar), control.state.value.results)
+    }
 
     @Test fun `empty search returns published sites ordered by name`() {
         val control = SearchController(FakeCampsiteRepository(initial = listOf(cedar, aspen, aspen.copy(id = "private", published = false))))

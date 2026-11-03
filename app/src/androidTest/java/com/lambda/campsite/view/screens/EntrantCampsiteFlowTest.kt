@@ -2,6 +2,10 @@
  * Purpose: Flow 6 search/details and Flow 7 join/leave UI integration tests using local fakes.
  * Outstanding issues: emulator-backed Firebase/security and manual TalkBack checks remain.
  * AI use: OpenAI GPT-6 through Codex assisted with fixtures and tests; human review pending.
+ * Feature owner: Lalith Valluru. Last updated: 2026-11-03 (#149).
+ * Layout follow-up (#154): Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI),
+ * through Codex, assisted with Figma layout/status/navigation-color integration
+ * or its regression checks. Follow-up human review remains pending.
  */
 package com.lambda.campsite.view.screens
 
@@ -79,6 +83,7 @@ class EntrantCampsiteFlowTest {
     private fun launch() {
         compose.setContent {
             val selected = remember { mutableStateOf<String?>(null) }
+            val selectedLottery = remember { mutableStateOf<String?>(null) }
             val search = remember { controller("search") { SearchController(campsiteRepository) } }
             LambdaCampsiteTheme {
                 if (selected.value == null) {
@@ -87,7 +92,10 @@ class EntrantCampsiteFlowTest {
                     val id = selected.value!!
                     val details = remember(id) { controller("details-$id") { CampsiteController(id, campsiteRepository) } }
                     val lottery = remember(id) { controller("lotteries-$id") { LotteryController(id, lotteryRepository) { now } } }
-                    CampsiteScreen(details, lottery, onBack = { selected.value = null })
+                    if (selectedLottery.value == null) CampsiteScreen(details, lottery,
+                        onBack = { selected.value = null }, onLotteryClick = { selectedLottery.value = it })
+                    else EntrantLotteryDetailsScreen(lottery, details, selectedLottery.value!!,
+                        onBack = { selectedLottery.value = null })
                 }
             }
         }
@@ -98,28 +106,34 @@ class EntrantCampsiteFlowTest {
 
     @Test fun searchSummaryDetailsJoinLeaveAndBackWorkTogether() {
         launch()
-        compose.onNodeWithText(text(R.string.flow6_search_label)).performTextInput("Aspen")
+        compose.onNodeWithText(text(R.string.entrant_campsite_search_label)).performTextInput("Aspen")
+        compose.onNodeWithContentDescription(text(R.string.entrant_campsite_search_action)).performClick()
         compose.onNodeWithText("Cedar Point").assertDoesNotExist()
-        compose.onNodeWithText(text(R.string.flow6_max_guests, 6), substring = true).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.flow6_rating, 4.5, 2), substring = true).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.campsite_guest_summary, 6), substring = true).assertIsDisplayed()
+        compose.onNodeWithContentDescription(InstrumentationRegistry.getInstrumentation().targetContext.resources.getQuantityString(R.plurals.campsite_rating_count, 2, 4.5, 2)).assertIsDisplayed()
         compose.onNodeWithText("Aspen Hollow", substring = true).performClick()
         compose.onNodeWithText("Quiet demo campsite").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.flow7_join)).performScrollTo().performClick()
-        compose.onNodeWithText(text(R.string.flow7_joined)).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.flow7_leave)).performScrollTo().performClick()
-        compose.onNodeWithText(text(R.string.flow7_left)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.entrant_campsite_join_active)).performScrollTo().performClick()
+        compose.onNodeWithText(text(R.string.entrant_lottery_join)).performScrollTo().performClick()
+        compose.onNodeWithText(text(R.string.entrant_lottery_joined)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.entrant_lottery_leave)).performScrollTo().performClick()
+        compose.onNodeWithText(text(R.string.entrant_lottery_confirm_withdraw)).performClick()
+        compose.onNodeWithText(text(R.string.entrant_lottery_left)).assertIsDisplayed()
         compose.runOnIdle { assertTrue(entries.value.isEmpty()) }
-        compose.onNodeWithContentDescription(text(R.string.flow6_back)).performClick()
-        compose.onNodeWithText(text(R.string.flow6_search_label)).assertTextContains("Aspen")
+        compose.onNodeWithContentDescription(text(R.string.entrant_lottery_details_back)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.entrant_campsite_back)).performClick()
+        compose.onNodeWithText(text(R.string.entrant_campsite_search_label)).assertTextContains("Aspen")
         compose.onNodeWithText("Cedar Point").assertDoesNotExist()
     }
 
     @Test fun searchNoMatchesAndClearQueryRestoreResults() {
         launch()
-        val input = compose.onNodeWithText(text(R.string.flow6_search_label))
+        val input = compose.onNodeWithText(text(R.string.entrant_campsite_search_label))
         input.performTextInput("does not exist")
-        compose.onNodeWithText(text(R.string.flow6_no_matches)).assertIsDisplayed()
+        compose.onNodeWithContentDescription(text(R.string.entrant_campsite_search_action)).performClick()
+        compose.onNodeWithText(text(R.string.entrant_no_results_title)).assertIsDisplayed()
         input.performTextClearance()
+        compose.onNodeWithContentDescription(text(R.string.entrant_campsite_search_action)).performClick()
         compose.onNodeWithText("Aspen Hollow", substring = true).assertIsDisplayed()
         compose.onNodeWithText("Cedar Point", substring = true).assertIsDisplayed()
     }
@@ -127,19 +141,19 @@ class EntrantCampsiteFlowTest {
     @Test fun loadFailureHasRetryAndEmptyCatalogueIsDistinct() {
         failLoad = true
         launch()
-        compose.onNodeWithText(text(R.string.flow6_load_failed)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.entrant_campsite_load_failed)).assertIsDisplayed()
         compose.runOnIdle { failLoad = false; sites.value = emptyList() }
-        compose.onNodeWithText(text(R.string.flow6_retry)).performClick()
-        compose.onNodeWithText(text(R.string.flow6_empty)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.entrant_campsite_retry)).performClick()
+        compose.onNodeWithText(text(R.string.entrant_campsite_empty)).assertIsDisplayed()
     }
 
     @Test fun unpublishedSiteDisappearsFromOpenDetailsAndHidesJoin() {
         launch()
         compose.onNodeWithText("Aspen Hollow", substring = true).performClick()
         compose.runOnIdle { sites.value = listOf(camp.copy(published = false), cedar) }
-        compose.onNodeWithText(text(R.string.flow6_not_available)).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.flow7_join)).assertDoesNotExist()
-        compose.onNodeWithContentDescription(text(R.string.flow6_back)).performClick()
+        compose.onNodeWithText(text(R.string.entrant_campsite_not_available)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.entrant_lottery_join)).assertDoesNotExist()
+        compose.onNodeWithContentDescription(text(R.string.entrant_campsite_back)).performClick()
         compose.onNodeWithText("Aspen Hollow", substring = true).assertDoesNotExist()
     }
 }

@@ -1,5 +1,6 @@
 /*
  * Purpose: live text-search state for Flow 6 (US 01.01.01, 01.01.04).
+ * Feature owner: Lalith Valluru. Last updated: 2026-11-03 (#149).
  * Outstanding issues: Flow 15 will add location/date/guest filter controls.
  * AI use: OpenAI GPT-6 through Codex assisted with state/listener logic and KDoc; human review pending.
  */
@@ -29,14 +30,16 @@ import kotlinx.coroutines.launch
  * @property results published matching sites, ordered by name.
  * @property isLoading waiting for the first repository result.
  * @property loadFailed listener failed; show a retry action, not an empty-results message.
+ * @property submittedQuery last explicit Search submission; typing does not replace its results.
  */
 data class SearchUiState(
     val query: String = "", val results: List<Campsite> = emptyList(),
     val isLoading: Boolean = true, val loadFailed: Boolean = false,
+    val submittedQuery: String = "",
 )
 
 /**
- * Observes one published catalogue and searches its cached values as the user types.
+ * Observes one published catalogue and searches cached values on explicit submission.
  * @param repository existing campsite data source; no new Firestore query is made per keystroke.
  */
 class SearchController(repository: CampsiteRepository) : ViewModel() {
@@ -57,7 +60,7 @@ class SearchController(repository: CampsiteRepository) : ViewModel() {
                 mutableState.update { it.copy(isLoading = false, loadFailed = true) }
             }.collect { loaded ->
                 sites = loaded
-                mutableState.update { it.copy(results = matching(it.query), isLoading = false, loadFailed = false) }
+                mutableState.update { it.copy(results = matching(it.submittedQuery), isLoading = false, loadFailed = false) }
             }
         }
     }
@@ -66,8 +69,14 @@ class SearchController(repository: CampsiteRepository) : ViewModel() {
 
     /** Searches the live catalogue for [query] without discarding the original records. */
     fun onSearch(query: String) {
-        mutableState.update { it.copy(query = query, results = matching(query)) }
+        mutableState.update { it.copy(query = query, submittedQuery = query, results = matching(query)) }
     }
+
+    /** Edits the draft query without changing the submitted results. */
+    fun onQueryChanged(query: String) { mutableState.update { it.copy(query = query) } }
+
+    /** Submits the current query through the Search button or keyboard Search action. */
+    fun onSubmitSearch() { onSearch(state.value.query) }
 
     /** Reattaches the catalogue listener after a load error, preserving the search query. */
     fun onRetry() = observe()

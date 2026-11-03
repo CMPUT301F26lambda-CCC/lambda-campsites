@@ -1,5 +1,5 @@
 /*
- * Last updated: 2026-11-03 (Flow 12).
+ * Last updated: 2026-11-03 (Flow 6/7 follow-up #149; Lalith Valluru).
  * Outstanding issues: Flow 12 shared-project navigation verification remains pending (#129).
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Compose navigation code, syntax
@@ -12,10 +12,14 @@
  * The status bar fix (each screen's app bar drawing up under the clock) was
  * added in November 2026 with GLM 5.3 Flash (Z.ai), through OpenCode, at
  * Raghav Sethi's request.
+ *
+ * OpenAI GPT-6 (OpenAI), through Codex, assisted with Flow 6/7 entrant search,
+ * selected-lottery routing and shared parent ViewModels, and Flow 12 owner
+ * waiting-list navigation. Follow-up human review remains pending.
+ * Layout follow-up (#154): Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI),
+ * through Codex, assisted with Figma layout/status/navigation-color integration
+ * or its regression checks. Follow-up human review remains pending.
  */
-// OpenAI GPT-6 through Codex assisted with Flow 6/7 entrant search/details routing.
-// Flow 12 feature owner: Lalith Valluru. OpenAI GPT-6 through Codex assisted
-// with owner waiting-list navigation. Human review pending.
 // Flow 11 feature owner: Sreeman Reddy. GPT-6 (OpenAI), through Codex,
 // also helped route the owner reservation lists
 // and booked-date calendar for Flow 11 (US 02.06.01 and 02.07.01 to 02.07.03).
@@ -27,20 +31,17 @@ import android.os.Bundle
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -69,8 +70,6 @@ import com.lambda.campsite.controller.LotteryController
 import com.lambda.campsite.controller.ProfileController
 import com.lambda.campsite.controller.OwnerWaitingListController
 import com.lambda.campsite.view.screens.OwnerWaitingListScreen
-import com.lambda.campsite.view.theme.WaitingListColors
-import com.lambda.campsite.view.theme.Flow11Colors
 import com.lambda.campsite.model.Role
 import com.lambda.campsite.view.screens.CampsiteQrCodeScreen
 import com.lambda.campsite.view.screens.MapLocationScreen
@@ -84,11 +83,14 @@ import com.lambda.campsite.view.screens.OwnerHomeScreen
 import com.lambda.campsite.view.screens.PlaceholderScreen
 import com.lambda.campsite.view.screens.SearchScreen
 import com.lambda.campsite.view.screens.CampsiteScreen
+import com.lambda.campsite.view.screens.EntrantLotteryDetailsScreen
 import com.lambda.campsite.view.screens.ProfileScreen
 
-/** Routes below a tab's route, keeping the nav bar's tab selected. */
+/** Entrant pushed routes retain Home selection and the selected campsite's parent state. */
 private const val ENTRANT_DETAILS_ROUTE = "entrant/home/details/{campsiteId}"
+private const val ENTRANT_LOTTERY_ROUTE = "entrant/home/details/{campsiteId}/lottery/{lotteryId}"
 
+/** Owner campsite routes keep the Campsites tab selected. */
 private const val OWNER_ADD_ROUTE = "owner/campsites/add"
 private const val OWNER_DETAILS_ROUTE = "owner/campsites/details/{campsiteId}"
 private const val OWNER_EDIT_ROUTE = "owner/campsites/edit/{campsiteId}"
@@ -168,13 +170,7 @@ fun LambdaCampsiteApp(
             // screens without an app bar pad themselves with statusBarsPadding().
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             bottomBar = {
-                val waitingListOpen = currentRoute == AppTab.OWNER_LOTTERIES.route
-                val flow11Open = currentRoute?.startsWith("owner/home") == true || currentRoute == OWNER_BOOKED_DATES_ROUTE
-                NavigationBar(containerColor = when {
-                    waitingListOpen -> WaitingListColors.sheet
-                    flow11Open -> Flow11Colors.card
-                    else -> NavigationBarDefaults.containerColor
-                }) {
+                NavigationBar(containerColor = com.lambda.campsite.view.theme.CampSurfaceHigh) {
                     tabs.forEach { tab ->
                         NavigationBarItem(
                             selected = isSelectedTab(tab, currentRoute),
@@ -182,13 +178,13 @@ fun LambdaCampsiteApp(
                             // The label below names the tab, so the icon needs no description.
                             icon = { Icon(tab.icon, contentDescription = null) },
                             label = { Text(stringResource(tab.labelRes)) },
-                            colors = if (waitingListOpen || flow11Open) NavigationBarItemDefaults.colors(
-                                indicatorColor = if (waitingListOpen) WaitingListColors.avatar else Flow11Colors.selected,
-                                selectedIconColor = if (waitingListOpen) WaitingListColors.text else Flow11Colors.text,
-                                selectedTextColor = if (waitingListOpen) WaitingListColors.text else Flow11Colors.text,
-                                unselectedIconColor = if (waitingListOpen) WaitingListColors.secondaryText else Flow11Colors.secondaryText,
-                                unselectedTextColor = if (waitingListOpen) WaitingListColors.secondaryText else Flow11Colors.secondaryText,
-                            ) else NavigationBarItemDefaults.colors(),
+                            colors = NavigationBarItemDefaults.colors(
+                                indicatorColor = com.lambda.campsite.view.theme.CampPositive,
+                                selectedIconColor = com.lambda.campsite.view.theme.ForestGreen,
+                                selectedTextColor = com.lambda.campsite.view.theme.ForestGreen,
+                                unselectedIconColor = com.lambda.campsite.view.theme.CampSecondaryText,
+                                unselectedTextColor = com.lambda.campsite.view.theme.CampSecondaryText,
+                            ),
                         )
                     }
                 }
@@ -206,7 +202,7 @@ fun LambdaCampsiteApp(
                         when (tab) {
                             AppTab.ENTRANT_HOME -> {
                                 val searchController: SearchController = viewModel(factory = SearchController.Factory)
-                                SearchScreen(searchController, onCampsiteClick = { campsiteId ->
+                                SearchScreen(searchController, profileName = state.profile?.name, onCampsiteClick = { campsiteId ->
                                     navController.navigate("entrant/home/details/${Uri.encode(campsiteId)}")
                                 })
                             }
@@ -262,7 +258,28 @@ fun LambdaCampsiteApp(
                         key = "entrant-lottery-$campsiteId",
                         factory = LotteryController.createFactory(campsiteId),
                     )
-                    CampsiteScreen(campsiteController, lotteryController, onBack = { navController.popBackStack() })
+                    CampsiteScreen(campsiteController, lotteryController, onBack = { navController.popBackStack() },
+                        onLotteryClick = { lotteryId -> navController.navigate(
+                            "entrant/home/details/${Uri.encode(campsiteId)}/lottery/${Uri.encode(lotteryId)}") })
+                }
+
+                composable(ENTRANT_LOTTERY_ROUTE, arguments = listOf(
+                    navArgument("campsiteId") { type = NavType.StringType },
+                    navArgument("lotteryId") { type = NavType.StringType },
+                )) { entry ->
+                    val campsiteId = requireNotNull(entry.arguments?.getString("campsiteId"))
+                    val lotteryId = requireNotNull(entry.arguments?.getString("lotteryId"))
+                    val parent = remember(entry) {
+                        // A future direct entry has no campsite parent; own its controllers safely.
+                        try { navController.getBackStackEntry(ENTRANT_DETAILS_ROUTE) }
+                        catch (_: IllegalArgumentException) { entry }
+                    }
+                    val campsiteController: CampsiteController = viewModel(viewModelStoreOwner = parent,
+                        key = "entrant-details-$campsiteId", factory = CampsiteController.createFactory(campsiteId))
+                    val lotteryController: LotteryController = viewModel(viewModelStoreOwner = parent,
+                        key = "entrant-lottery-$campsiteId", factory = LotteryController.createFactory(campsiteId))
+                    EntrantLotteryDetailsScreen(lotteryController, campsiteController, lotteryId,
+                        onBack = { navController.popBackStack() })
                 }
 
                 composable(OWNER_ADD_ROUTE) { entry ->

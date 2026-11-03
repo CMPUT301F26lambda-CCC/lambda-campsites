@@ -1,5 +1,6 @@
 /*
  * Purpose: entrant campsite details and season state for Flow 6 (US 01.01.05).
+ * Feature owner: Lalith Valluru. Last updated: 2026-11-03 (#149).
  * Outstanding issues: joining is delegated to LotteryController (Flow 7).
  * AI use: OpenAI GPT-6 through Codex assisted with state/listener logic and KDoc; human review pending.
  */
@@ -20,7 +21,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
@@ -64,13 +66,16 @@ class CampsiteController(private val campsiteId: String, private val repository:
                 if (campsite == null || !campsite.published) {
                     flowOf(CampsiteUiState(isLoading = false, error = CampsiteDetailsError.NOT_AVAILABLE))
                 } else {
-                    combine(flowOf(campsite), repository.availability(campsiteId)) { camp, calendar ->
-                        CampsiteUiState(campsite = camp, availability = calendar, isLoading = false)
+                    repository.availability(campsiteId).map { calendar ->
+                        CampsiteUiState(campsite = campsite, availability = calendar, isLoading = false)
                     }
                 }
             }.catch { failure ->
                 if (failure is CancellationException) throw failure
-                mutableState.value = CampsiteUiState(isLoading = false, error = CampsiteDetailsError.LOAD_FAILED)
+                val unavailable = failure is FirebaseFirestoreException &&
+                    failure.code == FirebaseFirestoreException.Code.PERMISSION_DENIED
+                mutableState.value = CampsiteUiState(isLoading = false,
+                    error = if (unavailable) CampsiteDetailsError.NOT_AVAILABLE else CampsiteDetailsError.LOAD_FAILED)
             }.collect { mutableState.value = it }
         }
     }

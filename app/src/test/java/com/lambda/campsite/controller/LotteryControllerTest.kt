@@ -1,8 +1,10 @@
 /*
  * Purpose: Flow 7 controller tests for US 01.01.06, 01.02.01 and 01.02.02.
+ * Feature owner: Lalith Valluru. Last updated: 2026-11-03 (#149).
+ * Outstanding issues: manual accessibility verification is tracked separately.
  * UI integration is covered separately by EntrantCampsiteFlowTest and EntrantFirebaseFlowTest.
  * AI use: OpenAI GPT-6 through Codex helped write these test scenarios and code.
- * Human review is pending; this file has not been published.
+ * Follow-up human review remains pending.
  */
 package com.lambda.campsite.controller
 
@@ -25,6 +27,7 @@ import org.junit.Rule
 import org.junit.Test
 
 /** Tests local validation, authoritative failures, live state and retry for Flow 7. */
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class LotteryControllerTest {
     @get:Rule val mainDispatcherRule = MainDispatcherRule()
     private val instant = Timestamp(1000, 0)
@@ -37,6 +40,48 @@ class LotteryControllerTest {
 
     private fun fake(item: Lottery = lottery) = FakeLotteryRepository(initial = listOf(item), now = { instant })
     private fun controller(repository: LotteryRepository) = LotteryController("camp-1", repository) { instant }
+
+    @Test fun `join eligibility explains unavailable times capacity and drawn state`() {
+        listOf(
+            lottery.copy(registrationOpens = Timestamp(1001, 0)) to LotteryJoinBlock.UPCOMING,
+            lottery.copy(registrationCloses = instant) to LotteryJoinBlock.CLOSED,
+            lottery.copy(entryCount = 2, capacity = 2) to LotteryJoinBlock.FULL,
+            lottery.copy(status = LotteryStatus.DRAWN) to LotteryJoinBlock.DRAWN,
+            lottery.copy(status = LotteryStatus.ENDED) to LotteryJoinBlock.ENDED,
+        ).forEach { (item, reason) ->
+            val control = controller(fake(item))
+            assertEquals(reason, control.state.value.joinBlock(item.id))
+            assertFalse(control.state.value.canJoin(item.id))
+        }
+        assertTrue(controller(fake()).state.value.canJoin(lottery.id))
+    }
+
+    @Test fun `clock changes update button eligibility without a Firestore event`() {
+        var clock = Timestamp(1000, 0)
+        val item = lottery.copy(registrationOpens = Timestamp(1001, 0), registrationCloses = Timestamp(1002, 0))
+        val control = LotteryController("camp-1", fake(item)) { clock }
+        assertFalse(control.state.value.canJoin(item.id))
+        clock = Timestamp(1001, 0)
+        mainDispatcherRule.testDispatcher.scheduler.advanceTimeBy(1000)
+        mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+        assertTrue(control.state.value.canJoin(item.id))
+        clock = Timestamp(1002, 0)
+        mainDispatcherRule.testDispatcher.scheduler.advanceTimeBy(1000)
+        mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+        assertFalse(control.state.value.canJoin(item.id))
+        assertEquals(LotteryJoinBlock.CLOSED, control.state.value.joinBlock(item.id))
+    }
+
+    @Test fun `full list allows current waiting entrant to withdraw until closing`() {
+        val repo = fake()
+        val control = controller(repo)
+        control.onJoin(lottery.id)
+        repo.changeElsewhere(lottery.copy(capacity = 1, entryCount = 1))
+        assertFalse(control.state.value.canJoin(lottery.id))
+        assertTrue(control.state.value.canWithdraw(lottery.id))
+        repo.changeElsewhere(lottery.copy(registrationCloses = instant, entryCount = 1))
+        assertFalse(control.state.value.canWithdraw(lottery.id))
+    }
 
     @Test fun `join and leave update membership from live data`() {
         val control = controller(fake())

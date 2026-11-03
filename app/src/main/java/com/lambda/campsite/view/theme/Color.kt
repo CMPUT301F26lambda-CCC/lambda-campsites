@@ -2,6 +2,9 @@
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped change
  * this file in October 2026, replacing the template's purple with the team's
  * Figma colour tokens. Sashreek Addanki reviewed and committed it.
+  * Shared palette follow-up (#154), Lalith Valluru, 2026-11-03: OpenAI GPT-6
+ * (OpenAI), through Codex, assisted with remaining Figma scheme tokens.
+ * Outstanding issues: dark-mode visual review and follow-up human review remain pending.
  */
 package com.lambda.campsite.view.theme
 
@@ -36,3 +39,38 @@ val NightGreenSurface = Color(0xFF16241F)
 val LightSageGreen = Color(0xFFCDE8D5)
 val DarkText = Color(0xFF263D35)
 val PureWhite = Color(0xFFFFFFFF)
+
+// Flow 6/7 Figma reading surfaces. Lalith Valluru, 2026-11-03 (#149).
+// OpenAI GPT-6 through Codex assisted with token mapping; human review pending.
+/** Schemes/On Surface. */
+val CampOnSurface = Color(0xFF12241D)
+/** Schemes/On Surface Variant. */
+val CampSecondaryText = Color(0xFF2F4A40)
+/** Schemes/Surface Container High: cards and dialogs. */
+val CampSurfaceHigh = Color(0xFFE6F4EB)
+/** Schemes/Surface Container Highest: inputs and neutral chips. */
+val CampField = Color(0xFFEEF8F1)
+/** Schemes/Outline Variant. */
+val CampOutline = Color(0xFF9EC2AE)
+/** Schemes/Secondary Container: positive status and tonal actions. */
+val CampPositive = Color(0xFFA8D5BA)
+/** Schemes/On Secondary Container. */
+val CampOnPositive = Color(0xFF12301F)
+/** Brand/Gold: rating stars. */
+val CampGold = Color(0xFFE9A23B)
+
+// Remaining Lambda Light scheme tokens from ui-guide 3.2 (#154).
+/** Low-emphasis primary container. */
+val CampPrimaryContainer = Color(0xFFB5DFC8)
+/** Subtle reading surface. */
+val CampSurfaceLow = Color(0xFFDDF0E4)
+/** Standard container. */
+val CampSurfaceContainer = Color(0xFFD6ECDD)
+/** Strong outline. */
+val CampOutlineStrong = Color(0xFF5C7A6D)
+/** Ember accent. */
+val CampEmber = Color(0xFFC0582E)
+/** Inverse snackbar surface. */
+val CampInverseSurface = Color(0xFF2E3430)
+/** Inverse snackbar text. */
+val CampInverseText = Color(0xFFEEF2EF)

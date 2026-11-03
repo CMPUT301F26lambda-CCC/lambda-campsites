@@ -1,7 +1,11 @@
 /*
  * Purpose: verify Flow 6/7 using production navigation/repositories against local Firebase emulators.
- * Outstanding issues: manual TalkBack and team review remain before closing #123/#124.
+ * Outstanding issues: manual TalkBack and team review remain for follow-up #149.
  * AI use: OpenAI GPT-6 through Codex assisted with test setup and assertions; human review pending.
+  * Feature owner: Lalith Valluru. Last updated: 2026-11-03 (#149).
+ * Layout follow-up (#154): Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI),
+ * through Codex, assisted with Figma layout/status/navigation-color integration
+ * or its regression checks. Follow-up human review remains pending.
  */
 package com.lambda.campsite.view.screens
 
@@ -23,6 +27,8 @@ import com.lambda.campsite.view.theme.LambdaCampsiteTheme
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
+import java.io.File
+import android.graphics.Bitmap
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
@@ -54,7 +60,8 @@ class EntrantFirebaseFlowTest {
             ProfileFields.toMap(Profile(deviceId = uid, name = "Demo entrant", email = "demo@example.com", policyVersionAgreed = 1)))
         val suffix = UUID.randomUUID().toString().take(8)
         site = Campsite("flow67-site-$suffix", "demo-owner", "Emulator Demo Camp $suffix", "Fictional demo location",
-            description = "Local test data only.", maxOccupancy = 4, amenities = listOf("Demo fire pit"))
+            description = "Local test data only. A wooded demo campsite beside a fictional creek.", maxOccupancy = 4, amenities = listOf("Demo fire pit"),
+            tags = listOf("Forest", "Creekside"), pricePerNight = 35.0, rules = "Respect quiet hours.\nKeep the campsite clean.")
         FirestoreEmulator.setIgnoringRules("campsites/${site.id}", CampsiteFields.toMap(site))
         val start = LocalDate.now().plusMonths(1)
         FirestoreEmulator.setIgnoringRules("campsites/${site.id}/availability/calendar", mapOf(
@@ -75,13 +82,38 @@ class EntrantFirebaseFlowTest {
         compose.waitUntil(20_000) { compose.onAllNodesWithText(value, substring = true).fetchSemanticsNodes().isNotEmpty() }
     }
 
-    private fun openDetails() {
+    private fun capture(name: String) {
+        compose.mainClock.advanceTimeBy(600)
+        compose.waitForIdle()
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val folder = File(instrumentation.targetContext.getExternalFilesDir(null), "flow67-review").apply { mkdirs() }
+        instrumentation.uiAutomation.takeScreenshot()?.let { bitmap ->
+            File(folder, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            bitmap.recycle()
+        }
+    }
+
+    private fun awaitNoticeDismissed(value: String) {
+        compose.waitUntil(10_000) { compose.onAllNodesWithText(value).fetchSemanticsNodes().isEmpty() }
+    }
+
+    private fun openDetails(expectEnabled: Boolean = true) {
         compose.setContent { LambdaCampsiteTheme { LambdaCampsiteApp() } }
         awaitText(site.name)
-        compose.onNodeWithText(text(R.string.flow6_search_label)).performTextInput(site.name)
-        compose.onNode(hasText(site.name, substring = true) and !hasSetTextAction()).performClick()
+        awaitText(text(R.string.campsite_open_badge))
+        capture("search")
+        compose.onNodeWithText(text(R.string.entrant_campsite_search_label)).performTextInput(site.name)
+        compose.onNodeWithContentDescription(text(R.string.entrant_campsite_search_action)).performClick()
+        compose.onNodeWithText(text(R.string.entrant_campsite_view_details)).performClick()
         awaitText(lottery.name)
-        compose.onNodeWithText(text(R.string.flow7_join)).performScrollTo().assertIsEnabled()
+        capture("campsite-top")
+        compose.onNodeWithContentDescription(text(R.string.campsite_map_placeholder_description)).performScrollTo()
+        capture("campsite-map")
+        compose.onNodeWithText(text(R.string.entrant_campsite_join_active)).performScrollTo().performClick()
+        awaitText(text(R.string.entrant_lottery_deadline_label))
+        capture("lottery-details")
+        val button = compose.onNodeWithText(text(R.string.entrant_lottery_join)).performScrollTo()
+        if (expectEnabled) button.assertIsEnabled() else button.assertIsNotEnabled()
     }
 
     private fun entryOnServer() = runBlocking {
@@ -94,40 +126,86 @@ class EntrantFirebaseFlowTest {
 
     @Test fun searchDetailsJoinLeavePersistThroughRealTransactionsAndBackRetainsSearch() {
         openDetails()
-        compose.onNodeWithText(text(R.string.flow7_join)).performScrollTo().performClick()
-        awaitText(text(R.string.flow7_joined))
-        compose.onNodeWithText(text(R.string.flow7_joined)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.entrant_lottery_join)).performScrollTo().performClick()
+        awaitText(text(R.string.entrant_lottery_joined))
+        compose.onNodeWithText(text(R.string.entrant_lottery_joined)).assertIsDisplayed()
         assertEquals("WAITING", entryOnServer().getString("status"))
         assertEquals(1L, countOnServer())
-        compose.onNodeWithText(text(R.string.flow7_leave)).performScrollTo().performClick()
-        awaitText(text(R.string.flow7_left))
+        compose.onNodeWithText(text(R.string.entrant_lottery_leave)).performScrollTo()
+        val noticeBottom = compose.onNodeWithText(text(R.string.entrant_lottery_joined)).fetchSemanticsNode().boundsInRoot.bottom
+        val actionTop = compose.onNodeWithText(text(R.string.entrant_lottery_leave)).fetchSemanticsNode().boundsInRoot.top
+        assertTrue("Snackbar must be above the withdrawal action", noticeBottom <= actionTop)
+        compose.onNodeWithText(text(R.string.entrant_lottery_leave)).performScrollTo().performClick()
+        awaitText(text(R.string.entrant_lottery_cancel))
+        capture("withdraw-dialog")
+        compose.onNodeWithText(text(R.string.entrant_lottery_cancel)).performClick()
+        assertTrue(entryOnServer().exists())
+        compose.onNodeWithText(text(R.string.entrant_lottery_leave)).performScrollTo().performClick()
+        compose.onNodeWithText(text(R.string.entrant_lottery_confirm_withdraw)).performClick()
+        awaitText(text(R.string.entrant_lottery_left))
         assertFalse(entryOnServer().exists())
         assertEquals(0L, countOnServer())
-        compose.onNodeWithContentDescription(text(R.string.flow6_back)).performClick()
-        compose.onNodeWithText(text(R.string.flow6_search_label)).assertTextContains(site.name)
+        compose.onNodeWithContentDescription(text(R.string.entrant_lottery_details_back)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.entrant_campsite_back)).performClick()
+        compose.onNodeWithText(text(R.string.entrant_campsite_search_label)).assertTextContains(site.name)
     }
 
-    @Test fun closedRegistrationShowsMessageWithoutCreatingAnEntry() {
+    @Test fun closedRegistrationDisablesJoinWithoutCreatingAnEntry() {
+        openDetails()
         lottery = lottery.copy(registrationCloses = Timestamp(Instant.now().minusSeconds(60)))
         saveLottery(lottery)
-        openDetails()
-        compose.onNodeWithText(text(R.string.flow7_join)).performScrollTo().performClick()
-        awaitText(text(R.string.flow7_closed))
-        compose.onNodeWithText(text(R.string.flow7_closed)).performScrollTo().assertIsDisplayed()
+        awaitText(text(R.string.entrant_lottery_status_closed))
+        compose.onNodeWithText(text(R.string.entrant_lottery_join)).performScrollTo().assertIsNotEnabled()
         assertFalse(entryOnServer().exists())
         assertEquals(0L, countOnServer())
     }
 
-    @Test fun fullWaitingListShowsMessageWithoutChangingItsCount() {
+    @Test fun fullWaitingListDisablesJoinWithoutChangingItsCount() {
         lottery = lottery.copy(capacity = 1)
         saveLottery(lottery, count = 1)
         FirestoreEmulator.setIgnoringRules("lotteries/${lottery.id}/entries/demo-other-entrant", mapOf(
             "entrantId" to "demo-other-entrant", "joinedAt" to Timestamp.now(), "status" to "WAITING", "reservationId" to null))
-        openDetails()
-        compose.onNodeWithText(text(R.string.flow7_join)).performScrollTo().performClick()
-        awaitText(text(R.string.flow7_full))
-        compose.onNodeWithText(text(R.string.flow7_full)).performScrollTo().assertIsDisplayed()
+        openDetails(expectEnabled = false)
+        compose.onNodeWithText(text(R.string.entrant_lottery_full)).performScrollTo().assertIsDisplayed()
+        capture("full-waiting-list")
         assertFalse(entryOnServer().exists())
         assertEquals(1L, countOnServer())
+    }
+
+    @Test fun upcomingAndDrawnUpdatesDisableJoinWithReasons() {
+        openDetails()
+        lottery = lottery.copy(registrationOpens = Timestamp(Instant.now().plusSeconds(3600)))
+        saveLottery(lottery)
+        awaitText(text(R.string.entrant_lottery_status_upcoming))
+        compose.onNodeWithText(text(R.string.entrant_lottery_join)).performScrollTo().assertIsNotEnabled()
+        lottery = lottery.copy(status = LotteryStatus.DRAWN)
+        saveLottery(lottery)
+        awaitText(text(R.string.entrant_lottery_status_drawn))
+        compose.onNodeWithText(text(R.string.entrant_lottery_drawn_reason)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.entrant_lottery_join)).performScrollTo().assertIsNotEnabled()
+        assertFalse(entryOnServer().exists())
+    }
+
+    @Test fun reopeningJoinedLotteryShowsMembershipAndClosingDisablesWithdrawal() {
+        openDetails()
+        compose.onNodeWithText(text(R.string.entrant_lottery_join)).performScrollTo().performClick()
+        awaitText(text(R.string.entrant_lottery_joined))
+        compose.onNodeWithContentDescription(text(R.string.entrant_lottery_details_back)).performClick()
+        compose.onNodeWithText(text(R.string.entrant_campsite_join_active)).performScrollTo().performClick()
+        compose.onNodeWithText(text(R.string.entrant_lottery_leave)).performScrollTo().assertIsEnabled()
+        lottery = lottery.copy(registrationCloses = Timestamp(Instant.now().minusSeconds(60)))
+        saveLottery(lottery, count = 1)
+        awaitText(text(R.string.entrant_lottery_withdraw_closed))
+        compose.onNodeWithText(text(R.string.entrant_lottery_leave)).performScrollTo().assertIsNotEnabled()
+        assertTrue(entryOnServer().exists())
+        assertEquals(1L, countOnServer())
+    }
+
+    @Test fun unpublishingOpenCampsiteHidesRegistrationAndShowsUnavailable() {
+        openDetails()
+        FirestoreEmulator.setIgnoringRules("campsites/${site.id}", CampsiteFields.toMap(site.copy(published = false)))
+        awaitText(text(R.string.entrant_campsite_not_available))
+        compose.onNodeWithText(text(R.string.entrant_lottery_join)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.entrant_campsite_load_failed)).assertDoesNotExist()
     }
 }
