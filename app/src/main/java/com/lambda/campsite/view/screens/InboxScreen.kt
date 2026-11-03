@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -104,6 +105,7 @@ fun InboxContent(
 ) {
     StatusBarIconStyle(darkIcons = false)
     val showingDetail = state.selectedId != null
+    val listState = key(state.selectedId) { rememberLazyListState() }
     val back = if (showingDetail) onBackToInbox else onBack
     val win = showingDetail && state.selected?.type == NotificationType.WIN
     val lose = showingDetail && state.selected?.type == NotificationType.LOSE
@@ -120,7 +122,7 @@ fun InboxContent(
             shape = RoundedCornerShape(topStart = if (win) 0.dp else 28.dp, topEnd = if (win) 0.dp else 28.dp),
             color = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = if (win) 0.dp else 12.dp, bottom = 16.dp),
+        LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(top = if (win) 0.dp else 12.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(0.dp)) {
             when {
                 state.isLoading -> item { Column(Modifier.padding(24.dp)) { CircularProgressIndicator(); Text(stringResource(R.string.flow8_loading)) } }

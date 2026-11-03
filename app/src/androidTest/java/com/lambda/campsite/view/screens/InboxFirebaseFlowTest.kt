@@ -31,6 +31,55 @@ import java.util.UUID
 
 /** No production writes: refuses any Firestore host except the local Android emulator bridge. */
 class InboxFirebaseFlowTest {
+    private fun seedResult(type: NotificationType): Pair<Notification, Lottery> {
+        val camp = Campsite("notice-camp", "demo-owner", "Notice Demo Campsite", "Demo location", maxOccupancy = 4)
+        val start = java.time.LocalDate.now().plusMonths(1)
+        val lottery = Lottery("notice-lottery", "demo-owner", "Notice Demo Lottery", listOf(camp.id), Timestamp(1, 0), Timestamp(2, 0),
+            start, start.plusDays(10), status = LotteryStatus.DRAWN)
+        FirestoreEmulator.setIgnoringRules("campsites/${camp.id}", com.lambda.campsite.model.repository.CampsiteFields.toMap(camp))
+        FirestoreEmulator.setIgnoringRules("campsites/${camp.id}/availability/calendar", mapOf("seasonStart" to start.toString(), "seasonEnd" to start.plusDays(11).toString()))
+        FirestoreEmulator.setIgnoringRules("lotteries/${lottery.id}", com.lambda.campsite.model.repository.LotteryFields.toMap(lottery))
+        FirestoreEmulator.setIgnoringRules("lotteries/${lottery.id}/entries/$uid", com.lambda.campsite.model.repository.LotteryEntryFields.toMap(
+            LotteryEntry(lottery.id, uid, Timestamp(1, 0), if (type == NotificationType.WIN) EntryStatus.WON else EntryStatus.NOT_SELECTED)))
+        val notification = notice("modern-$suffix", type = type, secondsAgo = 1).copy(lotteryId = lottery.id)
+        seed(notification)
+        return notification to lottery
+    }
+
+    @Test fun winningNoticeAcceptOpensActualWinnerBooking() {
+        val (notification, _) = seedResult(NotificationType.WIN)
+        launchInbox(); awaitText(notification.title)
+        compose.onNodeWithText(notification.title).performClick()
+        awaitText(text(R.string.flow8_accept))
+        compose.onNodeWithText(text(R.string.flow8_accept)).performScrollTo().performClick()
+        awaitText(text(R.string.flow9_choose_dates))
+        compose.onNodeWithText(text(R.string.flow9_dates_heading)).assertExists()
+    }
+
+    @Test fun winningNoticeDeclineIsConfirmedAndPersistsWithoutReservation() {
+        val (notification, lottery) = seedResult(NotificationType.WIN)
+        launchInbox(); awaitText(notification.title)
+        compose.onNodeWithText(notification.title).performClick()
+        awaitText(text(R.string.flow9_decline))
+        compose.onNodeWithText(text(R.string.flow9_decline)).performScrollTo().performClick()
+        compose.onAllNodesWithText(text(R.string.flow9_decline)).onLast().performClick()
+        awaitText(text(R.string.flow9_declined))
+        val saved = runBlocking { withTimeout(15_000) { Firebase.firestore.document("lotteries/${lottery.id}/entries/$uid").get(Source.SERVER).await() } }
+        assertEquals("DECLINED", saved.getString("status"))
+        compose.onNodeWithText(text(R.string.flow8_accept)).assertDoesNotExist()
+    }
+
+    @Test fun losingNoticeNamesCampsiteAndRegistrationPeriodWithNoWinActions() {
+        val (notification, _) = seedResult(NotificationType.LOSE)
+        launchInbox(); awaitText(notification.title)
+        compose.onNodeWithText(notification.title).performClick()
+        awaitText(text(R.string.flow8_registration))
+        compose.onNodeWithText("Notice Demo Campsite", substring = true).assertExists()
+        compose.onNodeWithText("Opened:", substring = true).assertExists()
+        compose.onNodeWithText("Closed:", substring = true).assertExists()
+        compose.onNodeWithText(text(R.string.flow8_accept)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.flow9_decline)).assertDoesNotExist()
+    }
     @get:Rule val compose = createComposeRule()
     private lateinit var uid: String
     private val suffix = UUID.randomUUID().toString().take(8)
