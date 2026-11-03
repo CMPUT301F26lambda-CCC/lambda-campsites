@@ -1,5 +1,5 @@
 /*
- * Purpose: published campsite details (US 01.01.05).
+ * Purpose: published campsite details with Flow 7 registration actions (US 01.01.05).
  * Outstanding issues: booking is Flow 9; this screen does not reserve dates.
  * AI use: OpenAI GPT-6 through Codex assisted with Compose integration and KDoc; human review pending.
  */
@@ -28,13 +28,14 @@ import java.time.format.FormatStyle
 /**
  * Entrant details for the selected campsite; owner edit/QR controls stay on the owner screen.
  * @param controller observes the selected published site's information and calendar.
+ * @param lotteryController handles this site's Flow 7 join/leave section.
  * @param onBack returns to search without discarding its controller/query.
  */
 @Composable
-fun CampsiteScreen(controller: CampsiteController, onBack: () -> Unit) {
+fun CampsiteScreen(controller: CampsiteController, lotteryController: LotteryController, onBack: () -> Unit) {
     val state by controller.state.collectAsStateWithLifecycle()
     CampsiteContent(state, controller::onRetry, onBack) {
-        // Flow 7 supplies its registration section in the dependent change.
+        LotteryScreen(lotteryController)
     }
 }
 
