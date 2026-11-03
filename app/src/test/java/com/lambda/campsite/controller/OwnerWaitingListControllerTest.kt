@@ -209,4 +209,3 @@ class OwnerWaitingListControllerTest {
         assertFalse(control.state.value.loadingContacts)
     }
 }
-
