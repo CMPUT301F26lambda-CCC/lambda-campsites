@@ -2,6 +2,9 @@
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Compose code, syntax and KDoc.
  * Sashreek Addanki reviewed it and committed it.
+ *
+ * The status bar padding was added in November 2026 with GLM 5.3 Flash (Z.ai),
+ * through OpenCode, at Raghav Sethi's request.
  */
 package com.lambda.campsite.view.screens
 
@@ -9,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +37,8 @@ fun PlaceholderScreen(tab: AppTab, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxSize()
+            // Keeps the tab's name clear under the clock; there's no app bar here.
+            .statusBarsPadding()
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,

@@ -1,3 +1,8 @@
+/**
+ * Purpose: Central dependency injection container creating and providing repositories.
+ * Outstanding issues: Image repository and conversation repository will be added when those
+ * features land.
+ */
 /*
  * Purpose: builds the app's repositories once and hands them to the
  * controllers. It's the one place that decides which version of each

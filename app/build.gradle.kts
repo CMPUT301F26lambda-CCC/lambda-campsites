@@ -3,6 +3,9 @@
 // setup, the Firebase setup and the emulator test runner in October 2026.
 // Sashreek Addanki reviewed and committed them.
 //
+// ZXing was added in November 2026 with Gemini 3.8 Flash (Google DeepMind)
+// for QR code generation and decoding (US 01.12.01, US 02.02.01).
+// Raghav Sethi reviewed and committed it.
 // The Coil dependencies were added by Aarush Bhat with the assistance of
 // Claude Sonnet 5 (Anthropic), through Claude Code, in November 2026, for
 // loading campsite photos. Aarush Bhat reviewed and committed them.
@@ -63,6 +66,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.compose.material.icons.core)
+    // The owner screens use icons outside the core set, like QrCode and CalendarMonth.
+    implementation(libs.androidx.compose.material.icons.extended)
     // The BoM picks versions of the Firebase libraries that work together.
     implementation(platform(libs.firebase.bom))
     //implementation(libs.androidx.ui.test.junit4)
@@ -72,11 +77,13 @@ dependencies {
     implementation(libs.firebase.messaging)
     // Adds await(), so suspend functions can wait for Firebase calls.
     implementation(libs.kotlinx.coroutines.play.services)
+    implementation(libs.zxing.core)
     // Loads campsite photos from their Storage download URL.
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.zxing.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
