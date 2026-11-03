@@ -1,5 +1,5 @@
 /*
- * Last updated: 2026-11-03 (Flow 12).
+ * Last updated: 2026-11-03 (Flow 6/7 follow-up #149; Lalith Valluru).
  * Outstanding issues: Flow 12 shared-project navigation verification remains pending (#129).
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Compose navigation code, syntax
@@ -12,11 +12,11 @@
  * The status bar fix (each screen's app bar drawing up under the clock) was
  * added in November 2026 with GLM 5.3 Flash (Z.ai), through OpenCode, at
  * Raghav Sethi's request.
+ *
+ * OpenAI GPT-6 (OpenAI), through Codex, assisted with Flow 6/7 entrant search,
+ * selected-lottery routing and shared parent ViewModels, and Flow 12 owner
+ * waiting-list navigation. Follow-up human review remains pending.
  */
-// OpenAI GPT-6 through Codex assisted with Flow 6/7 entrant search/details routing.
-// Flow 12 feature owner: Lalith Valluru. OpenAI GPT-6 through Codex assisted
-// with owner waiting-list navigation. Human review pending.
-// Human review is pending; existing owner campsite navigation is preserved.
 package com.lambda.campsite.view
 
 import android.net.Uri
@@ -38,6 +38,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -74,11 +75,14 @@ import com.lambda.campsite.view.screens.OwnerCampsiteListScreen
 import com.lambda.campsite.view.screens.PlaceholderScreen
 import com.lambda.campsite.view.screens.SearchScreen
 import com.lambda.campsite.view.screens.CampsiteScreen
+import com.lambda.campsite.view.screens.EntrantLotteryDetailsScreen
 import com.lambda.campsite.view.screens.ProfileScreen
 
-/** Routes below a tab's route, keeping the nav bar's tab selected. */
+/** Entrant pushed routes retain Home selection and the selected campsite's parent state. */
 private const val ENTRANT_DETAILS_ROUTE = "entrant/home/details/{campsiteId}"
+private const val ENTRANT_LOTTERY_ROUTE = "entrant/home/details/{campsiteId}/lottery/{lotteryId}"
 
+/** Owner campsite routes keep the Campsites tab selected. */
 private const val OWNER_ADD_ROUTE = "owner/campsites/add"
 private const val OWNER_DETAILS_ROUTE = "owner/campsites/details/{campsiteId}"
 private const val OWNER_EDIT_ROUTE = "owner/campsites/edit/{campsiteId}"
@@ -216,7 +220,24 @@ fun LambdaCampsiteApp(
                         key = "entrant-lottery-$campsiteId",
                         factory = LotteryController.createFactory(campsiteId),
                     )
-                    CampsiteScreen(campsiteController, lotteryController, onBack = { navController.popBackStack() })
+                    CampsiteScreen(campsiteController, lotteryController, onBack = { navController.popBackStack() },
+                        onLotteryClick = { lotteryId -> navController.navigate(
+                            "entrant/home/details/${Uri.encode(campsiteId)}/lottery/${Uri.encode(lotteryId)}") })
+                }
+
+                composable(ENTRANT_LOTTERY_ROUTE, arguments = listOf(
+                    navArgument("campsiteId") { type = NavType.StringType },
+                    navArgument("lotteryId") { type = NavType.StringType },
+                )) { entry ->
+                    val campsiteId = requireNotNull(entry.arguments?.getString("campsiteId"))
+                    val lotteryId = requireNotNull(entry.arguments?.getString("lotteryId"))
+                    val parent = remember(entry) { navController.getBackStackEntry(ENTRANT_DETAILS_ROUTE) }
+                    val campsiteController: CampsiteController = viewModel(viewModelStoreOwner = parent,
+                        key = "entrant-details-$campsiteId", factory = CampsiteController.createFactory(campsiteId))
+                    val lotteryController: LotteryController = viewModel(viewModelStoreOwner = parent,
+                        key = "entrant-lottery-$campsiteId", factory = LotteryController.createFactory(campsiteId))
+                    EntrantLotteryDetailsScreen(lotteryController, campsiteController, lotteryId,
+                        onBack = { navController.popBackStack() })
                 }
 
                 composable(OWNER_ADD_ROUTE) { entry ->
