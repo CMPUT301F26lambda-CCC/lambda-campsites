@@ -1,4 +1,6 @@
 /*
+ * Last updated: 2026-11-03 (Flow 12).
+ * Outstanding issues: None known for the Flow 12 changes.
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, syntax and KDoc.
  * It also helped share the emulator address with the other test helpers.

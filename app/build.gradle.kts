@@ -1,3 +1,5 @@
+// Last updated: 2026-11-03 (Flow 12).
+// Outstanding issues: None known for the Flow 12 dependency configuration.
 // AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped add the
 // navigation, lifecycle, icon and coroutines-test dependencies, the Dokka
 // setup, the Firebase setup and the emulator test runner in October 2026.

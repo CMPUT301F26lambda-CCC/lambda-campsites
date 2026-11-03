@@ -1,4 +1,6 @@
 /* Feature owner: Lalith Valluru. Purpose: minimal owner-only waiting-list contact.
+ * Last updated: 2026-11-03 (Flow 12).
+ * Outstanding issues: None known for the Flow 12 changes.
  * AI use: OpenAI GPT-6 through Codex assisted with this model. Human review pending. */
 package com.lambda.campsite.model
 

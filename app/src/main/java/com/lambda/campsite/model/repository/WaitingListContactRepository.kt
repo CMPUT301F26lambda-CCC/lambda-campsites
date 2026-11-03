@@ -1,4 +1,6 @@
 /* Feature owner: Lalith Valluru. Purpose: US 02.09.01 authorized contact access.
+ * Last updated: 2026-11-03 (Flow 12).
+ * Outstanding issues: Contact callable deployment and shared-project verification remain pending (#129).
  * AI use: OpenAI GPT-6 through Codex assisted with repository and mapping. Human review pending. */
 package com.lambda.campsite.model.repository
 

@@ -1,4 +1,6 @@
 /*
+ * Last updated: 2026-11-03 (Flow 12).
+ * Outstanding issues: None known for the Flow 12 changes.
  * Feature owner: Lalith Valluru. Purpose: Flow 12 / US 02.09.01 presentation tests.
  * AI use: OpenAI GPT-6 through Codex assisted with Compose assertions. Human review pending.
  */

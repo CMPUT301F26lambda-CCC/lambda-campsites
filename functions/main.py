@@ -1,3 +1,4 @@
+# Last updated: 2026-11-03 (Flow 12).
 # Purpose: the app's Cloud Functions, the server side of the design in
 # docs/architecture.md section 4. They do the work the app can't be
 # trusted to do itself, like drawing lotteries and sending pushes. They run
@@ -5,6 +6,7 @@
 # what it needs on its own.
 #
 # Outstanding issues:
+# - Flow 12: contact callable deployment and shared-project verification remain pending (#129).
 # - updateRatingStats, cleanUpCampsite and cleanUpProfile aren't written
 #   yet. Each one comes with its own issue.
 # - send_push only clears a token when FCM says it's unregistered. Any

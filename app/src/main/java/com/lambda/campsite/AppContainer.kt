@@ -1,14 +1,15 @@
 /**
  * Purpose: Central dependency injection container creating and providing repositories.
- * Outstanding issues: Image repository and conversation repository will be added when those
- * features land.
+ * Last updated: 2026-11-03 (Flow 12).
+ * Outstanding issues: The conversation repository remains to be added when that feature lands.
  */
 /*
  * Purpose: builds the app's repositories once and hands them to the
  * controllers. It's the one place that decides which version of each
  * repository the app uses, a simple form of dependency injection.
  *
- * Outstanding issues: None known.
+ * Outstanding issues (Flow 12): Contact callable deployment and shared-project verification
+ * remain pending (#129).
  *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, syntax and KDoc.

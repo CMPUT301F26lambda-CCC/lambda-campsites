@@ -1,6 +1,10 @@
 # Lambda Campsite architecture
 
-Sashreek and Sreeman · last updated November 1, 2026
+Sashreek and Sreeman · original architecture updated November 1, 2026
+
+Flow 12 update: Lalith Valluru · last updated 2026-11-03.
+Outstanding issues (Flow 12): Callable deployment, shared-project verification and
+manual accessibility review remain pending (#129, #36).
 
 > AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped
 > write this document and its diagrams in October 2026, working from

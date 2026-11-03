@@ -1,5 +1,9 @@
 # Flow 12 — Owner sees the waiting list
 
+Last updated: 2026-11-03.
+Outstanding issues: Callable deployment, populated shared-project verification,
+manual TalkBack and physical-device review remain pending (#129, #36).
+
 > Feature owner: Lalith Valluru. AI use: OpenAI GPT-6 (OpenAI), through Codex,
 > assisted with implementation, tests and this verification record. Human review pending.
 

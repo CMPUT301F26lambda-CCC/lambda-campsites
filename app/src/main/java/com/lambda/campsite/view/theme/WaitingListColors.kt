@@ -1,4 +1,6 @@
 /* Feature owner: Lalith Valluru. AI use: OpenAI GPT-6 (OpenAI), through Codex,
+ * Last updated: 2026-11-03 (Flow 12).
+ * Outstanding issues: None known for the Flow 12 changes.
  * assisted with the Figma token mapping for Flow 12. Human review pending. */
 package com.lambda.campsite.view.theme
 

@@ -1,4 +1,6 @@
 /*
+ * Last updated: 2026-11-03 (Flow 12).
+ * Outstanding issues: Shared-project verification remains pending (#129).
  * Feature owner: Lalith Valluru. Purpose: Flow 12 / US 02.09.01 owner waiting-list state.
  * AI use: OpenAI GPT-6 (OpenAI), through Codex, assisted Lalith with ownership guards,
  * listener cancellation, selection and KDoc. Human review pending.

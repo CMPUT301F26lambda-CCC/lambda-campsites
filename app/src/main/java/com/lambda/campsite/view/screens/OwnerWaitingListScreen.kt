@@ -1,4 +1,6 @@
 /*
+ * Last updated: 2026-11-03 (Flow 12).
+ * Outstanding issues: Manual TalkBack and physical-device review remain pending (#36).
  * Feature owner: Lalith Valluru. Purpose: Figma-aligned Flow 12 waiting-list screen.
  * AI use: OpenAI GPT-6 (OpenAI), through Codex, assisted Lalith with Compose layout,
  * accessibility semantics and callbacks. Human review pending.

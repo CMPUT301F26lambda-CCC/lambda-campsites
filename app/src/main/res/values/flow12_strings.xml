@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Feature owner: Lalith Valluru. OpenAI GPT-6 (OpenAI), through Codex, assisted with
+<!-- Last updated: 2026-11-03 (Flow 12).
+     Outstanding issues: None known for these string resources.
+     Feature owner: Lalith Valluru. OpenAI GPT-6 (OpenAI), through Codex, assisted with
      Flow 12 labels and failure/empty states. Human review pending. -->
 <resources>
     <string name="flow12_title">Waiting list</string>
