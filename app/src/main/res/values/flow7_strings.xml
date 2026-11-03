@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Flow 7 text. OpenAI GPT-6 through Codex assisted; human review pending. -->
+<resources>
+    <string name="flow7_title">Camping lotteries</string>
+    <string name="flow7_loading">Loading lotteries…</string>
+    <string name="flow7_empty">No lotteries are listed for this campsite.</string>
+    <string name="flow7_registration">Registration: %1$s – %2$s (%3$s)</string>
+    <string name="flow7_stays">Stay dates: %1$s – %2$s</string>
+    <string name="flow7_join">Join waiting list</string>
+    <string name="flow7_leave">Leave waiting list</string>
+    <string name="flow7_waiting">You are on the waiting list.</string>
+    <string name="flow7_joined">You joined the waiting list.</string>
+    <string name="flow7_left">You left the waiting list.</string>
+    <string name="flow7_won">You won a place in this lottery.</string>
+    <string name="flow7_not_selected">You were not selected in this lottery.</string>
+    <string name="flow7_declined">You declined this lottery offer.</string>
+    <string name="flow7_booked">You booked a stay through this lottery.</string>
+    <string name="flow7_saving">Saving your waiting-list change…</string>
+    <string name="flow7_retry">Retry loading</string>
+    <string name="flow7_dismiss">Dismiss message</string>
+    <string name="flow7_load_failed">Could not load lotteries. Check your connection and retry.</string>
+    <string name="flow7_missing">This lottery is no longer available.</string>
+    <string name="flow7_closed">Registration is not open for this lottery.</string>
+    <string name="flow7_full">This waiting list is full.</string>
+    <string name="flow7_already_joined">You have already joined this waiting list.</string>
+    <string name="flow7_not_joined">You are not on this waiting list.</string>
+    <string name="flow7_save_failed">Your change could not be confirmed. Check your connection and try again.</string>
+</resources>

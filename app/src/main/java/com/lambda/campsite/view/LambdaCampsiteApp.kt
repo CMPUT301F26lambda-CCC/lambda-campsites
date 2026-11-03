@@ -11,7 +11,7 @@
  * added in November 2026 with GLM 5.3 Flash (Z.ai), through OpenCode, at
  * Raghav Sethi's request.
  */
-// OpenAI GPT-6 through Codex assisted with Flow 6 entrant search/details routing.
+// OpenAI GPT-6 through Codex assisted with Flow 6/7 entrant search/details routing.
 // Human review is pending; existing owner navigation is preserved.
 package com.lambda.campsite.view
 
@@ -53,6 +53,7 @@ import com.lambda.campsite.controller.OwnerCampsiteEditController
 import com.lambda.campsite.controller.OwnerCampsiteListController
 import com.lambda.campsite.controller.SearchController
 import com.lambda.campsite.controller.CampsiteController
+import com.lambda.campsite.controller.LotteryController
 import com.lambda.campsite.controller.ProfileController
 import com.lambda.campsite.model.Role
 import com.lambda.campsite.view.screens.CampsiteQrCodeScreen
@@ -187,7 +188,11 @@ fun LambdaCampsiteApp(
                         key = "entrant-details-$campsiteId",
                         factory = CampsiteController.createFactory(campsiteId),
                     )
-                    CampsiteScreen(campsiteController, onBack = { navController.popBackStack() })
+                    val lotteryController: LotteryController = viewModel(
+                        key = "entrant-lottery-$campsiteId",
+                        factory = LotteryController.createFactory(campsiteId),
+                    )
+                    CampsiteScreen(campsiteController, lotteryController, onBack = { navController.popBackStack() })
                 }
 
                 composable(OWNER_ADD_ROUTE) { entry ->
