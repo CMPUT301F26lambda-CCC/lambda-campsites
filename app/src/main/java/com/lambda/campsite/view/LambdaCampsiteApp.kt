@@ -1,5 +1,6 @@
 /*
- * Last updated: 2026-11-03 (Flow 6/7 follow-up #149; Lalith Valluru).
+ * Last updated: 2026-11-03 (Flow 9; Lalith Valluru).
+ * OpenAI GPT-6 (OpenAI), through Codex, assisted with the winner booking route; human review pending.
  * Outstanding issues: Flow 12 shared-project navigation verification remains pending (#129).
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Compose navigation code, syntax
@@ -78,9 +79,14 @@ import com.lambda.campsite.view.screens.SearchScreen
 import com.lambda.campsite.view.screens.CampsiteScreen
 import com.lambda.campsite.view.screens.EntrantLotteryDetailsScreen
 import com.lambda.campsite.view.screens.ProfileScreen
+import com.lambda.campsite.controller.WinnerBookingController
+import com.lambda.campsite.controller.WinnerOffersController
+import com.lambda.campsite.view.screens.WinnerBookingScreen
+import com.lambda.campsite.view.screens.WinnerOffersScreen
 
 /** Entrant pushed routes retain Home selection and the selected campsite's parent state. */
 private const val ENTRANT_DETAILS_ROUTE = "entrant/home/details/{campsiteId}"
+private const val WINNER_BOOKING_ROUTE = "entrant/reservations/book/{lotteryId}"
 private const val ENTRANT_LOTTERY_ROUTE = "entrant/home/details/{campsiteId}/lottery/{lotteryId}"
 
 /** Owner campsite routes keep the Campsites tab selected. */
@@ -194,6 +200,12 @@ fun LambdaCampsiteApp(
                                 })
                             }
                             AppTab.PROFILE -> ProfileScreen(profileController)
+                            AppTab.ENTRANT_RESERVATIONS -> {
+                                val offers: WinnerOffersController = viewModel(factory = WinnerOffersController.Factory)
+                                WinnerOffersScreen(offers, onOpen = { id ->
+                                    navController.navigate("entrant/reservations/book/${Uri.encode(id)}")
+                                })
+                            }
                             AppTab.OWNER_CAMPSITES -> OwnerCampsitesList(navController)
                             AppTab.OWNER_LOTTERIES -> {
                                 val waitingListController: OwnerWaitingListController = viewModel(
@@ -205,6 +217,15 @@ fun LambdaCampsiteApp(
                             else -> PlaceholderScreen(tab)
                         }
                     }
+                }
+
+                composable(WINNER_BOOKING_ROUTE,
+                    arguments = listOf(navArgument("lotteryId") { type = NavType.StringType })) { entry ->
+                    val id = requireNotNull(entry.arguments?.getString("lotteryId"))
+                    val booking: WinnerBookingController = viewModel(factory = WinnerBookingController.createFactory(id))
+                    WinnerBookingScreen(booking, onClose = { navController.popBackStack() }, onCampsite = { campsiteId ->
+                        navController.navigate("entrant/home/details/${Uri.encode(campsiteId)}")
+                    })
                 }
 
                 composable(
