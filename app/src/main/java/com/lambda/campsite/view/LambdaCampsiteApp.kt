@@ -1,5 +1,5 @@
 /*
- * Last updated: 2026-11-03 (Flow 6/7 follow-up #149; Lalith Valluru).
+ * Last updated: 2026-11-03 (Flow 12).
  * Outstanding issues: Flow 12 shared-project navigation verification remains pending (#129).
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Compose navigation code, syntax
@@ -20,6 +20,10 @@
  * through Codex, assisted with Figma layout/status/navigation-color integration
  * or its regression checks. Follow-up human review remains pending.
  */
+// OpenAI GPT-6 through Codex assisted with Flow 6/7 entrant search/details routing.
+// Flow 12 feature owner: Lalith Valluru. OpenAI GPT-6 through Codex assisted
+// with owner waiting-list navigation. Human review pending.
+// Human review is pending; existing owner campsite navigation is preserved.
 package com.lambda.campsite.view
 
 import android.net.Uri
@@ -33,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -78,6 +83,12 @@ import com.lambda.campsite.view.screens.SearchScreen
 import com.lambda.campsite.view.screens.CampsiteScreen
 import com.lambda.campsite.view.screens.EntrantLotteryDetailsScreen
 import com.lambda.campsite.view.screens.ProfileScreen
+import com.lambda.campsite.controller.ProfileError
+import com.lambda.campsite.view.screens.SettingScreen
+import com.lambda.campsite.view.screens.EditProfileScreen
+import com.lambda.campsite.view.screens.FirstLaunchScreen
+import androidx.compose.material.icons.filled.AccountCircle
+
 
 /** Entrant pushed routes retain Home selection and the selected campsite's parent state. */
 private const val ENTRANT_DETAILS_ROUTE = "entrant/home/details/{campsiteId}"
@@ -147,6 +158,9 @@ fun LambdaCampsiteApp(
 ) {
     val state by profileController.state.collectAsStateWithLifecycle()
     val tabs = AppTab.forRole(state.activeRole)
+    val SETTINGS_ROUTE = "settings"
+    val EDIT_PROFILE_ROUTE = "edit_profile"
+    val FIRST_LAUNCH_ROUTE = "first_launch"
 
     key(state.activeRole) {
         val navController = rememberNavController()
@@ -155,9 +169,39 @@ fun LambdaCampsiteApp(
         Scaffold(
             // The root inset lets each screen's app bar draw up under the clock;
             // screens without an app bar pad themselves with statusBarsPadding().
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            topBar = {
+                if (state.activeRole != Role.ENTRANT && currentRoute != FIRST_LAUNCH_ROUTE) {
+                    TopAppBar(
+                        title = { Text(stringResource(R.string.app_name)) },
+                        actions = {
+                            IconButton(onClick = { navController.navigateToTab(AppTab.PROFILE) }) {
+                                Icon(
+                                    Icons.Filled.AccountCircle,
+                                    contentDescription = stringResource(R.string.open_profile),
+                                )
+                            }
+                        },
+                    )
+                }
+            },
+
             bottomBar = {
-                NavigationBar(containerColor = com.lambda.campsite.view.theme.CampSurfaceHigh) {
+                if (currentRoute != FIRST_LAUNCH_ROUTE) {
+                    NavigationBar {
+                        tabs.forEach { tab ->
+                            NavigationBarItem(
+                                selected = currentRoute == tab.route,
+                                onClick = { navController.navigateToTab(tab) },
+                                // The label below names the tab, so the icon needs no description.
+                                icon = { Icon(tab.icon, contentDescription = null) },
+                                label = { Text(stringResource(tab.labelRes)) },
+                            )
+                        }
+                    }
+                }
+
+                val waitingListOpen = currentRoute == AppTab.OWNER_LOTTERIES.route
+                NavigationBar(containerColor =  com.lambda.campsite.view.theme.CampSurfaceHigh){
                     tabs.forEach { tab ->
                         NavigationBarItem(
                             selected = isSelectedTab(tab, currentRoute),
@@ -193,7 +237,14 @@ fun LambdaCampsiteApp(
                                     navController.navigate("entrant/home/details/${Uri.encode(campsiteId)}")
                                 })
                             }
-                            AppTab.PROFILE -> ProfileScreen(profileController)
+                            AppTab.PROFILE -> ProfileScreen( controller = profileController,
+                                onEditProfile = {
+                                    navController.navigate(EDIT_PROFILE_ROUTE)
+                                },
+                                onSettings = {
+                                    navController.navigate(SETTINGS_ROUTE)
+                                },)
+
                             AppTab.OWNER_CAMPSITES -> OwnerCampsitesList(navController)
                             AppTab.OWNER_LOTTERIES -> {
                                 val waitingListController: OwnerWaitingListController = viewModel(
@@ -381,6 +432,56 @@ fun LambdaCampsiteApp(
                         onBack = { navController.popBackStack() },
                     )
                 }
+                composable(SETTINGS_ROUTE) {
+                    SettingScreen(
+                        name = state.profile?.name.orEmpty(),
+                        notificationsOn = state.profile?.notificationsOn ?: true,
+                        onNotificationsChange = profileController::onSetNotificationsOn,
+                        onBack = { navController.popBackStack() },
+                        onDeleteProfile = {
+                            // TODO (backend): call profileController.onDeleteProfile() here
+                            // to delete the profile before navigating.
+                            navController.navigate(FIRST_LAUNCH_ROUTE) {
+                                popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+                            }
+                        },
+                    )
+                }
+                composable(EDIT_PROFILE_ROUTE) {
+                    val profile = state.profile
+
+                    if (profile != null) {
+                        EditProfileScreen(
+                            name = profile.name,
+                            email = profile.email,
+                            phone = profile.phone,
+
+                            saveFailed = state.error == ProfileError.SAVE_FAILED,
+                            onCancel = {
+                                profileController.onEditProfileClosed()
+                                navController.popBackStack()
+                            },
+                            onSave = { name, email, phone ->
+                                profileController.onSaveProfile(name, email, phone) {
+                                    navController.popBackStack()
+                                }
+                            },
+                        )
+                    }
+                }
+                composable(FIRST_LAUNCH_ROUTE) {
+                    FirstLaunchScreen(
+                        onGetStarted = { name ->
+                            profileController.onFinishFirstLaunch(name)
+                            navController.navigate(tabs.first().route) {
+                                popUpTo(FIRST_LAUNCH_ROUTE) { inclusive = true }
+                            }
+                        },
+                        saveFailed = state.error == ProfileError.SAVE_FAILED,
+                    )
+                }
+
+
             }
         }
     }

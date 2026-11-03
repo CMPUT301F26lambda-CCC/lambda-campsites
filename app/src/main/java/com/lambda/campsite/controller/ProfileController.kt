@@ -162,6 +162,7 @@ class ProfileController(
      * @param name the name entered by the user.
      */
     fun onFinishFirstLaunch(name: String) {
+
         val profile = _state.value.profile ?: return
 
         viewModelScope.launch {
@@ -183,6 +184,59 @@ class ProfileController(
         }
     }
 
+    /**
+     * Saves the updated profile information after the user edits their profile.
+     *(US 01.07.03 – Update personal information, #51).
+     * Checks whether the name, email or phone number has changed before saving.
+     * If no changes are detected, invokes [onSaved] without making an unnecessary
+     * repository update.
+     *
+     * If changes are detected, creates an updated copy of the existing profile
+     * and saves it through [ProfileRepository]. On successful saving, clears
+     * any existing error and invokes [onSaved] so the screen can return to
+     * the Profile screen. If saving fails, updates the controller state with
+     * [ProfileError.SAVE_FAILED].
+     *
+     * @param name the updated name entered by the user.
+     * @param email the updated email address entered by the user.
+     * @param phone the updated phone number entered by the user.
+     * @param onSaved callback invoked after a successful save or when no
+     *                profile changes are detected.
+     */
+    fun onSaveProfile(name: String, email: String, phone: String, onSaved: () -> Unit = {}) {
+        val profile = _state.value.profile ?: return
+        if (name.trim() == profile.name &&
+            email.trim() == profile.email &&
+            phone.trim() == profile.phone.orEmpty()
+        ) {
+            onSaved()
+            return
+        }
+        viewModelScope.launch {
+            try {
+                repository.save(
+                    profile.copy(name = name.trim(), email = email.trim(), phone = phone.trim()),
+                )
+                _state.update { it.copy(error = null) }
+                onSaved()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update { it.copy(error = ProfileError.SAVE_FAILED) }
+            }
+        }
+    }
+    /**
+     * Clears any existing profile error when the user closes the Edit Profile screen.
+     *US 01.07.03
+     * Resets the error field in [ProfileUiState] to null while preserving
+     * the remaining state, preventing previous error messages from appearing
+     * when the user opens the Edit Profile screen again.
+     */
+    fun onEditProfileClosed() {
+        _state.update { it.copy(error = null) }
+    }
+
     /** Clears the error once the screen has shown it. */
     fun onErrorShown() {
         _state.update { it.copy(error = null) }
@@ -195,6 +249,35 @@ class ProfileController(
                 val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]
                     as LambdaApplication
                 ProfileController(application.container.profileRepository)
+            }
+        }
+    }
+    /**
+     * Updates the user's notification preference
+     * (US 01.10.01)
+     * Checks whether the user's notification preference has changed before
+     * saving. If the preference is already set to the requested value,
+     * no unnecessary repository update is performed.
+     *
+     * Creates an updated copy of the existing profile with the new
+     * notification preference and saves it through [ProfileRepository].
+     * On successful saving, clears any existing error. If saving fails,
+     * updates the controller state with [ProfileError.SAVE_FAILED].
+     *
+     * @param enabled true to enable notifications or false to opt out
+     *                 of notifications.
+     */
+    fun onSetNotificationsOn(enabled: Boolean) {
+        val profile = _state.value.profile ?: return
+        if (profile.notificationsOn == enabled) return
+        viewModelScope.launch {
+            try {
+                repository.save(profile.copy(notificationsOn = enabled))
+                _state.update { it.copy(error = null) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update { it.copy(error = ProfileError.SAVE_FAILED) }
             }
         }
     }

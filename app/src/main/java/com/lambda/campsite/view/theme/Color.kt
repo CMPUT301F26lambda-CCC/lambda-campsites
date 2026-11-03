@@ -36,6 +36,9 @@ val NightGreen = Color(0xFF0F1A16)
 /** Cards and sheets in dark mode. */
 val NightGreenSurface = Color(0xFF16241F)
 
+/** Fill for the selected segment in the "Use the app as" selector. Darker than [Mint]. */
+val SelectedMint = Color(0xFFA9CDB5)
+
 val LightSageGreen = Color(0xFFCDE8D5)
 val DarkText = Color(0xFF263D35)
 val PureWhite = Color(0xFFFFFFFF)
