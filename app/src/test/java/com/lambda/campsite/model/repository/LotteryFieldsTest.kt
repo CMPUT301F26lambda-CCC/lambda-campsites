@@ -16,6 +16,18 @@ import org.junit.Test
 
 /** Tests for [LotteryFields], how a lottery is stored in Firestore. */
 class LotteryFieldsTest {
+    @Test fun `server draw metadata is readable but never sent by owner saves`() {
+        val time = Timestamp(1_811_000_000, 0)
+        val fields = LotteryFields.toMap(lottery) + mapOf("drawnAt" to time, "drawnWinnerCount" to 2L,
+            "drawnEntryCount" to 5L, "drawnCampsiteNames" to listOf("Demo Campsite"))
+        val read = requireNotNull(LotteryFields.fromMap(lottery.id, fields))
+        assertEquals(time, read.drawnAt)
+        assertEquals(2, read.drawnWinnerCount)
+        assertEquals(5, read.drawnEntryCount)
+        assertEquals(listOf("Demo Campsite"), read.drawnCampsiteNames)
+        assertFalse(LotteryFields.toMap(read).containsKey("drawnAt"))
+        assertFalse(LotteryFields.toMap(read).containsKey("drawnWinnerCount"))
+    }
 
     private val lottery = Lottery(
         id = "lottery-1",
