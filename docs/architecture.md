@@ -6,6 +6,8 @@ Flow 12 update: Lalith Valluru · last updated 2026-11-03.
 Outstanding issues (Flow 12): Callable deployment, shared-project verification and
 manual accessibility review remain pending (#129, #36).
 
+Flow 11 update: Sreeman Reddy · last updated 2026-11-03.
+
 > AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped
 > write this document and its diagrams in October 2026, working from
 > decisions the team made. It also checked the free-tier figures in
@@ -15,6 +17,10 @@ manual accessibility review remain pending (#129, #36).
 > add the campsite repository to sections 3, 5 and 7, and helped add the
 > availability calendar to sections 4, 5 and 7, and helped add lotteries
 > to sections 3, 4, 5 and 7. Sashreek reviewed and edited it.
+>
+> GPT-6 (OpenAI), through Codex, helped update the feature table for the
+> owner reservations and booked-date screens in Flow 11 on November 3, 2026.
+> Human review is pending.
 
 This page explains how the app is put together. It covers the class diagram and the reasons behind it, the backend on Firebase, and how the Android app splits into Model, View and Controller. Section 6 follows one entrant from tapping "Join" to holding a reservation, so you can see every layer working in one story. Section 7 is the practical part: where files live, what to name things, and how to add something to the frontend or the backend. If a term is new to you, like repository, Flow or transaction, `docs/glossary.md` explains it.
 
@@ -318,6 +324,8 @@ A document that belongs to another one can share its parent's repository. A camp
 | LotteryScreen | LotteryController | LotteryRepository | 01.01.06 to 01.02.02, 02.04.01 to 02.05.01, 02.10.01 |
 | OwnerWaitingListScreen | OwnerWaitingListController | LotteryRepository, ProfileRepository, WaitingListContactRepository | 02.09.01 |
 | ReservationsScreen | ReservationController | ReservationRepository | 01.04.01 to 01.07.02, 02.06.01 to 02.08.01, 02.11.01 |
+| OwnerReservationsScreen | OwnerReservationsController | ReservationRepository | 02.07.01 to 02.07.03 |
+| OwnerBookedDatesScreen | OwnerBookedDatesController | CampsiteRepository, ReservationRepository | 02.06.01 |
 | ProfileScreen | ProfileController | ProfileRepository | 01.07.03 to 01.11.01, 03.11.01 |
 | InboxScreen | NotificationController | NotificationRepository | 01.03.01, 01.03.02, 02.10.02 |
 | ConversationScreen | ConversationController | ConversationRepository | 02.12.01 |
