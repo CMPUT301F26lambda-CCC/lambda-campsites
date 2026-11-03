@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped
+  Sashreek Addanki draw this icon on November 1, 2026. Sashreek Addanki
+  reviewed it.
+-->
+<!-- The status bar icon for pushes: a tent with an open door. Android draws
+     a notification's small icon from its shape only, so it's white on
+     transparent. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M12,3L2,21H22ZM12,12L8.5,21H15.5Z" />
+</vector>
