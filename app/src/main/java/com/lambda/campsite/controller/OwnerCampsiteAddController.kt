@@ -1,8 +1,13 @@
+/**
+ * Purpose: ViewModel controller managing new campsite registration form state and saving (US 02.01.01, 02.01.02).
+ * Outstanding issues: Photo uploading is deferred until ImageRepository is ready; the form omits the photo UI until then.
+ */
 /*
  * AI use: Gemini 3.8 Flash (Google DeepMind) helped write this file in November 2026.
- * It helped with the form state management, validation using Campsite.validate,
- * season validation, repository save with new ID generation, syntax and KDoc.
- * Raghav Sethi reviewed, tested, and committed it.
+ * It integrated ProfileRepository to ensure ownerId is populated from the signed-in user,
+ * prevented duplicate saves, cached the generated campsite ID across retries, extracted
+ * error enums, and added coroutine cancellation re-throwing. Raghav Sethi reviewed,
+ * tested, and committed it.
  */
 package com.lambda.campsite.controller
 
@@ -12,65 +17,43 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.lambda.campsite.LambdaApplication
-import com.lambda.campsite.model.Availability
 import com.lambda.campsite.model.Campsite
 import com.lambda.campsite.model.CampsiteRequiredField
 import com.lambda.campsite.model.repository.CampsiteRepository
+import com.lambda.campsite.model.repository.ProfileRepository
 import java.time.LocalDate
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * State for the campsite registration form (US 02.01.01, 02.01.02).
+ * State for registering a new campsite (US 02.01.01, US 02.01.02).
  *
- * @property name the campsite name entered by the owner.
- * @property location where the campsite is located.
- * @property description optional amenities and description text.
- * @property maxOccupancy maximum number of guests (minimum 1).
- * @property latitude optional geographic latitude from the map pin.
- * @property longitude optional geographic longitude from the map pin.
- * @property locationPinName human-readable name of the pinned location.
- * @property seasonStart date when the campsite season opens.
- * @property seasonEnd date when the campsite season closes.
- * @property tags list of tags aiding search discovery.
- * @property hasPhoto whether a photo has been attached.
- * @property errors required fields that are missing, from [Campsite.validate].
- * @property seasonError message explaining invalid season dates, if any.
- * @property isSaving `true` while the campsite is being saved to Firestore.
- * @property saveFailed `true` if saving failed, for example due to network offline.
+ * @property form the shared campsite form data.
+ * @property generatedId cached campsite document ID across retry attempts.
  */
 data class OwnerCampsiteAddUiState(
-    val name: String = "",
-    val location: String = "",
-    val description: String = "",
-    val maxOccupancy: Int = 1,
-    val latitude: Double? = null,
-    val longitude: Double? = null,
-    val locationPinName: String? = null,
-    val seasonStart: LocalDate? = null,
-    val seasonEnd: LocalDate? = null,
-    val tags: List<String> = emptyList(),
-    val hasPhoto: Boolean = false,
-    val errors: Set<CampsiteRequiredField> = emptySet(),
-    val seasonError: String? = null,
-    val isSaving: Boolean = false,
-    val saveFailed: Boolean = false,
+    val form: CampsiteFormData = CampsiteFormData(),
+    val generatedId: String? = null,
 )
 
 /**
  * Controller for registering a new campsite (US 02.01.01, US 02.01.02).
  *
- * It manages draft inputs, enforces validation rules before persistence,
- * requests a unique campsite ID from [repository], and saves the campsite
- * and its season calendar.
+ * Enforces validation rules, associates the campsite with the signed-in user's
+ * profile ID, persists the campsite and its season calendar, and avoids duplicate
+ * creations on double-tap or retries.
  *
- * @param repository where new campsites and their availability calendars are saved.
+ * @param campsiteRepository where campsites and availability calendars are persisted.
+ * @param profileRepository provides the signed-in user's profile ID for ownership.
  */
 class OwnerCampsiteAddController(
-    private val repository: CampsiteRepository,
+    private val campsiteRepository: CampsiteRepository,
+    private val profileRepository: ProfileRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(OwnerCampsiteAddUiState())
@@ -78,62 +61,71 @@ class OwnerCampsiteAddController(
     /** The current UI state of the registration form. */
     val state: StateFlow<OwnerCampsiteAddUiState> = _state.asStateFlow()
 
-    /** Updates the draft campsite name and clears field validation error if addressed. */
+    /** Updates the campsite name and clears NAME error if populated. */
     fun onNameChange(name: String) {
         _state.update { current ->
-            val newErrors = if (CampsiteRequiredField.NAME in current.errors && name.isNotBlank()) {
-                current.errors - CampsiteRequiredField.NAME
-            } else current.errors
-            current.copy(name = name, errors = newErrors)
+            val updatedForm = current.form.copy(
+                name = name,
+                requiredFieldErrors = if (name.isNotBlank()) {
+                    current.form.requiredFieldErrors - CampsiteRequiredField.NAME
+                } else current.form.requiredFieldErrors,
+            )
+            current.copy(form = updatedForm)
         }
     }
 
-    /** Updates the draft location and clears field validation error if addressed. */
+    /** Updates the campsite location and clears LOCATION error if populated. */
     fun onLocationChange(location: String) {
         _state.update { current ->
-            val newErrors = if (CampsiteRequiredField.LOCATION in current.errors && location.isNotBlank()) {
-                current.errors - CampsiteRequiredField.LOCATION
-            } else current.errors
-            current.copy(location = location, errors = newErrors)
+            val updatedForm = current.form.copy(
+                location = location,
+                requiredFieldErrors = if (location.isNotBlank()) {
+                    current.form.requiredFieldErrors - CampsiteRequiredField.LOCATION
+                } else current.form.requiredFieldErrors,
+            )
+            current.copy(form = updatedForm)
         }
     }
 
     /** Updates the description / amenities text. */
     fun onDescriptionChange(description: String) {
-        _state.update { it.copy(description = description) }
+        _state.update { it.copy(form = it.form.copy(description = description)) }
     }
 
-    /** Updates the maximum guest occupancy (coerced to at least 0). */
+    /** Updates maximum guest occupancy (minimum 0). */
     fun onOccupancyChange(maxOccupancy: Int) {
-        val safeOccupancy = maxOccupancy.coerceAtLeast(0)
+        val safe = maxOccupancy.coerceAtLeast(0)
         _state.update { current ->
-            val newErrors = if (CampsiteRequiredField.MAX_OCCUPANCY in current.errors && safeOccupancy >= 1) {
-                current.errors - CampsiteRequiredField.MAX_OCCUPANCY
-            } else current.errors
-            current.copy(maxOccupancy = safeOccupancy, errors = newErrors)
-        }
-    }
-
-    /** Sets the geographic coordinates and label from the map location picker. */
-    fun onLocationPinSet(latitude: Double, longitude: Double, name: String?) {
-        _state.update {
-            it.copy(
-                latitude = latitude,
-                longitude = longitude,
-                locationPinName = name,
-                location = if (it.location.isBlank() && !name.isNullOrBlank()) name else it.location,
+            val updatedForm = current.form.copy(
+                maxOccupancy = safe,
+                requiredFieldErrors = if (safe >= 1) {
+                    current.form.requiredFieldErrors - CampsiteRequiredField.MAX_OCCUPANCY
+                } else current.form.requiredFieldErrors,
             )
+            current.copy(form = updatedForm)
         }
     }
 
-    /** Sets or clears the campsite's operating season dates. */
-    fun onSeasonChange(start: LocalDate?, end: LocalDate?) {
-        val seasonError = when {
-            start != null && end != null && !end.isAfter(start) -> "Season close must be after season open."
-            (start != null && end == null) || (start == null && end != null) -> "Both open and close dates are required."
-            else -> null
+    /** Updates coordinates and label from the map location picker. */
+    fun onLocationPinSet(lat: Double, lng: Double, name: String?) {
+        _state.update { current ->
+            val updatedForm = current.form.copy(
+                latitude = lat,
+                longitude = lng,
+                locationPinName = name,
+                location = if (current.form.location.isBlank() && !name.isNullOrBlank()) name else current.form.location,
+            )
+            current.copy(form = updatedForm)
         }
-        _state.update { it.copy(seasonStart = start, seasonEnd = end, seasonError = seasonError) }
+    }
+
+    /** Sets operating season range and validates date order. */
+    fun onSeasonChange(start: LocalDate?, end: LocalDate?) {
+        _state.update { current ->
+            val tempForm = current.form.copy(seasonStart = start, seasonEnd = end)
+            val seasonError = tempForm.checkSeasonError()
+            current.copy(form = tempForm.copy(seasonError = seasonError))
+        }
     }
 
     /** Adds a tag to the draft campsite. */
@@ -141,83 +133,100 @@ class OwnerCampsiteAddController(
         val trimmed = tag.trim()
         if (trimmed.isEmpty()) return
         _state.update { current ->
-            if (trimmed !in current.tags) current.copy(tags = current.tags + trimmed) else current
+            val tags = current.form.tags
+            if (trimmed !in tags) {
+                current.copy(form = current.form.copy(tags = tags + trimmed))
+            } else current
         }
     }
 
     /** Removes a tag from the draft campsite. */
     fun onRemoveTag(tag: String) {
-        _state.update { it.copy(tags = it.tags - tag) }
+        _state.update { current ->
+            current.copy(form = current.form.copy(tags = current.form.tags - tag))
+        }
     }
 
-    /** Sets whether a photo is chosen. */
-    fun onPhotoSelected() {
-        _state.update { it.copy(hasPhoto = true) }
-    }
-
-    /** Removes the chosen photo. */
-    fun onPhotoRemoved() {
-        _state.update { it.copy(hasPhoto = false) }
+    /** Resets the registration form to blank state. */
+    fun reset() {
+        _state.value = OwnerCampsiteAddUiState()
     }
 
     /**
-     * Validates required fields and saves the campsite (US 02.01.01).
+     * Validates and saves the new campsite (US 02.01.01).
      *
-     * @param onSuccess callback invoked with the created [Campsite] upon successful save.
+     * Prevents duplicate in-flight saves, sets ownerId from the signed-in user,
+     * keeps the generated campsite ID on retry if season save fails, and calls
+     * [onSuccess] on complete persistence.
+     *
+     * @param onSuccess invoked with the saved [Campsite].
      */
     fun onSave(onSuccess: (Campsite) -> Unit) {
-        val current = _state.value
-        val draft = Campsite(
-            id = "",
-            ownerId = "",
-            name = current.name,
-            location = current.location,
-            description = current.description,
-            maxOccupancy = current.maxOccupancy,
-            latitude = current.latitude,
-            longitude = current.longitude,
-            tags = current.tags,
-        )
+        if (_state.value.form.isSaving) return
 
-        val missing = draft.validate()
-        if (missing.isNotEmpty() || current.seasonError != null) {
-            _state.update { it.copy(errors = missing) }
+        val current = _state.value
+        val (draft, missingFields) = current.form.toCampsiteDraft(
+            id = current.generatedId ?: "",
+            ownerId = "",
+        )
+        val seasonError = current.form.checkSeasonError()
+
+        if (missingFields.isNotEmpty() || seasonError != null) {
+            _state.update {
+                it.copy(
+                    form = it.form.copy(
+                        requiredFieldErrors = missingFields,
+                        seasonError = seasonError,
+                    ),
+                )
+            }
             return
         }
 
         viewModelScope.launch {
-            _state.update { it.copy(isSaving = true, saveFailed = false) }
+            _state.update { it.copy(form = it.form.copy(isSaving = true, formError = null)) }
             try {
-                val newId = repository.newCampsiteId()
-                val campsiteToSave = draft.copy(id = newId)
-                repository.save(campsiteToSave)
+                // Ensure ownerId is the signed-in user's profile ID
+                val profile = profileRepository.currentProfile().first()
+                val targetId = _state.value.generatedId ?: campsiteRepository.newCampsiteId()
+                _state.update { it.copy(generatedId = targetId) }
 
-                val start = current.seasonStart
-                val end = current.seasonEnd
+                val campsiteToSave = draft.copy(id = targetId, ownerId = profile.deviceId)
+                campsiteRepository.save(campsiteToSave)
+
+                val start = current.form.seasonStart
+                val end = current.form.seasonEnd
                 if (start != null && end != null && end.isAfter(start)) {
-                    repository.setSeason(newId, start, end)
+                    campsiteRepository.setSeason(targetId, start, end)
                 }
 
-                _state.update { it.copy(isSaving = false, saveFailed = false) }
+                // Reset form on success so subsequent registers start fresh
+                _state.value = OwnerCampsiteAddUiState()
                 onSuccess(campsiteToSave)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                _state.update { it.copy(isSaving = false, saveFailed = true) }
+                _state.update {
+                    it.copy(form = it.form.copy(isSaving = false, formError = CampsiteFormError.SAVE_FAILED))
+                }
             }
         }
     }
 
-    /** Clears the save failed flag once the error message is presented. */
+    /** Clears save error once displayed. */
     fun onErrorDismissed() {
-        _state.update { it.copy(saveFailed = false) }
+        _state.update { it.copy(form = it.form.copy(formError = null)) }
     }
 
     companion object {
-        /** Creates an [OwnerCampsiteAddController] with the app's repository from AppContainer. */
+        /** Factory creating [OwnerCampsiteAddController] with repositories from AppContainer. */
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
-                val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]
-                    as LambdaApplication
-                OwnerCampsiteAddController(application.container.campsiteRepository)
+                val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as LambdaApplication
+                OwnerCampsiteAddController(
+                    campsiteRepository = app.container.campsiteRepository,
+                    profileRepository = app.container.profileRepository,
+                )
             }
         }
     }

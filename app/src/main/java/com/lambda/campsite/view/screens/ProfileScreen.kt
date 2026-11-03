@@ -3,6 +3,9 @@
  * this file in October 2026. It helped with the Compose code, syntax and KDoc.
  * It also helped show the load error when the profile moved to Firestore.
  * Sashreek Addanki reviewed it and committed it.
+ *
+ * The status bar padding was added in November 2026 with GLM 5.3 Flash (Z.ai),
+ * through OpenCode, at Raghav Sethi's request.
  */
 package com.lambda.campsite.view.screens
 
@@ -11,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -47,6 +51,9 @@ fun ProfileScreen(controller: ProfileController, modifier: Modifier = Modifier) 
     Column(
         modifier = modifier
             .fillMaxSize()
+            // Keeps the heading clear under the clock; there's no app bar here
+            // to hide behind (US 01.11.01).
+            .statusBarsPadding()
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {

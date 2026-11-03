@@ -1,13 +1,17 @@
 /*
  * AI use: Gemini 3.8 Flash (Google DeepMind) helped write this file in November 2026.
- * It helped with pre-filling existing campsite data, photo management,
- * TalkBack accessibility semantics, save button feedback, string extraction and KDoc.
+ * It helped with pre-filling existing campsite data, TalkBack accessibility
+ * semantics, save button feedback, string extraction and KDoc.
  * Raghav Sethi reviewed, tested, and committed it.
+ *
+ * The photo section is hidden until ImageRepository is ready, so the screen
+ * doesn't promise a photo that isn't picked, uploaded or saved (US 02.01.03).
+ *
+ * The status bar icon styling was added in November 2026 with GLM 5.3 Flash
+ * (Z.ai), through OpenCode, at Raghav Sethi's request.
  */
 package com.lambda.campsite.view.screens
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,7 +21,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,13 +31,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,7 +46,6 @@ import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -55,7 +55,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -67,6 +66,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lambda.campsite.R
 import com.lambda.campsite.controller.OwnerCampsiteEditController
 import com.lambda.campsite.model.CampsiteRequiredField
+import com.lambda.campsite.view.theme.StatusBarIconStyle
 import java.time.LocalDate
 
 /**
@@ -93,6 +93,9 @@ fun OwnerCampsiteEditScreen(
 ) {
     val state by controller.state.collectAsStateWithLifecycle()
     var newTagInput by remember { mutableStateOf("") }
+
+    // While loading there's no dark green app bar yet, so the clock stays dark.
+    StatusBarIconStyle(darkIcons = state.isLoading)
 
     if (state.isLoading) {
         Scaffold(containerColor = CampGreenLight) { padding ->
@@ -150,45 +153,6 @@ fun OwnerCampsiteEditScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            // Photo section
-            FormSectionTitle(stringResource(R.string.section_photo))
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(150.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .border(1.dp, CampGreenDark.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
-                    .background(CampGreenField),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (state.hasPhoto) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.Image, contentDescription = null, tint = CampGreenDark, modifier = Modifier.size(36.dp))
-                        Spacer(Modifier.height(4.dp))
-                        Text(stringResource(R.string.photo_selected), style = MaterialTheme.typography.bodySmall)
-                    }
-                } else {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.Image, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(32.dp))
-                        Spacer(Modifier.height(4.dp))
-                        Text(stringResource(R.string.add_photo_optional), style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                FilledTonalButton(onClick = controller::onPhotoReplaced) {
-                    Icon(Icons.Default.Image, contentDescription = null, Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.replace_photo_button))
-                }
-                if (state.hasPhoto) {
-                    Spacer(Modifier.width(8.dp))
-                    TextButton(onClick = controller::onPhotoRemoved) {
-                        Text(stringResource(R.string.remove_photo_button), color = MaterialTheme.colorScheme.error)
-                    }
-                }
-            }
-
             // Details section
             FormSectionTitle(stringResource(R.string.section_details))
             val nameError = CampsiteRequiredField.NAME in state.errors
@@ -292,8 +256,13 @@ fun OwnerCampsiteEditScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            state.seasonError?.let {
-                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            state.seasonError?.let { seasonError ->
+                Text(
+                    text = stringResource(campsiteFormErrorRes(seasonError)),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
             }
 
             // Map location

@@ -80,6 +80,8 @@
     <string name="placeholder_add_tag">lakeside</string>
     <string name="action_add_tag">Add tag</string>
     <string name="error_campsite_save_failed">Couldn\'t save campsite. Check your connection and try again.</string>
+    <string name="error_season_invalid_range">Season close must be after season open.</string>
+    <string name="error_season_incomplete">Both open and close dates are required.</string>
 
     <!-- Campsite owner: map location -->
     <string name="set_map_location_title">Set map location</string>
@@ -110,4 +112,9 @@
     <string name="action_share">Share</string>
     <string name="action_save_image">Save image</string>
     <string name="qr_image_saved_message">QR code image saved</string>
+    <string name="qr_image_save_failed">Couldn\'t save the QR code image.</string>
+    <string name="qr_share_chooser_title">Share Campsite QR Code</string>
+    <string name="qr_share_text">Scan to view %1$s in Lambda Campsite:\n%2$s</string>
+    <string name="error_campsite_not_found">Campsite not found.</string>
+    <string name="error_campsite_load_failed">Couldn\'t load campsite. Check your connection and try again.</string>
 </resources>

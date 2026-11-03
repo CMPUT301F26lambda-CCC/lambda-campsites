@@ -3,6 +3,9 @@
  * It helped with the controller integration, TalkBack accessibility semantics,
  * empty state, strings extraction and KDoc. Raghav Sethi reviewed, tested,
  * and committed it.
+ *
+ * The status bar icon styling was added in November 2026 with GLM 5.3 Flash
+ * (Z.ai), through OpenCode, at Raghav Sethi's request.
  */
 package com.lambda.campsite.view.screens
 
@@ -53,6 +56,7 @@ import com.lambda.campsite.R
 import com.lambda.campsite.controller.CampsiteListError
 import com.lambda.campsite.controller.OwnerCampsiteListController
 import com.lambda.campsite.model.Campsite
+import com.lambda.campsite.view.theme.StatusBarIconStyle
 
 internal val CampGreenDark = Color(0xFF2F5D50)
 internal val CampGreenLight = Color(0xFFC9E5D3)
@@ -132,6 +136,9 @@ private fun OwnerCampsiteListContent(
     modifier: Modifier = Modifier,
     hasPhoto: (Campsite) -> Boolean = { false },
 ) {
+    // The dark green app bar runs under the clock, so the clock draws white.
+    StatusBarIconStyle(darkIcons = false)
+
     Scaffold(
         modifier = modifier,
         containerColor = CampGreenLight,

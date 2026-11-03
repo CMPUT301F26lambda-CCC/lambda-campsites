@@ -3,6 +3,9 @@
  * It helped with the interactive stylized map canvas, draggable pin gesture handling,
  * search suggestions dropdown, string resources and KDoc. Raghav Sethi reviewed,
  * tested, and committed it.
+ *
+ * The status bar icon styling was added in November 2026 with GLM 5.3 Flash
+ * (Z.ai), through OpenCode, at Raghav Sethi's request.
  */
 package com.lambda.campsite.view.screens
 
@@ -60,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lambda.campsite.R
 import com.lambda.campsite.controller.MapLocationController
+import com.lambda.campsite.view.theme.StatusBarIconStyle
 
 /**
  * Map location picker screen (US 02.01.02).
@@ -81,6 +85,9 @@ fun MapLocationScreen(
     modifier: Modifier = Modifier,
 ) {
     val state by controller.state.collectAsStateWithLifecycle()
+
+    // The dark green app bar runs under the clock, so the clock draws white.
+    StatusBarIconStyle(darkIcons = false)
 
     Scaffold(
         modifier = modifier,
