@@ -28,6 +28,7 @@ object ConversationFields {
     const val GUEST_ID = "guestId"
     const val LAST_MESSAGE = "lastMessage"
     const val LAST_MESSAGE_AT = "lastMessageAt"
+    const val LAST_MESSAGE_ID = "lastMessageId"
     const val OWNER_UNREAD_COUNT = "ownerUnreadCount"
     const val GUEST_UNREAD_COUNT = "guestUnreadCount"
 
@@ -37,6 +38,7 @@ object ConversationFields {
         GUEST_ID to conversation.guestId,
         LAST_MESSAGE to conversation.lastMessage,
         LAST_MESSAGE_AT to conversation.lastMessageAt,
+        LAST_MESSAGE_ID to conversation.lastMessageId,
         OWNER_UNREAD_COUNT to conversation.ownerUnreadCount,
         GUEST_UNREAD_COUNT to conversation.guestUnreadCount,
     )
@@ -51,6 +53,7 @@ object ConversationFields {
         GUEST_ID to guestId,
         LAST_MESSAGE to null,
         LAST_MESSAGE_AT to null,
+        LAST_MESSAGE_ID to null,
         OWNER_UNREAD_COUNT to 0,
         GUEST_UNREAD_COUNT to 0,
     )
@@ -70,6 +73,7 @@ object ConversationFields {
         guestId = fields[GUEST_ID] as? String ?: "",
         lastMessage = fields[LAST_MESSAGE] as? String,
         lastMessageAt = fields[LAST_MESSAGE_AT] as? Timestamp,
+        lastMessageId = fields[LAST_MESSAGE_ID] as? String,
         // Firestore hands back every whole number as a Long.
         ownerUnreadCount = (fields[OWNER_UNREAD_COUNT] as? Number)?.toInt() ?: 0,
         guestUnreadCount = (fields[GUEST_UNREAD_COUNT] as? Number)?.toInt() ?: 0,

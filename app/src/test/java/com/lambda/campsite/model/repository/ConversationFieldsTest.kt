@@ -44,6 +44,17 @@ class ConversationFieldsTest {
     }
 
     @Test
+    fun `lastMessageId reads back the same after it's stored`() {
+        val started = conversation.copy(
+            lastMessageId = "message-1",
+            lastMessage = "See you then!",
+            lastMessageAt = Timestamp(1_810_000_000, 0),
+        )
+
+        assertEquals(started, ConversationFields.fromMap("reservation-1", ConversationFields.toMap(started)))
+    }
+
+    @Test
     fun `unread counts stored as Long read back as Int`() {
         // Firestore hands back every whole number as a Long.
         val fields = ConversationFields.toMap(conversation) +
@@ -83,6 +94,7 @@ class ConversationFieldsTest {
         assertEquals("guest-1", fields[ConversationFields.GUEST_ID])
         assertEquals(null, fields[ConversationFields.LAST_MESSAGE])
         assertEquals(null, fields[ConversationFields.LAST_MESSAGE_AT])
+        assertEquals(null, fields[ConversationFields.LAST_MESSAGE_ID])
         assertEquals(0, fields[ConversationFields.OWNER_UNREAD_COUNT])
         assertEquals(0, fields[ConversationFields.GUEST_UNREAD_COUNT])
     }

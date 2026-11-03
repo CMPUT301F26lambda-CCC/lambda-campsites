@@ -29,6 +29,9 @@ import com.google.firebase.Timestamp
  *   or `null` while the conversation has none.
  * @property lastMessageAt when the most recent message was sent, or `null`
  *   while the conversation has none.
+ * @property lastMessageId the document ID of the most recent message, or
+ *   `null` while the conversation has none. The security rules use it to
+ *   check that sending a message and updating this preview happen together.
  * @property ownerUnreadCount how many messages the owner hasn't read yet.
  * @property guestUnreadCount how many messages the guest hasn't read yet.
  */
@@ -38,6 +41,7 @@ data class Conversation(
     val guestId: String,
     val lastMessage: String? = null,
     val lastMessageAt: Timestamp? = null,
+    val lastMessageId: String? = null,
     val ownerUnreadCount: Int = 0,
     val guestUnreadCount: Int = 0,
 ) {
