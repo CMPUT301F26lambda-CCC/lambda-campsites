@@ -1,3 +1,5 @@
+// Last updated: 2026-11-03 (Flow 12).
+// Outstanding issues: None known for the Flow 12 dependency configuration.
 // AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped add the
 // navigation, lifecycle, icon and coroutines-test dependencies, the Dokka
 // setup, the Firebase setup and the emulator test runner in October 2026.
@@ -12,6 +14,8 @@
 // The firebase-messaging dependency was added by Aarush Bhat with the
 // assistance of Claude Sonnet 5 (Anthropic), through Claude Code, in
 // November 2026. Aarush Bhat reviewed and committed it.
+// Flow 12 feature owner: Lalith Valluru. OpenAI GPT-6 (OpenAI), through Codex,
+// assisted with the callable Functions dependency. Human review pending.
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -75,6 +79,8 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
     implementation(libs.firebase.messaging)
+    // Flow 12 (Lalith Valluru): authenticated owner-only contact projection.
+    implementation("com.google.firebase:firebase-functions")
     // Adds await(), so suspend functions can wait for Firebase calls.
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.zxing.core)

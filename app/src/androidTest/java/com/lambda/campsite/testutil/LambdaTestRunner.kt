@@ -1,9 +1,13 @@
 /*
+ * Last updated: 2026-11-03 (Flow 12).
+ * Outstanding issues: None known for the Flow 12 changes.
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, syntax and KDoc.
  * It also helped share the emulator address with the other test helpers.
  * Sashreek Addanki reviewed it and committed it.
  */
+// Flow 12 feature owner: Lalith Valluru. OpenAI GPT-6 through Codex assisted
+// with routing contact calls to the local Functions emulator. Human review pending.
 package com.lambda.campsite.testutil
 
 import android.Manifest
@@ -33,6 +37,8 @@ class LambdaTestRunner : AndroidJUnitRunner() {
         Firebase.auth.useEmulator(HOST, AUTH_PORT)
         Firebase.firestore.useEmulator(HOST, FIRESTORE_PORT)
         Firebase.storage.useEmulator(HOST, STORAGE_PORT)
+        // Flow 12 / Lalith Valluru: keep owner-contact calls off production too.
+        com.google.firebase.functions.FirebaseFunctions.getInstance().useEmulator(HOST, 5001)
         super.callApplicationOnCreate(app)
     }
 

@@ -1,14 +1,15 @@
 /**
  * Purpose: Central dependency injection container creating and providing repositories.
- * Outstanding issues: Image repository and conversation repository will be added when those
- * features land.
+ * Last updated: 2026-11-03 (Flow 12).
+ * Outstanding issues: The conversation repository remains to be added when that feature lands.
  */
 /*
  * Purpose: builds the app's repositories once and hands them to the
  * controllers. It's the one place that decides which version of each
  * repository the app uses, a simple form of dependency injection.
  *
- * Outstanding issues: None known.
+ * Outstanding issues (Flow 12): Contact callable deployment and shared-project verification
+ * remain pending (#129).
  *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, syntax and KDoc.
@@ -29,6 +30,8 @@
  * Sashreek Addanki add the reservation repository, on November 2, 2026.
  * Sashreek Addanki reviewed it.
  */
+// Flow 12 feature owner: Lalith Valluru. OpenAI GPT-6 through Codex assisted
+// with the contact repository binding. Human review pending.
 package com.lambda.campsite
 
 import com.google.firebase.Firebase
@@ -63,6 +66,13 @@ import com.lambda.campsite.model.repository.ReservationRepository
  * later. That move is a change to this file, and nothing else in the app.
  */
 class AppContainer {
+
+    /** Flow 12 feature owner: Lalith Valluru; minimal server-authorized contact projection.
+     * OpenAI GPT-6 through Codex assisted; human review pending. */
+    val waitingListContactRepository: com.lambda.campsite.model.repository.WaitingListContactRepository by lazy {
+        com.lambda.campsite.model.repository.CallableWaitingListContactRepository(
+            com.google.firebase.functions.FirebaseFunctions.getInstance())
+    }
 
     /**
      * Firebase Auth. Each install signs in anonymously, and its user ID is the

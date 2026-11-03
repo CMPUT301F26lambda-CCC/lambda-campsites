@@ -1,4 +1,6 @@
 /*
+ * Last updated: 2026-11-03 (Flow 12).
+ * Outstanding issues: Flow 12 shared-project navigation verification remains pending (#129).
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Compose navigation code, syntax
  * and KDoc. Sashreek Addanki reviewed it and committed it.
@@ -12,7 +14,9 @@
  * Raghav Sethi's request.
  */
 // OpenAI GPT-6 through Codex assisted with Flow 6/7 entrant search/details routing.
-// Human review is pending; existing owner navigation is preserved.
+// Flow 12 feature owner: Lalith Valluru. OpenAI GPT-6 through Codex assisted
+// with owner waiting-list navigation. Human review pending.
+// Human review is pending; existing owner campsite navigation is preserved.
 package com.lambda.campsite.view
 
 import android.net.Uri
@@ -26,6 +30,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarDefaults
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -55,6 +61,9 @@ import com.lambda.campsite.controller.SearchController
 import com.lambda.campsite.controller.CampsiteController
 import com.lambda.campsite.controller.LotteryController
 import com.lambda.campsite.controller.ProfileController
+import com.lambda.campsite.controller.OwnerWaitingListController
+import com.lambda.campsite.view.screens.OwnerWaitingListScreen
+import com.lambda.campsite.view.theme.WaitingListColors
 import com.lambda.campsite.model.Role
 import com.lambda.campsite.view.screens.CampsiteQrCodeScreen
 import com.lambda.campsite.view.screens.MapLocationScreen
@@ -143,7 +152,8 @@ fun LambdaCampsiteApp(
             // screens without an app bar pad themselves with statusBarsPadding().
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             bottomBar = {
-                NavigationBar {
+                val waitingListOpen = currentRoute == AppTab.OWNER_LOTTERIES.route
+                NavigationBar(containerColor = if (waitingListOpen) WaitingListColors.sheet else NavigationBarDefaults.containerColor) {
                     tabs.forEach { tab ->
                         NavigationBarItem(
                             selected = isSelectedTab(tab, currentRoute),
@@ -151,6 +161,13 @@ fun LambdaCampsiteApp(
                             // The label below names the tab, so the icon needs no description.
                             icon = { Icon(tab.icon, contentDescription = null) },
                             label = { Text(stringResource(tab.labelRes)) },
+                            colors = if (waitingListOpen) NavigationBarItemDefaults.colors(
+                                indicatorColor = WaitingListColors.avatar,
+                                selectedIconColor = WaitingListColors.text,
+                                selectedTextColor = WaitingListColors.text,
+                                unselectedIconColor = WaitingListColors.secondaryText,
+                                unselectedTextColor = WaitingListColors.secondaryText,
+                            ) else NavigationBarItemDefaults.colors(),
                         )
                     }
                 }
@@ -174,6 +191,13 @@ fun LambdaCampsiteApp(
                             }
                             AppTab.PROFILE -> ProfileScreen(profileController)
                             AppTab.OWNER_CAMPSITES -> OwnerCampsitesList(navController)
+                            AppTab.OWNER_LOTTERIES -> {
+                                val waitingListController: OwnerWaitingListController = viewModel(
+                                    factory = OwnerWaitingListController.createFactory(),
+                                )
+                                OwnerWaitingListScreen(waitingListController,
+                                    onBack = { navController.navigateToTab(AppTab.OWNER_HOME) })
+                            }
                             else -> PlaceholderScreen(tab)
                         }
                     }

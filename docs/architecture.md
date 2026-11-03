@@ -1,6 +1,10 @@
 # Lambda Campsite architecture
 
-Sashreek and Sreeman · last updated November 1, 2026
+Sashreek and Sreeman · original architecture updated November 1, 2026
+
+Flow 12 update: Lalith Valluru · last updated 2026-11-03.
+Outstanding issues (Flow 12): Callable deployment, shared-project verification and
+manual accessibility review remain pending (#129, #36).
 
 > AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped
 > write this document and its diagrams in October 2026, working from
@@ -13,6 +17,85 @@ Sashreek and Sreeman · last updated November 1, 2026
 > to sections 3, 4, 5 and 7. Sashreek reviewed and edited it.
 
 This page explains how the app is put together. It covers the class diagram and the reasons behind it, the backend on Firebase, and how the Android app splits into Model, View and Controller. Section 6 follows one entrant from tapping "Join" to holding a reservation, so you can see every layer working in one story. Section 7 is the practical part: where files live, what to name things, and how to add something to the frontend or the backend. If a term is new to you, like repository, Flow or transaction, `docs/glossary.md` explains it.
+
+> Flow 12 update owner: Lalith Valluru. OpenAI GPT-6 (OpenAI), through Codex,
+> assisted with the owner-contact architecture addition. Human review pending.
+
+### Flow 12: owner waiting-list contact access (US 02.09.01)
+
+`OwnerWaitingListScreen` renders `OwnerWaitingListUiState` from
+`OwnerWaitingListController`. It is reached through the owner's Lotteries tab.
+The lottery selector contains only the current owner's lotteries. Existing
+`LotteryRepository.myLotteries()` and `waitingList(lotteryId)` listeners supply
+live registrations in join order. Changing the selection or losing owner access
+cancels the old listener and clears its entries, contacts and details sheet.
+
+The full story requires names and contact details. Direct `profiles/{uid}` reads
+remain private; no Firestore rules were broadened. The new
+`WaitingListContactRepository` calls `owner_waiting_list_contacts` for at most 100
+entrant IDs per request. The callable requires Firebase authentication and checks
+the requester's active OWNER role, ban/removal flags, lottery ownership and each
+registration's existence in one read transaction. It returns only entrant ID,
+name, email and phone. Nonmembers are omitted; removed/missing profiles expose no
+personal data. Nothing is copied into public lottery documents or logged.
+
+`WaitingListContact` is a read-only projection, not a new Firestore collection:
+
+| Type | Attributes / operations | Relationship |
+| --- | --- | --- |
+| `WaitingListContact` | entrantId, name, email?, phone? | One optional projection per visible `LotteryEntry` |
+| `WaitingListContactRepository` | suspend contacts(lotteryId, entrantIds) | Returns a map keyed by entrant ID |
+| `CallableWaitingListContactRepository` | contacts(...) | Implements the interface using Firebase callable Functions |
+| `OwnerWaitingListController` | state, onSelectLottery, onOpenEntrant, onDismissEntrant, onRetry | Uses LotteryRepository, ProfileRepository and WaitingListContactRepository |
+
+The following class-diagram addendum extends the existing domain diagram with
+the new read projection and its application boundaries:
+
+```mermaid
+classDiagram
+    class WaitingListContact {
+        +String entrantId
+        +String name
+        +String email
+        +String phone
+    }
+    class WaitingListContactRepository {
+        <<interface>>
+        +contacts(lotteryId, entrantIds) Map
+    }
+    class CallableWaitingListContactRepository
+    class OwnerWaitingListController {
+        +StateFlow state
+        +onSelectLottery(id)
+        +onOpenEntrant(id)
+        +onDismissEntrant()
+        +onRetry()
+    }
+    class OwnerWaitingListUiState
+    class OwnerWaitingListScreen
+    CallableWaitingListContactRepository ..|> WaitingListContactRepository
+    WaitingListContactRepository ..> WaitingListContact : returns
+    OwnerWaitingListController --> WaitingListContactRepository
+    OwnerWaitingListController --> LotteryRepository
+    OwnerWaitingListController --> ProfileRepository
+    OwnerWaitingListController --> OwnerWaitingListUiState : publishes
+    OwnerWaitingListUiState o-- WaitingListContact : contacts by entrant ID
+    OwnerWaitingListUiState o-- LotteryEntry : ordered entries
+    OwnerWaitingListScreen ..> OwnerWaitingListController : actions and state
+```
+
+Email and phone are nullable in Kotlin. The screen is a Compose function,
+represented here only to show its architectural dependency.
+
+Names are fetched on each registration-list update. The selected entrant's sheet
+shows name, full ID, joined date, status and available contact details, with an
+explicit “Not provided” value for absent email/phone. Contact failures have their
+own retry state and do not masquerade as an empty waiting list. Results from a
+cancelled selection are discarded.
+
+The callable must be deployed by the team's deployment owner before names and
+contact details work against the shared project. Local tests use Auth, Firestore
+and Functions emulators. This addition does not alter automatic drawing.
 
 ## Contents
 
@@ -120,6 +203,7 @@ A few conventions keep the data consistent:
 |---|---|---|
 | `drawLotteries` | Every 5 minutes, on a schedule | Finds open lotteries whose registration has closed. For each one, a transaction picks the winners at random, marks everyone else NOT_SELECTED, sets the lottery to DRAWN and writes the WIN and LOSE notifications. The transaction checks the status first, so a lottery is never drawn twice. |
 | `sendPush` | A notification or message document is created | Reads the recipient's `pushToken` and `notificationsOn`. If notifications are on, it sends the push through FCM. The in-app copy exists either way, which is what 01.10.01 needs. |
+| `owner_waiting_list_contacts` | Authenticated callable request | Checks active owner, lottery ownership and entry membership; returns only current name/email/phone projections for requested registrations (US 02.09.01). |
 | `updateRatingStats` | A rating is written | Updates `ratingCount` and `ratingSum` on the campsite. |
 | `cleanUpCampsite` | A campsite document is deleted | Deletes its `availability` and `ratings` subcollections and its photo in Storage, cancels its open lotteries and upcoming reservations, and notifies everyone affected with a CAMPSITE_REMOVED notification (03.01.01). |
 | `cleanUpProfile` | A profile is deleted (01.08.01) or an admin marks it removed (03.02.01) | Removes the person's waiting-list entries, cancels their upcoming reservations and deletes their photo. If they own campsites, it deletes those too, which runs `cleanUpCampsite` for each one. |
@@ -231,7 +315,8 @@ A document that belongs to another one can share its parent's repository. A camp
 |---|---|---|---|
 | SearchScreen | SearchController | CampsiteSearch | 01.01.01 to 01.01.04, 01.12.01 |
 | CampsiteScreen | CampsiteController | CampsiteRepository | 01.01.05, 01.13.01, 02.01.01 to 02.03.01 |
-| LotteryScreen | LotteryController | LotteryRepository | 01.01.06 to 01.02.02, 02.04.01 to 02.05.01, 02.09.01, 02.10.01 |
+| LotteryScreen | LotteryController | LotteryRepository | 01.01.06 to 01.02.02, 02.04.01 to 02.05.01, 02.10.01 |
+| OwnerWaitingListScreen | OwnerWaitingListController | LotteryRepository, ProfileRepository, WaitingListContactRepository | 02.09.01 |
 | ReservationsScreen | ReservationController | ReservationRepository | 01.04.01 to 01.07.02, 02.06.01 to 02.08.01, 02.11.01 |
 | ProfileScreen | ProfileController | ProfileRepository | 01.07.03 to 01.11.01, 03.11.01 |
 | InboxScreen | NotificationController | NotificationRepository | 01.03.01, 01.03.02, 02.10.02 |
