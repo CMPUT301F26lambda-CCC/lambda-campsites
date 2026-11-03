@@ -2,8 +2,11 @@
  * Purpose: Flow 6 search/details and Flow 7 join/leave UI integration tests using local fakes.
  * Outstanding issues: emulator-backed Firebase/security and manual TalkBack checks remain.
  * AI use: OpenAI GPT-6 through Codex assisted with fixtures and tests; human review pending.
-  * Feature owner: Lalith Valluru. Last updated: 2026-11-03 (#149).
-*/
+ * Feature owner: Lalith Valluru. Last updated: 2026-11-03 (#149).
+ * Layout follow-up (#154): Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI),
+ * through Codex, assisted with Figma layout/status/navigation-color integration
+ * or its regression checks. Follow-up human review remains pending.
+ */
 package com.lambda.campsite.view.screens
 
 import androidx.compose.runtime.*
@@ -106,8 +109,8 @@ class EntrantCampsiteFlowTest {
         compose.onNodeWithText(text(R.string.entrant_campsite_search_label)).performTextInput("Aspen")
         compose.onNodeWithContentDescription(text(R.string.entrant_campsite_search_action)).performClick()
         compose.onNodeWithText("Cedar Point").assertDoesNotExist()
-        compose.onNodeWithText(text(R.string.entrant_campsite_max_guests, 6), substring = true).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.entrant_campsite_rating, 4.5, 2), substring = true).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.campsite_guest_summary, 6), substring = true).assertIsDisplayed()
+        compose.onNodeWithContentDescription(InstrumentationRegistry.getInstrumentation().targetContext.resources.getQuantityString(R.plurals.campsite_rating_count, 2, 4.5, 2)).assertIsDisplayed()
         compose.onNodeWithText("Aspen Hollow", substring = true).performClick()
         compose.onNodeWithText("Quiet demo campsite").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText(text(R.string.entrant_campsite_join_active)).performScrollTo().performClick()
@@ -128,7 +131,7 @@ class EntrantCampsiteFlowTest {
         val input = compose.onNodeWithText(text(R.string.entrant_campsite_search_label))
         input.performTextInput("does not exist")
         compose.onNodeWithContentDescription(text(R.string.entrant_campsite_search_action)).performClick()
-        compose.onNodeWithText(text(R.string.entrant_campsite_no_matches)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.entrant_no_results_title)).assertIsDisplayed()
         input.performTextClearance()
         compose.onNodeWithContentDescription(text(R.string.entrant_campsite_search_action)).performClick()
         compose.onNodeWithText("Aspen Hollow", substring = true).assertIsDisplayed()

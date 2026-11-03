@@ -3,7 +3,10 @@
  * Outstanding issues: manual TalkBack and team review remain for follow-up #149.
  * AI use: OpenAI GPT-6 through Codex assisted with test setup and assertions; human review pending.
   * Feature owner: Lalith Valluru. Last updated: 2026-11-03 (#149).
-*/
+ * Layout follow-up (#154): Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI),
+ * through Codex, assisted with Figma layout/status/navigation-color integration
+ * or its regression checks. Follow-up human review remains pending.
+ */
 package com.lambda.campsite.view.screens
 
 import androidx.compose.ui.test.*
@@ -57,7 +60,8 @@ class EntrantFirebaseFlowTest {
             ProfileFields.toMap(Profile(deviceId = uid, name = "Demo entrant", email = "demo@example.com", policyVersionAgreed = 1)))
         val suffix = UUID.randomUUID().toString().take(8)
         site = Campsite("flow67-site-$suffix", "demo-owner", "Emulator Demo Camp $suffix", "Fictional demo location",
-            description = "Local test data only.", maxOccupancy = 4, amenities = listOf("Demo fire pit"))
+            description = "Local test data only. A wooded demo campsite beside a fictional creek.", maxOccupancy = 4, amenities = listOf("Demo fire pit"),
+            tags = listOf("Forest", "Creekside"), pricePerNight = 35.0, rules = "Respect quiet hours.\nKeep the campsite clean.")
         FirestoreEmulator.setIgnoringRules("campsites/${site.id}", CampsiteFields.toMap(site))
         val start = LocalDate.now().plusMonths(1)
         FirestoreEmulator.setIgnoringRules("campsites/${site.id}/availability/calendar", mapOf(
@@ -96,11 +100,15 @@ class EntrantFirebaseFlowTest {
     private fun openDetails(expectEnabled: Boolean = true) {
         compose.setContent { LambdaCampsiteTheme { LambdaCampsiteApp() } }
         awaitText(site.name)
+        awaitText(text(R.string.campsite_open_badge))
         capture("search")
         compose.onNodeWithText(text(R.string.entrant_campsite_search_label)).performTextInput(site.name)
         compose.onNodeWithContentDescription(text(R.string.entrant_campsite_search_action)).performClick()
         compose.onNodeWithText(text(R.string.entrant_campsite_view_details)).performClick()
         awaitText(lottery.name)
+        capture("campsite-top")
+        compose.onNodeWithContentDescription(text(R.string.campsite_map_placeholder_description)).performScrollTo()
+        capture("campsite-map")
         compose.onNodeWithText(text(R.string.entrant_campsite_join_active)).performScrollTo().performClick()
         awaitText(text(R.string.entrant_lottery_deadline_label))
         capture("lottery-details")
@@ -123,7 +131,10 @@ class EntrantFirebaseFlowTest {
         compose.onNodeWithText(text(R.string.entrant_lottery_joined)).assertIsDisplayed()
         assertEquals("WAITING", entryOnServer().getString("status"))
         assertEquals(1L, countOnServer())
-        awaitNoticeDismissed(text(R.string.entrant_lottery_joined))
+        compose.onNodeWithText(text(R.string.entrant_lottery_leave)).performScrollTo()
+        val noticeBottom = compose.onNodeWithText(text(R.string.entrant_lottery_joined)).fetchSemanticsNode().boundsInRoot.bottom
+        val actionTop = compose.onNodeWithText(text(R.string.entrant_lottery_leave)).fetchSemanticsNode().boundsInRoot.top
+        assertTrue("Snackbar must be above the withdrawal action", noticeBottom <= actionTop)
         compose.onNodeWithText(text(R.string.entrant_lottery_leave)).performScrollTo().performClick()
         awaitText(text(R.string.entrant_lottery_cancel))
         capture("withdraw-dialog")
