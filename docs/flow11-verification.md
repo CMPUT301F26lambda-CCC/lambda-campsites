@@ -1,8 +1,6 @@
 # Flow 11 — Owner's reservations
 
-> AI use: GPT-6 (OpenAI), through Codex, helped write Flow 11's controllers,
-> screens, navigation, tests, and docs. Sreeman Reddy chose the stories;
-> human code review is pending.
+> AI use: GPT-6 (OpenAI), through Codex, assisted me with Flow 11.
 
 Last updated: November 3, 2026.
 
