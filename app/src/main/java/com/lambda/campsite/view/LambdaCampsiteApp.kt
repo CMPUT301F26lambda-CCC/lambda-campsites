@@ -16,6 +16,9 @@
  * OpenAI GPT-6 (OpenAI), through Codex, assisted with Flow 6/7 entrant search,
  * selected-lottery routing and shared parent ViewModels, and Flow 12 owner
  * waiting-list navigation. Follow-up human review remains pending.
+  * Layout follow-up (#154): Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI),
+ * through Codex, assisted with Figma layout/status/navigation-color integration
+ * or its regression checks. Follow-up human review remains pending.
  */
 package com.lambda.campsite.view
 
@@ -30,7 +33,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -64,7 +66,6 @@ import com.lambda.campsite.controller.LotteryController
 import com.lambda.campsite.controller.ProfileController
 import com.lambda.campsite.controller.OwnerWaitingListController
 import com.lambda.campsite.view.screens.OwnerWaitingListScreen
-import com.lambda.campsite.view.theme.WaitingListColors
 import com.lambda.campsite.model.Role
 import com.lambda.campsite.view.screens.CampsiteQrCodeScreen
 import com.lambda.campsite.view.screens.MapLocationScreen
@@ -156,8 +157,7 @@ fun LambdaCampsiteApp(
             // screens without an app bar pad themselves with statusBarsPadding().
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             bottomBar = {
-                val waitingListOpen = currentRoute == AppTab.OWNER_LOTTERIES.route
-                NavigationBar(containerColor = if (waitingListOpen) WaitingListColors.sheet else NavigationBarDefaults.containerColor) {
+                NavigationBar(containerColor = com.lambda.campsite.view.theme.CampSurfaceHigh) {
                     tabs.forEach { tab ->
                         NavigationBarItem(
                             selected = isSelectedTab(tab, currentRoute),
@@ -165,13 +165,13 @@ fun LambdaCampsiteApp(
                             // The label below names the tab, so the icon needs no description.
                             icon = { Icon(tab.icon, contentDescription = null) },
                             label = { Text(stringResource(tab.labelRes)) },
-                            colors = if (waitingListOpen) NavigationBarItemDefaults.colors(
-                                indicatorColor = WaitingListColors.avatar,
-                                selectedIconColor = WaitingListColors.text,
-                                selectedTextColor = WaitingListColors.text,
-                                unselectedIconColor = WaitingListColors.secondaryText,
-                                unselectedTextColor = WaitingListColors.secondaryText,
-                            ) else NavigationBarItemDefaults.colors(),
+                            colors = NavigationBarItemDefaults.colors(
+                                indicatorColor = com.lambda.campsite.view.theme.CampPositive,
+                                selectedIconColor = com.lambda.campsite.view.theme.ForestGreen,
+                                selectedTextColor = com.lambda.campsite.view.theme.ForestGreen,
+                                unselectedIconColor = com.lambda.campsite.view.theme.CampSecondaryText,
+                                unselectedTextColor = com.lambda.campsite.view.theme.CampSecondaryText,
+                            ),
                         )
                     }
                 }
@@ -189,7 +189,7 @@ fun LambdaCampsiteApp(
                         when (tab) {
                             AppTab.ENTRANT_HOME -> {
                                 val searchController: SearchController = viewModel(factory = SearchController.Factory)
-                                SearchScreen(searchController, onCampsiteClick = { campsiteId ->
+                                SearchScreen(searchController, profileName = state.profile?.name, onCampsiteClick = { campsiteId ->
                                     navController.navigate("entrant/home/details/${Uri.encode(campsiteId)}")
                                 })
                             }
@@ -231,7 +231,11 @@ fun LambdaCampsiteApp(
                 )) { entry ->
                     val campsiteId = requireNotNull(entry.arguments?.getString("campsiteId"))
                     val lotteryId = requireNotNull(entry.arguments?.getString("lotteryId"))
-                    val parent = remember(entry) { navController.getBackStackEntry(ENTRANT_DETAILS_ROUTE) }
+                    val parent = remember(entry) {
+                        // A future direct entry has no campsite parent; own its controllers safely.
+                        try { navController.getBackStackEntry(ENTRANT_DETAILS_ROUTE) }
+                        catch (_: IllegalArgumentException) { entry }
+                    }
                     val campsiteController: CampsiteController = viewModel(viewModelStoreOwner = parent,
                         key = "entrant-details-$campsiteId", factory = CampsiteController.createFactory(campsiteId))
                     val lotteryController: LotteryController = viewModel(viewModelStoreOwner = parent,
