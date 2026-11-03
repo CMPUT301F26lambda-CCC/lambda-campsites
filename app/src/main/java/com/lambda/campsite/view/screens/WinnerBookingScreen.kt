@@ -139,7 +139,7 @@ fun WinnerBookingContent(
                                             RadioButton(selected = camp.id == state.selectedCampsiteId, onClick = null)
                                             Column(Modifier.weight(1f)) {
                                                 CampsiteSummaryCard(camp.name, camp.location, camp.maxOccupancy, camp.averageRating, camp.ratingCount,
-                                                    onDetails = { onCampsite(camp.id) })
+                                                    onDetails = { onCampsite(camp.id) }, onSelect = { onSelectSite(camp.id) })
                                             }
                                         }
                                     }
