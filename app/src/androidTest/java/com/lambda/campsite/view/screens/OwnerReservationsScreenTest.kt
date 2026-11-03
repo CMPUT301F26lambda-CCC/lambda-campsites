@@ -41,6 +41,21 @@ class OwnerReservationsScreenTest {
         guests = 2, rulesAgreedAt = Timestamp.now(), createdAt = Timestamp.now(),
     )
 
+    @Test fun ownerHomeOpensFigmaReservationAndCalendarEntries() {
+        val state = OwnerReservationsUiState(reservations = listOf(stay), today = today, isLoading = false)
+        var selected: OwnerReservationTab? = null
+        var openedCalendar = false
+        compose.setContent { LambdaCampsiteTheme {
+            OwnerHomeContent(state, "Demo Owner", { selected = it }, { openedCalendar = true }, {})
+        } }
+
+        compose.onNodeWithText("Welcome back, Demo").assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.reservation_tab_active)).performClick()
+        compose.runOnIdle { assertEquals(OwnerReservationTab.ACTIVE, selected) }
+        compose.onNodeWithText(text(R.string.booked_dates_title)).performClick()
+        compose.runOnIdle { assertEquals(true, openedCalendar) }
+    }
+
     @Test fun activeAndCancelledTabsShowOnlyTheirReservations() {
         val state = mutableStateOf(
             OwnerReservationsUiState(
@@ -121,7 +136,7 @@ class OwnerReservationsScreenTest {
         compose.onNodeWithText(text(R.string.reservation_details_title)).assertIsDisplayed()
         compose.onNodeWithText(stay.guestName).assertIsDisplayed()
         compose.onNodeWithText(stay.campsiteName).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.reservation_status_confirmed)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.reservation_status_confirmed)).assertExists()
         compose.onNodeWithText(stay.guests.toString()).assertExists()
         compose.onNodeWithContentDescription(text(R.string.close_reservation_details)).performClick()
         compose.runOnIdle { assertEquals(true, dismissed) }

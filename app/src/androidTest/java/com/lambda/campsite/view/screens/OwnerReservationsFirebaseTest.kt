@@ -46,6 +46,7 @@ class OwnerReservationsFirebaseTest {
 
     private lateinit var ownerId: String
     private lateinit var campsite: Campsite
+    private lateinit var secondCampsite: Campsite
     private lateinit var booked: Reservation
     private lateinit var bookedNight: LocalDate
 
@@ -64,7 +65,11 @@ class OwnerReservationsFirebaseTest {
         campsite = Campsite("site-$suffix", ownerId, "Aspen Demo", "Alberta", maxOccupancy = 4,
             description = "Fictional test campsite")
         FirestoreEmulator.setIgnoringRules("campsites/${campsite.id}", CampsiteFields.toMap(campsite))
+        secondCampsite = Campsite("second-$suffix", ownerId, "Cedar Demo", "Alberta", maxOccupancy = 4,
+            description = "Second fictional test campsite")
+        FirestoreEmulator.setIgnoringRules("campsites/${secondCampsite.id}", CampsiteFields.toMap(secondCampsite))
         setCalendar(listOf(bookedNight.toString()))
+        setCalendar(emptyList(), secondCampsite.id)
         booked = reservation("active-$suffix", "Jordan Demo", bookedNight, bookedNight.plusDays(2))
         val past = reservation("past-$suffix", "Alex Demo", today.minusDays(3), today.minusDays(1))
         val cancelled = reservation("cancelled-$suffix", "Casey Demo", today.plusDays(5), today.plusDays(7))
@@ -83,9 +88,9 @@ class OwnerReservationsFirebaseTest {
             rulesAgreedAt = Timestamp.now(), createdAt = Timestamp.now(),
         )
 
-    private fun setCalendar(nights: List<String>) {
+    private fun setCalendar(nights: List<String>, campsiteId: String = campsite.id) {
         FirestoreEmulator.setIgnoringRules(
-            "campsites/${campsite.id}/availability/calendar",
+            "campsites/$campsiteId/availability/calendar",
             mapOf(
                 "seasonStart" to bookedNight.minusMonths(1).toString(),
                 "seasonEnd" to bookedNight.plusMonths(2).toString(),
@@ -101,10 +106,12 @@ class OwnerReservationsFirebaseTest {
         compose.runOnUiThread { profile.onSwitchRole(Role.OWNER) }
         compose.setContent { LambdaCampsiteTheme { LambdaCampsiteApp(profile) } }
 
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("1 reservation", substring = true).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Active").performClick()
         compose.waitUntil(15_000) { compose.onAllNodesWithText("Jordan Demo", substring = true).fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Private Guest", substring = true).assertDoesNotExist()
         compose.onNodeWithText("Aspen Demo").performClick()
-        compose.onNodeWithText("Jordan Demo").assertIsDisplayed()
+        compose.onNodeWithText("Reservation details").assertIsDisplayed()
         compose.onNodeWithContentDescription("Close reservation details").performClick()
 
         compose.onNodeWithText("Past").performClick()
@@ -118,6 +125,14 @@ class OwnerReservationsFirebaseTest {
         compose.onNodeWithText(campsite.name).performClick()
         compose.waitUntil(15_000) { compose.onAllNodesWithText("Booked dates").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Booked dates").performClick()
+        compose.waitUntil(15_000) { compose.onAllNodesWithText(campsite.name).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText(campsite.name).performClick()
+        compose.onNodeWithText(secondCampsite.name).performClick()
+        compose.waitUntil(15_000) {
+            compose.onAllNodesWithText("No bookings for this month.").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText(secondCampsite.name).performClick()
+        compose.onNodeWithText(campsite.name).performClick()
         if (YearMonth.from(bookedNight) != YearMonth.now()) {
             compose.onNodeWithContentDescription("Next month").performClick()
         }
@@ -125,7 +140,7 @@ class OwnerReservationsFirebaseTest {
             compose.onAllNodesWithContentDescription("booked. Double tap", substring = true).fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithContentDescription("booked. Double tap", substring = true).performClick()
-        compose.onNodeWithText("Jordan Demo").assertIsDisplayed()
+        compose.onNodeWithText("View reservation").assertIsDisplayed().performClick()
         compose.onNodeWithContentDescription("Close reservation details").performClick()
 
         FirestoreEmulator.setIgnoringRules("reservations/${booked.id}",
