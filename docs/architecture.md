@@ -320,6 +320,7 @@ A document that belongs to another one can share its parent's repository. A camp
 | SearchScreen | SearchController | CampsiteSearch | 01.01.01 to 01.01.04, 01.12.01 |
 | CampsiteScreen | CampsiteController | CampsiteRepository | 01.01.05, 01.13.01, 02.01.01 to 02.03.01 |
 | EntrantLotteryDetailsScreen | LotteryController (entrant only) | LotteryRepository | 01.01.06 to 01.02.02 |
+| Owner lottery setup/edit screens (Flow 4, #121; integration pending) | Owner configuration controller supplied by Flow 4 | LotteryRepository | 02.04.01 to 02.04.07, 02.10.01 |
 | OwnerWaitingListScreen | OwnerWaitingListController | LotteryRepository, ProfileRepository, WaitingListContactRepository | 02.09.01 |
 | ReservationsScreen | ReservationController | ReservationRepository | 01.04.01 to 01.07.02, 02.06.01 to 02.08.01, 02.11.01 |
 | ProfileScreen | ProfileController | ProfileRepository | 01.07.03 to 01.11.01, 03.11.01 |
