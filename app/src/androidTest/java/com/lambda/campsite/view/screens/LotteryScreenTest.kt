@@ -2,13 +2,18 @@
  * Purpose: isolated Compose tests for Flow 7's join/leave panel (US 01.01.06–01.02.02).
  * Full navigation and Firestore integration are covered by EntrantFirebaseFlowTest.
  * AI use: OpenAI GPT-6 through Codex helped write the UI tests. Human review pending.
- */
+  * Feature owner: Lalith Valluru. Last updated: 2026-11-03 (#149).
+ * Outstanding issues: manual TalkBack verification remains pending.
+*/
 package com.lambda.campsite.view.screens
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -32,14 +37,17 @@ class LotteryScreenTest {
     @get:Rule val compose = createComposeRule()
     private val item = Lottery("lottery-demo", "owner-demo", "Aspen demo lottery", listOf("camp-demo"),
         Timestamp(1000, 0), Timestamp(2000, 0), LocalDate.of(2027, 7, 1), LocalDate.of(2027, 7, 8))
-    private val state = mutableStateOf(LotteryUiState(lotteries = listOf(item), isLoading = false))
+    private val state = mutableStateOf(LotteryUiState(lotteries = listOf(item), isLoading = false,
+        observedAt = Timestamp(1500, 0)))
     private var joined: String? = null
     private var left: String? = null
     private var retries = 0
     private fun text(id: Int) = InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
 
-    private fun launch() {
+    private fun launch(fontScale: Float = 1f) {
         compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
             LambdaCampsiteTheme {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
                     LotteryContent(state.value,
@@ -48,52 +56,68 @@ class LotteryScreenTest {
                         onDismissNotice = { state.value = state.value.copy(notice = null) })
                 }
             }
+            }
         }
+    }
+
+    @Test fun largeTextKeepsDatesAndActionsReachableAndClosedDialogCannotWithdraw() {
+        state.value = state.value.copy(entries = listOf(LotteryEntry(item.id, "entrant-demo", Timestamp(1500, 0))))
+        launch(fontScale = 2f)
+        compose.onNodeWithText(text(R.string.entrant_lottery_deadline_label)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.entrant_lottery_stay_dates_label)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.entrant_lottery_leave)).performScrollTo().assertIsEnabled().performClick()
+        compose.onNodeWithText(text(R.string.entrant_lottery_cancel)).assertIsDisplayed()
+        compose.runOnIdle { state.value = state.value.copy(observedAt = item.registrationCloses) }
+        compose.onNodeWithText(text(R.string.entrant_lottery_confirm_withdraw)).assertIsNotEnabled()
+        compose.onNodeWithText(text(R.string.entrant_lottery_cancel)).performClick()
+        compose.onNodeWithText(text(R.string.entrant_lottery_leave)).performScrollTo().assertIsNotEnabled()
+        compose.runOnIdle { assertEquals(null, left) }
     }
 
     @Test fun joinAndLeaveRouteTheCorrectLotteryAndShowAcknowledgements() {
         launch()
-        compose.onNodeWithText(text(R.string.flow7_join)).performScrollTo().performClick()
+        compose.onNodeWithText(text(R.string.entrant_lottery_join)).performScrollTo().performClick()
         compose.runOnIdle {
             assertEquals(item.id, joined)
             state.value = state.value.copy(
                 entries = listOf(LotteryEntry(item.id, "entrant-demo", Timestamp(1500, 0))),
                 notice = LotteryNotice.JOINED)
         }
-        compose.onNodeWithText(text(R.string.flow7_joined)).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.flow7_leave)).performScrollTo().performClick()
+        compose.onNodeWithText(text(R.string.entrant_lottery_joined)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.entrant_lottery_leave)).performScrollTo().performClick()
+        compose.onNodeWithText(text(R.string.entrant_lottery_confirm_withdraw)).performClick()
         compose.runOnIdle {
             assertEquals(item.id, left)
             state.value = state.value.copy(entries = emptyList(), notice = LotteryNotice.LEFT)
         }
-        compose.onNodeWithText(text(R.string.flow7_left)).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.flow7_join)).performScrollTo().assertIsEnabled()
+        compose.onNodeWithText(text(R.string.entrant_lottery_left)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.entrant_lottery_join)).performScrollTo().assertIsEnabled()
     }
 
     @Test fun pendingWriteDisablesJoinAndErrorIsReadable() {
         state.value = state.value.copy(pendingLotteryId = item.id)
         launch()
-        compose.onNodeWithText(text(R.string.flow7_join)).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithText(text(R.string.entrant_lottery_join)).performScrollTo().assertIsNotEnabled()
         compose.runOnIdle { state.value = state.value.copy(pendingLotteryId = null, error = LotteryError.FULL) }
-        compose.onNodeWithText(text(R.string.flow7_full)).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.flow7_dismiss)).performScrollTo().performClick()
-        compose.onNodeWithText(text(R.string.flow7_full)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.entrant_lottery_full)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.entrant_lottery_dismiss)).performScrollTo().performClick()
+        compose.onNodeWithText(text(R.string.entrant_lottery_full)).assertDoesNotExist()
     }
 
     @Test fun failedLoadOffersRetryAndEmptyStateHasNoJoinButton() {
         state.value = LotteryUiState(isLoading = false, error = LotteryError.LOAD_FAILED)
         launch()
-        compose.onNodeWithText(text(R.string.flow7_retry)).performScrollTo().performClick()
+        compose.onNodeWithText(text(R.string.entrant_lottery_retry)).performScrollTo().performClick()
         compose.runOnIdle { assertEquals(1, retries); state.value = LotteryUiState(isLoading = false) }
-        compose.onNodeWithText(text(R.string.flow7_empty)).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.flow7_join)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.entrant_lottery_empty)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.entrant_lottery_join)).assertDoesNotExist()
     }
 
     @Test fun drawnEntryShowsOutcomeWithoutLeaveAction() {
         state.value = state.value.copy(entries = listOf(LotteryEntry(item.id, "entrant-demo", Timestamp(1500, 0), EntryStatus.WON)))
         launch()
-        compose.onNodeWithText(text(R.string.flow7_won)).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.flow7_leave)).assertDoesNotExist()
-        compose.onNodeWithText(text(R.string.flow7_join)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.entrant_lottery_won)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.entrant_lottery_leave)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.entrant_lottery_join)).assertDoesNotExist()
     }
 }
