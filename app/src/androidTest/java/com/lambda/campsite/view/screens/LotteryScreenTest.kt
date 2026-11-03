@@ -1,6 +1,6 @@
 /*
  * Purpose: isolated Compose tests for Flow 7's join/leave panel (US 01.01.06–01.02.02).
- * Outstanding issue: full campsite navigation and Firestore integration remain in #124.
+ * Full navigation and Firestore integration are covered by EntrantFirebaseFlowTest.
  * AI use: OpenAI GPT-6 through Codex helped write the UI tests. Human review pending.
  */
 package com.lambda.campsite.view.screens

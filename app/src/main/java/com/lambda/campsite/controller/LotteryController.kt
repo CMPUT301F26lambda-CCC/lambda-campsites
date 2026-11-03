@@ -1,6 +1,6 @@
 /*
  * Purpose: entrant join/leave state for Flow 7 (US 01.01.06, 01.02.01, 01.02.02).
- * Outstanding issue: connect to Flow 6's campsite-details screen in #124.
+ * Outstanding issues: manual accessibility checks and team review remain for #124.
  * AI use: OpenAI GPT-6 through Codex helped write this controller and its KDoc.
  */
 package com.lambda.campsite.controller

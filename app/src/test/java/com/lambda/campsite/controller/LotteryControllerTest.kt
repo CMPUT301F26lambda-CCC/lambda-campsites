@@ -1,6 +1,6 @@
 /*
  * Purpose: Flow 7 controller tests for US 01.01.06, 01.02.01 and 01.02.02.
- * Outstanding issue: screen integration/UI tests remain in #124.
+ * UI integration is covered separately by EntrantCampsiteFlowTest and EntrantFirebaseFlowTest.
  * AI use: OpenAI GPT-6 through Codex helped write these test scenarios and code.
  * Human review is pending; this file has not been published.
  */

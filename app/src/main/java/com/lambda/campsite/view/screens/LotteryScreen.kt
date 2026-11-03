@@ -1,6 +1,6 @@
 /*
  * Purpose: Flow 7's embeddable lottery registration UI.
- * Outstanding issue: the Flow 6 owner must mount LotteryScreen in campsite details (#124).
+ * Outstanding issues: manual accessibility checks and team review remain for #124.
  * AI use: OpenAI GPT-6 through Codex helped write this UI and its KDoc.
  * Human review is pending; this file has not been published.
  */
