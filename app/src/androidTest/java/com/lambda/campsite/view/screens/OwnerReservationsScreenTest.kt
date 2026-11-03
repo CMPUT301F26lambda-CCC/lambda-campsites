@@ -116,11 +116,14 @@ class OwnerReservationsScreenTest {
     }
 
     @Test fun detailsSheetShowsEntrantDatesAndStatus() {
-        compose.setContent { LambdaCampsiteTheme { OwnerReservationDetailsSheet(stay, onDismiss = {}) } }
+        var dismissed = false
+        compose.setContent { LambdaCampsiteTheme { OwnerReservationDetailsSheet(stay, onDismiss = { dismissed = true }) } }
         compose.onNodeWithText(text(R.string.reservation_details_title)).assertIsDisplayed()
         compose.onNodeWithText(stay.guestName).assertIsDisplayed()
         compose.onNodeWithText(stay.campsiteName).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.reservation_status_confirmed)).assertIsDisplayed()
-        compose.onNodeWithText(stay.guests.toString()).assertIsDisplayed()
+        compose.onNodeWithText(stay.guests.toString()).assertExists()
+        compose.onNodeWithContentDescription(text(R.string.close_reservation_details)).performClick()
+        compose.runOnIdle { assertEquals(true, dismissed) }
     }
 }

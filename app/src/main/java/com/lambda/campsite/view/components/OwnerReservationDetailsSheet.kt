@@ -7,16 +7,23 @@ package com.lambda.campsite.view.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -38,17 +45,29 @@ fun OwnerReservationDetailsSheet(reservation: Reservation, onDismiss: () -> Unit
         ReservationStatus.CANCELLED -> stringResource(R.string.reservation_status_cancelled)
         ReservationStatus.REJECTED -> stringResource(R.string.reservation_status_rejected)
     }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        properties = ModalBottomSheetProperties(
+            isAppearanceLightStatusBars = false,
+            isAppearanceLightNavigationBars = true,
+        ),
+    ) {
         Column(
             modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
                 .padding(start = 24.dp, end = 24.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                stringResource(R.string.reservation_details_title),
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.semantics { heading() },
-            )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    stringResource(R.string.reservation_details_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.semantics { heading() },
+                )
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close_reservation_details))
+                }
+            }
             DetailRow(stringResource(R.string.reservation_number), reservation.number)
             DetailRow(stringResource(R.string.reservation_status), status)
             DetailRow(stringResource(R.string.reservation_campsite), reservation.campsiteName)

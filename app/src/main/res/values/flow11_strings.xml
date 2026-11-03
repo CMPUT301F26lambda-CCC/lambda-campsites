@@ -18,6 +18,7 @@
     <string name="reservation_entrant_format">Entrant: %1$s</string>
     <string name="reservation_number_format">Reservation #%1$s</string>
     <string name="reservation_details_title">Reservation details</string>
+    <string name="close_reservation_details">Close reservation details</string>
     <string name="reservation_number">Number</string>
     <string name="reservation_status">Status</string>
     <string name="reservation_campsite">Campsite</string>
