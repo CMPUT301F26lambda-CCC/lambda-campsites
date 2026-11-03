@@ -21,6 +21,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -139,7 +141,7 @@ fun WinnerBookingContent(
                                             RadioButton(selected = camp.id == state.selectedCampsiteId, onClick = null)
                                             Column(Modifier.weight(1f)) {
                                                 CampsiteSummaryCard(camp.name, camp.location, camp.maxOccupancy, camp.averageRating, camp.ratingCount,
-                                                    onDetails = { onCampsite(camp.id) })
+                                                    onDetails = { onCampsite(camp.id) }, onSelect = { onSelectSite(camp.id) })
                                             }
                                         }
                                     }
@@ -212,10 +214,14 @@ fun WinnerBookingContent(
 
 @Composable
 private fun DateValue(label: String, date: LocalDate?, onEdit: () -> Unit) {
-    Surface(onClick = onEdit, shape = RoundedCornerShape(12.dp), color = CampField) {
-        Column(Modifier.fillMaxWidth().padding(16.dp)) {
-            Text(label, style = MaterialTheme.typography.labelMedium)
-            Text(date?.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)) ?: "—")
+    Surface(onClick = onEdit, shape = RoundedCornerShape(12.dp), color = CampField,
+        border = BorderStroke(1.dp, CampOutline)) {
+        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(label, style = MaterialTheme.typography.labelMedium)
+                Text(date?.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)) ?: "—")
+            }
+            Icon(Icons.Outlined.DateRange, null)
         }
     }
 }
