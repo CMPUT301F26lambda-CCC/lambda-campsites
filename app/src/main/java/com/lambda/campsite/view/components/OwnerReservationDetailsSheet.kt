@@ -51,6 +51,7 @@ import java.util.Locale
 /**
  * Owner reservation details. Calendar taps first show the compact Figma day sheet.
  * @param bookedDate the night tapped in the calendar, or null for full details.
+ * @param completed whether the confirmed stay has checked out on the screen's current date.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,6 +59,7 @@ fun OwnerReservationDetailsSheet(
     reservation: Reservation,
     onDismiss: () -> Unit,
     bookedDate: LocalDate? = null,
+    completed: Boolean = reservation.isCompleted(LocalDate.now()),
 ) {
     var showFull by remember(reservation.id, bookedDate) { mutableStateOf(bookedDate == null) }
     ModalBottomSheet(
@@ -70,14 +72,14 @@ fun OwnerReservationDetailsSheet(
             isAppearanceLightNavigationBars = true,
         ),
     ) {
-        if (showFull) FullOwnerReservationDetails(reservation, onDismiss)
-        else if (bookedDate != null) BookedDaySummary(reservation, bookedDate) { showFull = true }
+        if (showFull) FullOwnerReservationDetails(reservation, onDismiss, completed)
+        else if (bookedDate != null) BookedDaySummary(reservation, bookedDate, completed) { showFull = true }
     }
 }
 
 /** Compact sheet shown after tapping a peach date in the calendar. */
 @Composable
-private fun BookedDaySummary(reservation: Reservation, bookedDate: LocalDate, onView: () -> Unit) {
+private fun BookedDaySummary(reservation: Reservation, bookedDate: LocalDate, completed: Boolean, onView: () -> Unit) {
     val day = bookedDate.format(DateTimeFormatter.ofPattern("MMM d", Locale.getDefault()))
     Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -91,7 +93,7 @@ private fun BookedDaySummary(reservation: Reservation, bookedDate: LocalDate, on
             style = MaterialTheme.typography.bodyMedium, color = Flow11Colors.secondaryText)
         Text(bookingDateRange(reservation), style = MaterialTheme.typography.bodyMedium,
             color = Flow11Colors.secondaryText)
-        OwnerReservationStatusPill(reservation.status)
+        OwnerReservationStatusPill(reservation.status, completed)
         Button(onClick = onView, modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = Flow11Colors.header)) {
             Text(stringResource(R.string.view_reservation))
@@ -101,7 +103,7 @@ private fun BookedDaySummary(reservation: Reservation, bookedDate: LocalDate, on
 
 /** Full set of owner-visible reservation fields, shared by list and calendar. */
 @Composable
-private fun FullOwnerReservationDetails(reservation: Reservation, onDismiss: () -> Unit) {
+private fun FullOwnerReservationDetails(reservation: Reservation, onDismiss: () -> Unit, completed: Boolean) {
     val dateFormat = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
         .padding(start = 24.dp, end = 24.dp, bottom = 32.dp),
@@ -129,7 +131,7 @@ private fun FullOwnerReservationDetails(reservation: Reservation, onDismiss: () 
             val cancelledOn = cancelledAt.toDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
             DetailRow(stringResource(R.string.reservation_cancelled_on), cancelledOn.format(dateFormat))
         }
-        OwnerReservationStatusPill(reservation.status)
+        OwnerReservationStatusPill(reservation.status, completed)
     }
 }
 

@@ -59,6 +59,11 @@ data class OwnerBookedDatesUiState(
         get() = availability?.bookedNights?.filterTo(mutableSetOf()) { YearMonth.from(it) == month }
             ?: emptySet()
 
+    /** An unbooked night inside the configured season; check-out day is not an open night. */
+    fun isAvailableNight(date: LocalDate): Boolean = availability?.let { calendar ->
+        calendar.hasValidSeason() && calendar.isFree(date, date.plusDays(1))
+    } ?: false
+
     /** Current details, updated if the reservation changes elsewhere. */
     val selectedReservation: Reservation?
         get() = reservations.firstOrNull { it.id == selectedReservationId && it.status == ReservationStatus.CONFIRMED }

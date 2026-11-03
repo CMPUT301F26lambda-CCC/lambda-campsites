@@ -88,7 +88,9 @@ fun OwnerReservationsScreen(
         onRetry = controller::onRetry,
         onBack = onBack,
     )
-    state.selectedReservation?.let { OwnerReservationDetailsSheet(it, controller::onDetailsDismissed) }
+    state.selectedReservation?.let {
+        OwnerReservationDetailsSheet(it, controller::onDetailsDismissed, completed = it.isCompleted(state.today))
+    }
 }
 
 /** Stateless list presentation with the Figma segmented control and reservation cards. */
@@ -152,7 +154,7 @@ fun OwnerReservationsContent(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         items(visible, key = { it.id }) { reservation ->
-                            OwnerReservationCard(reservation, state.selectedTab == OwnerReservationTab.PAST) {
+                            OwnerReservationCard(reservation, reservation.isCompleted(state.today)) {
                                 onReservationSelected(reservation.id)
                             }
                         }

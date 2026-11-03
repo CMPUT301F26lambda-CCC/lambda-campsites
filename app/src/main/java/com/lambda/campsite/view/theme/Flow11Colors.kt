@@ -17,5 +17,6 @@ internal object Flow11Colors {
     val outline = Color(0xFF9EC2AE)
     val selected = Color(0xFFA8D5BA)
     val booked = Color(0xFFFFDBCD)
+    val outsideSeason = Color(0xFFDCE5DF)
     val cancelled = Color(0xFFF9DFDA)
 }

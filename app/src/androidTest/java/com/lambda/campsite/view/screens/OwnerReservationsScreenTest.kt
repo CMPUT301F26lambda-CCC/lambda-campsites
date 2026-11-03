@@ -25,6 +25,8 @@ import com.lambda.campsite.view.components.OwnerReservationDetailsSheet
 import com.lambda.campsite.view.theme.LambdaCampsiteTheme
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -128,6 +130,76 @@ class OwnerReservationsScreenTest {
         compose.runOnIdle { assertEquals(date, selectedDate) }
         compose.onNodeWithContentDescription(text(R.string.next_month)).performClick()
         compose.onNodeWithText(text(R.string.no_bookings_this_month)).assertIsDisplayed()
+    }
+
+    @Test fun switchingCampsitesShowsLoadingUntilBookingsArrive() {
+        val second = Campsite("site-2", "owner-1", "Cedar Point", "Alberta", maxOccupancy = 4, description = "Lake")
+        val first = Campsite("site-1", "owner-1", "Aspen Hollow", "Alberta", maxOccupancy = 4, description = "Forest")
+        val night = today.plusDays(4)
+        val state = mutableStateOf(OwnerBookedDatesUiState(
+            campsite = first, campsites = listOf(first, second), selectedCampsiteId = first.id,
+            availability = Availability(today.minusMonths(1), today.plusMonths(3)),
+            month = YearMonth.from(today), isLoading = false,
+        ))
+        compose.setContent { LambdaCampsiteTheme {
+            OwnerBookedDatesContent(state.value, {}, {}, {}, {}, {}, onCampsiteSelected = { id ->
+                state.value = state.value.copy(campsite = second, selectedCampsiteId = id,
+                    availability = null, isLoading = true)
+            })
+        } }
+
+        compose.onNodeWithText(first.name).performClick()
+        compose.onNodeWithText(second.name).performClick()
+        compose.onNodeWithText(text(R.string.calendar_loading)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.no_bookings_this_month)).assertDoesNotExist()
+
+        compose.runOnIdle {
+            state.value = state.value.copy(
+                availability = Availability(today.minusMonths(1), today.plusMonths(3), setOf(night)),
+                isLoading = false,
+            )
+        }
+        compose.onNodeWithText(text(R.string.calendar_loading)).assertDoesNotExist()
+        compose.onNodeWithContentDescription("booked. Double tap", substring = true).assertExists()
+    }
+
+    @Test fun datesOutsideSeasonOrWithoutSeasonAreNeverAnnouncedAvailable() {
+        val camp = Campsite("site-1", "owner-1", "Aspen Hollow", "Alberta", maxOccupancy = 4, description = "Forest")
+        val open = LocalDate.of(2027, 7, 10)
+        val close = LocalDate.of(2027, 7, 12)
+        val state = mutableStateOf(OwnerBookedDatesUiState(campsite = camp,
+            availability = Availability(open, close), month = YearMonth.from(open), isLoading = false))
+        compose.setContent { LambdaCampsiteTheme {
+            OwnerBookedDatesContent(state.value, {}, {}, {}, {}, {})
+        } }
+        fun description(id: Int, date: LocalDate): String =
+            InstrumentationRegistry.getInstrumentation().targetContext.getString(id,
+                date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL)))
+
+        compose.onNodeWithContentDescription(description(R.string.outside_season_date_description, open.minusDays(1))).assertExists()
+        compose.onNodeWithContentDescription(description(R.string.available_date_description, open)).assertExists()
+        compose.onNodeWithContentDescription(description(R.string.outside_season_date_description, close)).assertExists()
+        compose.runOnIdle { state.value = state.value.copy(availability = null) }
+        compose.onNodeWithContentDescription(description(R.string.no_season_date_description, open)).assertExists()
+        compose.onNodeWithContentDescription(description(R.string.available_date_description, open)).assertDoesNotExist()
+    }
+
+    @Test fun pastReservationCardAndDetailsBothSayCompleted() {
+        val past = stay.copy(checkIn = today.minusDays(3), checkOut = today)
+        val state = OwnerReservationsUiState(reservations = listOf(past), today = today,
+            selectedTab = OwnerReservationTab.PAST, isLoading = false)
+        val selected = mutableStateOf(false)
+        compose.setContent { LambdaCampsiteTheme {
+            if (selected.value) OwnerReservationDetailsSheet(past, onDismiss = {},
+                completed = past.isCompleted(state.today))
+            else OwnerReservationsContent(state, {}, { selected.value = true }, {}, {})
+        } }
+
+        compose.onNodeWithText(text(R.string.reservation_status_completed)).assertIsDisplayed()
+        compose.onNodeWithText(past.campsiteName).performClick()
+        compose.onNodeWithText(text(R.string.reservation_details_title)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.reservation_status_completed)).assertExists()
+        compose.onNodeWithText(text(R.string.reservation_status_confirmed)).assertDoesNotExist()
     }
 
     @Test fun detailsSheetShowsEntrantDatesAndStatus() {

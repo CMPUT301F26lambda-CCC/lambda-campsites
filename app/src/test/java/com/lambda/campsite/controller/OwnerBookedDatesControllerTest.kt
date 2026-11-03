@@ -12,11 +12,18 @@ import com.lambda.campsite.model.Reservation
 import com.lambda.campsite.model.ReservationStatus
 import com.lambda.campsite.model.repository.FakeCampsiteRepository
 import com.lambda.campsite.model.repository.FakeReservationRepository
+import com.lambda.campsite.model.repository.CampsiteRepository
+import com.lambda.campsite.model.repository.ReservationRepository
 import com.lambda.campsite.testutil.MainDispatcherRule
 import java.time.LocalDate
 import java.time.YearMonth
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -93,5 +100,54 @@ class OwnerBookedDatesControllerTest {
         assertEquals(setOf(secondNight), controller.state.value.bookedThisMonth)
         controller.onBookedDateSelected(secondNight)
         assertEquals(secondBooking.id, controller.state.value.selectedReservation?.id)
+    }
+
+    @Test fun `selected campsite stays loading until both calendar streams arrive`() {
+        val second = camp.copy(id = "site-2", name = "Cedar Point")
+        val secondNight = firstNight.plusDays(5)
+        val secondCalendar = calendar.copy(bookedNights = setOf(secondNight))
+        val secondBooking = booking.copy(id = "booking-2", campsiteId = second.id,
+            campsiteName = second.name, checkIn = secondNight, checkOut = secondNight.plusDays(1))
+        val campsiteGate = CompletableDeferred<Unit>()
+        val reservationGate = CompletableDeferred<Unit>()
+        val baseCampsites = FakeCampsiteRepository(initial = listOf(camp, second),
+            initialCalendars = mapOf(camp.id to calendar))
+        val baseReservations = FakeReservationRepository(initial = listOf(booking))
+        val campsites = object : CampsiteRepository by baseCampsites {
+            override fun availability(campsiteId: String): Flow<Availability?> =
+                if (campsiteId == second.id) flow {
+                    campsiteGate.await()
+                    emit(secondCalendar)
+                } else baseCampsites.availability(campsiteId)
+        }
+        val reservations = object : ReservationRepository by baseReservations {
+            override fun campsiteReservations(campsiteId: String): Flow<List<Reservation>> =
+                if (campsiteId == second.id) flow {
+                    reservationGate.await()
+                    emit(listOf(secondBooking))
+                } else baseReservations.campsiteReservations(campsiteId)
+        }
+        val controller = OwnerBookedDatesController(camp.id, campsites, reservations, july)
+
+        assertFalse(controller.state.value.isLoading)
+        controller.onCampsiteSelected(second.id)
+        assertTrue(controller.state.value.isLoading)
+        assertNull(controller.state.value.availability)
+        campsiteGate.complete(Unit)
+        assertTrue(controller.state.value.isLoading)
+        reservationGate.complete(Unit)
+        assertFalse(controller.state.value.isLoading)
+        assertEquals(setOf(secondNight), controller.state.value.bookedThisMonth)
+        assertEquals(secondBooking, controller.state.value.reservations.single())
+    }
+
+    @Test fun `available nights require a configured season and exclude checkout and booked dates`() {
+        val state = OwnerBookedDatesUiState(availability = calendar)
+        assertFalse(state.isAvailableNight(calendar.seasonStart.minusDays(1)))
+        assertTrue(state.isAvailableNight(calendar.seasonStart))
+        assertFalse(state.isAvailableNight(firstNight))
+        assertTrue(state.isAvailableNight(calendar.seasonEnd.minusDays(1)))
+        assertFalse(state.isAvailableNight(calendar.seasonEnd))
+        assertFalse(state.copy(availability = null).isAvailableNight(firstNight.plusDays(5)))
     }
 }

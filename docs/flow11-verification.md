@@ -11,9 +11,9 @@ and owner stories #31 to #34. The existing reservation backend from #108 is reus
 
 | Story | Requirement | Implementation and verification |
 | --- | --- | --- |
-| #31 | View booked dates for one owned campsite, switch months, open a booked night, and see live changes or the exact empty message | The campsite details action opens `OwnerBookedDatesScreen`. `OwnerBookedDatesController` combines campsite, availability and reservation listeners. Its unit tests cover month navigation and cancellation. The Compose tests cover selection and the empty message. The real app emulator test opens a booked night and observes the calendar after cancellation. |
+| #31 | View booked dates for one owned campsite, switch months, open a booked night, and see live changes or the exact empty message | The campsite details action opens `OwnerBookedDatesScreen`. `OwnerBookedDatesController` combines campsite, availability and reservation listeners. Its unit tests cover month navigation, cancellation, the two-stream loading state, and season boundaries. The Compose tests cover selection, loading, date announcements, and the empty message. The real app emulator test opens a booked night and observes the calendar after cancellation. |
 | #32 | View active reservations across owned campsites, with campsite, entrant, dates and full details | Owner Home links to the Active tab. `Reservation.isActive` classifies confirmed future and ongoing stays. The real app emulator test verifies the owner-scoped query and details sheet. |
-| #33 | View completed reservations only, with details | The Past tab uses `Reservation.isCompleted`; unit and Compose tests exclude active, cancelled and rejected stays. The real app emulator test opens the Past tab. |
+| #33 | View completed reservations only, with details | The Past tab uses `Reservation.isCompleted`; unit and Compose tests exclude active, cancelled and rejected stays. Card and details sheet use the same completed status, checked by a Compose regression test. The real app emulator test opens the Past tab. |
 | #34 | Retain cancelled reservations after their nights become free; show the exact empty message | The Cancelled tab retains `CANCELLED` records and also shows `REJECTED` records, as in the Figma mockup. Unit and Compose tests cover grouping and the empty state. The real app emulator test checks a seeded cancelled reservation. |
 
 ## Figma alignment
@@ -34,8 +34,8 @@ after merging the latest `main` into this branch.
 
 ## Local verification
 
-- `assembleDebug`, `testDebugUnitTest` and `assembleDebugAndroidTest` passed after Figma alignment and merging the latest `main`. The unit suite contained 182 tests with no failures.
-- Five isolated Flow 11 Compose tests passed on the Android emulator.
+- `assembleDebug`, `testDebugUnitTest` and `assembleDebugAndroidTest` passed after Figma alignment, merging the latest `main`, and the review fixes. The unit suite contained 184 tests with no failures.
+- Eight isolated Flow 11 Compose tests passed on the Android emulator, including loading after a campsite switch, season and no-season announcements, and the completed status in the card and details sheet.
 - One real app Flow 11 test passed against local Auth and Firestore emulators. It covers owner navigation, active/past/cancelled lists, owner-only results, reservation details, changing between two owned campsite calendars, a booked date and a live cancellation update.
 - The real app test refuses any Firestore host except the local emulator and seeds only fictional profiles and campsites.
 

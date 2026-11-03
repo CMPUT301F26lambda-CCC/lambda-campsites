@@ -124,26 +124,41 @@ fun OwnerBookedDatesContent(
                     .padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     CampsiteSelector(state, onCampsiteSelected)
-                    Surface(shape = RoundedCornerShape(16.dp), color = Flow11Colors.card) {
-                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            MonthPicker(state.month, onPreviousMonth, onNextMonth)
-                            CalendarMonth(state.month, state.bookedThisMonth, onBookedDateSelected)
-                            Text(stringResource(if (state.bookedThisMonth.isEmpty()) R.string.calendar_empty_hint
-                                else R.string.calendar_booked_hint), style = MaterialTheme.typography.labelSmall,
-                                color = Flow11Colors.secondaryText)
+                    if (state.isLoading) {
+                        Box(Modifier.fillMaxWidth().height(240.dp), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                CircularProgressIndicator(color = Flow11Colors.header)
+                                Text(stringResource(R.string.calendar_loading),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                            }
                         }
+                    } else {
+                        Surface(shape = RoundedCornerShape(16.dp), color = Flow11Colors.card) {
+                            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                MonthPicker(state.month, onPreviousMonth, onNextMonth)
+                                CalendarMonth(state, onBookedDateSelected)
+                                Text(stringResource(if (state.bookedThisMonth.isEmpty()) R.string.calendar_empty_hint
+                                    else R.string.calendar_booked_hint), style = MaterialTheme.typography.labelSmall,
+                                    color = Flow11Colors.secondaryText)
+                            }
+                        }
+                        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            CalendarLegend(Flow11Colors.booked, stringResource(R.string.booked_legend))
+                            if (state.availability?.hasValidSeason() == true) {
+                                CalendarLegend(Flow11Colors.field, stringResource(R.string.available_legend))
+                            }
+                            CalendarLegend(Flow11Colors.outsideSeason, stringResource(R.string.unavailable_legend))
+                        }
+                        Text(
+                            stringResource(if (state.bookedThisMonth.isEmpty()) R.string.no_bookings_this_month else R.string.calendar_updates),
+                            modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
+                            style = MaterialTheme.typography.bodyMedium, color = Flow11Colors.secondaryText,
+                            textAlign = if (state.bookedThisMonth.isEmpty()) TextAlign.Center else TextAlign.Start,
+                        )
                     }
-                    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(28.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        CalendarLegend(Flow11Colors.booked, stringResource(R.string.booked_legend))
-                        CalendarLegend(Flow11Colors.field, stringResource(R.string.available_legend))
-                    }
-                    Text(
-                        stringResource(if (state.bookedThisMonth.isEmpty()) R.string.no_bookings_this_month else R.string.calendar_updates),
-                        modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
-                        style = MaterialTheme.typography.bodyMedium, color = Flow11Colors.secondaryText,
-                        textAlign = if (state.bookedThisMonth.isEmpty()) TextAlign.Center else TextAlign.Start,
-                    )
                 }
             }
         }
@@ -200,7 +215,9 @@ private fun MonthPicker(month: YearMonth, onPrevious: () -> Unit, onNext: () -> 
 
 /** Seven-column month. A peach day is a 48 dp action with its full date announced. */
 @Composable
-private fun CalendarMonth(month: YearMonth, booked: Set<LocalDate>, onBookedDateSelected: (LocalDate) -> Unit) {
+private fun CalendarMonth(state: OwnerBookedDatesUiState, onBookedDateSelected: (LocalDate) -> Unit) {
+    val month = state.month
+    val booked = state.bookedThisMonth
     val firstOffset = month.atDay(1).dayOfWeek.value - DayOfWeek.MONDAY.value
     val weeks = (firstOffset + month.lengthOfMonth() + 6) / 7
     val dateFormat = DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL)
@@ -222,10 +239,19 @@ private fun CalendarMonth(month: YearMonth, booked: Set<LocalDate>, onBookedDate
                     } else {
                         val date = month.atDay(dayNumber)
                         val isBooked = date in booked
-                        val label = stringResource(if (isBooked) R.string.booked_date_description
-                            else R.string.available_date_description, date.format(dateFormat))
+                        val isAvailable = state.isAvailableNight(date)
+                        val label = stringResource(when {
+                            isBooked -> R.string.booked_date_description
+                            state.availability == null -> R.string.no_season_date_description
+                            isAvailable -> R.string.available_date_description
+                            else -> R.string.outside_season_date_description
+                        }, date.format(dateFormat))
                         Box(Modifier.weight(1f).height(48.dp)
-                            .background(if (isBooked) Flow11Colors.booked else Color.Transparent, RoundedCornerShape(8.dp))
+                            .background(when {
+                                isBooked -> Flow11Colors.booked
+                                isAvailable -> Color.Transparent
+                                else -> Flow11Colors.outsideSeason
+                            }, RoundedCornerShape(8.dp))
                             .then(if (isBooked) Modifier.clickable(role = Role.Button) { onBookedDateSelected(date) } else Modifier)
                             .semantics { contentDescription = label }, contentAlignment = Alignment.Center) {
                             Text(dayNumber.toString(), style = MaterialTheme.typography.bodyMedium,

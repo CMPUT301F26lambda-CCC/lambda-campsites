@@ -38,6 +38,8 @@
     <string name="choose_campsite">Choose a campsite</string>
     <string name="booked_legend">Booked</string>
     <string name="available_legend">Available</string>
+    <string name="unavailable_legend">Unavailable</string>
+    <string name="calendar_loading">Loading booked dates…</string>
     <string name="calendar_updates">Calendar updates as reservations change.</string>
     <string name="calendar_empty_hint">Use the arrows to browse other months.</string>
     <string name="calendar_booked_hint">Peach dates are booked. Tap one for details.</string>
@@ -47,6 +49,8 @@
     <string name="no_bookings_this_month">No bookings for this month.</string>
     <string name="booked_date_description">%1$s, booked. Double tap for reservation details.</string>
     <string name="available_date_description">%1$s, available.</string>
+    <string name="outside_season_date_description">%1$s, outside the campsite season.</string>
+    <string name="no_season_date_description">%1$s, season not configured.</string>
     <plurals name="flow11_reservation_count">
         <item quantity="one">%1$d reservation</item>
         <item quantity="other">%1$d reservations</item>
