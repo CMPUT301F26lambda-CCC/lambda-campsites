@@ -28,4 +28,12 @@
     <string name="flow8_today">Today</string>
     <string name="flow8_earlier">Earlier</string>
     <string name="flow8_result_title">Lottery result</string>
+    <string name="flow8_result_failed">Could not load this lottery. Retry to see its booking options.</string>
+    <string name="flow8_stay_period">Stay dates you can book</string>
+    <string name="flow8_registration">Registration period</string>
+    <string name="flow8_opened">Opened: %1$s</string>
+    <string name="flow8_closed">Closed: %1$s</string>
+    <string name="flow8_accept">Accept and choose dates</string>
+    <string name="flow8_view_booking">View reservation</string>
+    <string name="flow8_legacy">Booking details are unavailable for this older or removed lottery. Your original notification is shown below.</string>
 </resources>

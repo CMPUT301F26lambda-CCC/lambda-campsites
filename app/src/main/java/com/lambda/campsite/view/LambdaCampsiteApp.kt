@@ -1,4 +1,5 @@
 /*
+ * Flow 8: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted with inbox and booking routing; human review pending.
  * Last updated: 2026-11-03 (Flow 9; Lalith Valluru).
  * OpenAI GPT-6 (OpenAI), through Codex, assisted with the winner booking route; human review pending.
  * Outstanding issues: Flow 12 shared-project navigation verification remains pending (#129).
@@ -83,10 +84,13 @@ import com.lambda.campsite.controller.WinnerBookingController
 import com.lambda.campsite.controller.WinnerOffersController
 import com.lambda.campsite.view.screens.WinnerBookingScreen
 import com.lambda.campsite.view.screens.WinnerOffersScreen
+import com.lambda.campsite.controller.NotificationController
+import com.lambda.campsite.view.screens.InboxScreen
 
 /** Entrant pushed routes retain Home selection and the selected campsite's parent state. */
 private const val ENTRANT_DETAILS_ROUTE = "entrant/home/details/{campsiteId}"
 private const val WINNER_BOOKING_ROUTE = "entrant/reservations/book/{lotteryId}"
+private const val ENTRANT_INBOX_ROUTE = "entrant/home/inbox"
 private const val ENTRANT_LOTTERY_ROUTE = "entrant/home/details/{campsiteId}/lottery/{lotteryId}"
 
 /** Owner campsite routes keep the Campsites tab selected. */
@@ -195,7 +199,11 @@ fun LambdaCampsiteApp(
                         when (tab) {
                             AppTab.ENTRANT_HOME -> {
                                 val searchController: SearchController = viewModel(factory = SearchController.Factory)
-                                SearchScreen(searchController, profileName = state.profile?.name, onCampsiteClick = { campsiteId ->
+                                val notifications: NotificationController = viewModel(factory = NotificationController.Factory)
+                                val notices by notifications.state.collectAsStateWithLifecycle()
+                                SearchScreen(searchController, profileName = state.profile?.name,
+                                    onInbox = { navController.navigate(ENTRANT_INBOX_ROUTE) { launchSingleTop = true } },
+                                    unreadCount = notices.unreadCount, onCampsiteClick = { campsiteId ->
                                     navController.navigate("entrant/home/details/${Uri.encode(campsiteId)}")
                                 })
                             }
@@ -217,6 +225,14 @@ fun LambdaCampsiteApp(
                             else -> PlaceholderScreen(tab)
                         }
                     }
+                }
+
+                composable(ENTRANT_INBOX_ROUTE) {
+                    val notifications: NotificationController = viewModel(factory = NotificationController.Factory)
+                    InboxScreen(notifications, onBack = { navController.popBackStack() },
+                        onBrowse = { navController.popBackStack(AppTab.ENTRANT_HOME.route, false) },
+                        onAccept = { id -> navController.navigate("entrant/reservations/book/${Uri.encode(id)}") },
+                        onCampsite = { id -> navController.navigate("entrant/home/details/${Uri.encode(id)}") })
                 }
 
                 composable(WINNER_BOOKING_ROUTE,

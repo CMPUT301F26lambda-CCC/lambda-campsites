@@ -1,6 +1,7 @@
 /*
  * Purpose: Flow 8 inbox state, notice selection and read acknowledgements (US 01.03.01/.02).
- * Outstanding issues: booking navigation awaits a shared booking screen; legacy notices may have no lottery ID.
+ * Feature owner: Lalith Valluru. Last updated: 2026-11-03.
+ * Outstanding issues: legacy notices may have no source lottery ID (#125).
  * AI use: OpenAI GPT-6 through Codex assisted with state, error handling and KDoc; human review pending.
  */
 package com.lambda.campsite.controller

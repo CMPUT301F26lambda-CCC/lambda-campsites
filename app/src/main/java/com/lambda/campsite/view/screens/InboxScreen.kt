@@ -1,6 +1,7 @@
 /*
  * Purpose: Flow 8 in-app inbox and win/lose notice details (US 01.03.01/.02).
- * Outstanding issues: manual TalkBack/visual review and booking deep links need later verification.
+ * Feature owner: Lalith Valluru. Last updated: 2026-11-03.
+ * Outstanding issues: manual TalkBack/device review remains pending (#125).
  * AI use: OpenAI GPT-6 through Codex assisted with Compose UI, navigation callbacks and KDoc; human review pending.
  */
 package com.lambda.campsite.view.screens
@@ -23,6 +24,14 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.foundation.rememberScrollState
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.lambda.campsite.controller.WinnerBookingController
+import com.lambda.campsite.controller.WinnerBookingUiState
+import com.lambda.campsite.controller.WinnerBookingStep
+import com.lambda.campsite.view.components.CampsiteSummaryCard
+import com.lambda.campsite.view.components.LotteryCelebrationArtwork
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,11 +68,19 @@ import java.util.Locale
  * @param onBrowse opens campsite browsing, without guessing a lottery ID.
  */
 @Composable
-fun InboxScreen(controller: NotificationController, onBack: () -> Unit, onBrowse: () -> Unit) {
+fun InboxScreen(controller: NotificationController, onBack: () -> Unit, onBrowse: () -> Unit,
+    onAccept: (String) -> Unit = {}, onCampsite: (String) -> Unit = {}) {
     val state by controller.state.collectAsStateWithLifecycle()
-    BackHandler(enabled = state.selectedId != null) { controller.onBackToInbox() }
+    val lotteryId = state.selected?.lotteryId
+    val resultController: WinnerBookingController? = if (lotteryId != null) viewModel(
+        key = "notice-result-${state.selectedId}", factory = WinnerBookingController.createFactory(lotteryId)) else null
+    val result = resultController?.state?.collectAsStateWithLifecycle()?.value
+    BackHandler(enabled = state.selectedId != null) { if (result?.saving != true) controller.onBackToInbox() }
     InboxContent(state, controller::onOpen, controller::onRetry, controller::onRetryMarkRead,
-        controller::onErrorShown, controller::onBackToInbox, onBack, onBrowse)
+        controller::onErrorShown, controller::onBackToInbox, onBack, onBrowse, result,
+        onAccept = { if (lotteryId != null) onAccept(lotteryId) }, onCampsite = onCampsite,
+        onRetryResult = { resultController?.onRetry() }, onDecline = { resultController?.onRequestDecline() },
+        onCancelDecline = { resultController?.onCancelDecline() }, onConfirmDecline = { resultController?.onConfirmDecline() })
 }
 
 /**
@@ -82,6 +99,8 @@ fun InboxContent(
     state: NotificationUiState, onOpen: (String) -> Unit, onRetry: () -> Unit,
     onRetryRead: () -> Unit, onDismissError: () -> Unit, onBackToInbox: () -> Unit,
     onBack: () -> Unit, onBrowse: () -> Unit,
+    result: WinnerBookingUiState? = null, onAccept: () -> Unit = {}, onCampsite: (String) -> Unit = {},
+    onRetryResult: () -> Unit = {}, onDecline: () -> Unit = {}, onCancelDecline: () -> Unit = {}, onConfirmDecline: () -> Unit = {},
 ) {
     StatusBarIconStyle(darkIcons = false)
     val showingDetail = state.selectedId != null
@@ -113,7 +132,7 @@ fun InboxContent(
                 showingDetail -> {
                     val notice = state.selected
                     if (notice == null) item { Text(stringResource(R.string.flow8_missing)) }
-                    else item { NoticeDetails(notice, notice.id in state.pendingReadIds, onBrowse) }
+                    else item { NoticeDetails(notice, notice.id in state.pendingReadIds, result, onAccept, onCampsite, onRetryResult, onDecline) }
                 }
                 state.notifications.isEmpty() -> item { Text(stringResource(R.string.flow8_empty), Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) }
                 else -> {
@@ -144,19 +163,14 @@ fun InboxContent(
     }
 }
 
-}
+    if (result?.confirmDecline == true) AlertDialog(onDismissRequest = onCancelDecline,
+        title = { Text(stringResource(R.string.flow9_decline_title)) },
+        text = { Column { Text(stringResource(R.string.flow9_decline_body))
+            if (result.error != null) Text(stringResource(R.string.flow9_save_error), color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) } },
+        confirmButton = { TextButton(onClick = onConfirmDecline, enabled = !result.saving) { Text(stringResource(R.string.flow9_decline)) } },
+        dismissButton = { TextButton(onClick = onCancelDecline, enabled = !result.saving) { Text(stringResource(R.string.flow9_cancel)) } })
 
-/**
- * Temporary Home header entry while Home still uses the main branch's placeholder.
- * The bell callback can move to the real search header after Flow 6 merges.
- * @param onOpenInbox opens the pushed Notifications route without changing bottom tabs.
- */
-@Composable
-fun InboxHomePlaceholder(onOpenInbox: () -> Unit) {
-    StatusBarIconStyle(darkIcons = false)
-    Scaffold(topBar = { NoticeHeader(stringResource(R.string.tab_home), onOpenInbox = onOpenInbox) }) { padding ->
-        PlaceholderScreen(AppTab.ENTRANT_HOME, Modifier.padding(padding).consumeWindowInsets(padding))
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -215,44 +229,19 @@ private fun NoticeRow(notice: Notification, today: Boolean, onOpen: () -> Unit) 
     }
 }
 
-@Composable
-private fun WinnerArtwork() {
-    // Original Figma artwork exports, positioned relative to the 412dp reference hero.
-    BoxWithConstraints(Modifier.fillMaxWidth().height(164.dp)) {
-        val scale = maxWidth.value / 412f
-        Image(painterResource(R.drawable.flow8_art_2702), null,
-            Modifier.offset((81f * scale).dp, (-59f * scale).dp).size((250f * scale).dp))
-        Image(painterResource(R.drawable.flow8_art_2691), null,
-            Modifier.offset((148f * scale).dp, (8f * scale).dp).size((116f * scale).dp, (122f * scale).dp).clip(CircleShape))
-        val pieces = listOf(
-            Triple(R.drawable.flow8_art_2703, 44f, 18f), Triple(R.drawable.flow8_art_2704, 86f, 54f),
-            Triple(R.drawable.flow8_art_2705, 62f, 104f), Triple(R.drawable.flow8_art_2706, 30f, 150f),
-            Triple(R.drawable.flow8_art_2707, 120f, 12f), Triple(R.drawable.flow8_art_2708, 104f, 136f),
-            Triple(R.drawable.flow8_art_2709, 140f, 70f), Triple(R.drawable.flow8_art_2710, 368f, 22f),
-            Triple(R.drawable.flow8_art_2711, 326f, 60f), Triple(R.drawable.flow8_art_2712, 350f, 108f),
-            Triple(R.drawable.flow8_art_2713, 380f, 150f), Triple(R.drawable.flow8_art_2714, 292f, 14f),
-            Triple(R.drawable.flow8_art_2715, 306f, 132f), Triple(R.drawable.flow8_art_2716, 274f, 76f),
-            Triple(R.drawable.flow8_art_2717, 20f, 76f), Triple(R.drawable.flow8_art_2718, 392f, 80f))
-        val renderBounds = listOf(floatArrayOf(39.775f,18.563f,9.301f,14.082f), floatArrayOf(86f,54f,7f,7f), floatArrayOf(62f,104f,14f,14f), floatArrayOf(30.785f,147.344f,11.374f,13.339f), floatArrayOf(120f,12f,14f,14f), floatArrayOf(94.093f,136.817f,12.946f,11.960f), floatArrayOf(140f,70f,7f,7f), floatArrayOf(368.657f,20.122f,10.040f,13.909f), floatArrayOf(326f,60f,7f,7f), floatArrayOf(350f,108f,14f,14f), floatArrayOf(372.755f,150.785f,11.374f,13.339f), floatArrayOf(292f,14f,14f,14f), floatArrayOf(306.732f,127.536f,13.661f,10.732f), floatArrayOf(274f,76f,7f,7f), floatArrayOf(20f,76f,7f,7f), floatArrayOf(392f,80f,7f,7f))
-        pieces.forEachIndexed { index, (art, _, _) ->
-            val (x, y, w, h) = renderBounds[index]
-            Image(painterResource(art), null, Modifier.offset((x * scale).dp, (y * scale).dp)
-                .size((w * scale).dp, (h * scale).dp), contentScale = ContentScale.Fit)
-        }
-    }
-}
 
 @Composable
-private fun NoticeDetails(notice: Notification, pending: Boolean, onBrowse: () -> Unit) {
+private fun NoticeDetails(notice: Notification, pending: Boolean, result: WinnerBookingUiState?,
+    onAccept: () -> Unit, onCampsite: (String) -> Unit, onRetry: () -> Unit, onDecline: () -> Unit) {
     val won = notice.type == NotificationType.WIN
     Column(Modifier.fillMaxWidth().background(if (won) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer)) {
         if (won) Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primary).padding(top = 8.dp, bottom = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            WinnerArtwork()
+            LotteryCelebrationArtwork()
             Text(stringResource(R.string.flow8_won), color = MaterialTheme.colorScheme.onPrimary,
                 fontFamily = FontFamily(Font(R.font.fraunces, weight = FontWeight.SemiBold)), fontWeight = FontWeight.SemiBold, fontSize = 34.sp, lineHeight = 40.sp,
                 modifier = Modifier.semantics { heading() })
-            if (notice.title.isNotBlank()) Text(notice.title, color = MaterialTheme.colorScheme.primaryContainer,
+            if (notice.title.isNotBlank()) Text(result?.lottery?.name ?: notice.title, color = MaterialTheme.colorScheme.primaryContainer,
                 style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 24.dp))
         }
@@ -267,6 +256,44 @@ private fun NoticeDetails(notice: Notification, pending: Boolean, onBrowse: () -
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
                 }
                 if (!won) HorizontalDivider(color = InboxOutline)
+                if (result?.isLoading == true) CircularProgressIndicator()
+                else if (result?.loadFailed == true) {
+                    Text(stringResource(R.string.flow8_result_failed))
+                    OutlinedButton(onClick = onRetry) { Text(stringResource(R.string.flow9_retry)) }
+                } else if (result?.lottery != null) {
+                    val lottery = result.lottery
+                    if (!won) Text(lottery.name, style = MaterialTheme.typography.titleLarge)
+                    result.sites.forEach { site ->
+                        val camp = site.campsite
+                        if (camp == null) Text(stringResource(R.string.flow9_site_missing))
+                        else if (won) CampsiteSummaryCard(camp.name, camp.location, camp.maxOccupancy, camp.averageRating, camp.ratingCount,
+                            onDetails = { onCampsite(camp.id) })
+                        else Text("${camp.name} · ${camp.location}")
+                    }
+                    if (won) {
+                        Text(stringResource(R.string.flow8_stay_period), style = MaterialTheme.typography.labelMedium)
+                        Text("${lottery.stayStart.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))} – ${lottery.stayEnd.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))}")
+                        when {
+                            result.step == WinnerBookingStep.DECLINED -> Text(stringResource(R.string.flow9_declined),
+                                Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                            result.step == WinnerBookingStep.CONFIRMED -> TextButton(onClick = onAccept) { Text(stringResource(R.string.flow8_view_booking)) }
+                            result.canBook -> {
+                                Button(onClick = onAccept, enabled = !result.saving, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                                    Text(stringResource(R.string.flow8_accept))
+                                }
+                                TextButton(onClick = onDecline, enabled = !result.saving, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                                    Text(stringResource(R.string.flow9_decline), color = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                            else -> Text(stringResource(R.string.flow9_winner_only))
+                        }
+                    } else {
+                        Text(stringResource(R.string.flow8_registration), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+                        val dateFormat = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT).withZone(ZoneId.systemDefault())
+                        Text(stringResource(R.string.flow8_opened, dateFormat.format(lottery.registrationOpens.toDate().toInstant())))
+                        Text(stringResource(R.string.flow8_closed, dateFormat.format(lottery.registrationCloses.toDate().toInstant())))
+                    }
+                } else if (notice.type == NotificationType.WIN || notice.type == NotificationType.LOSE) Text(stringResource(R.string.flow8_legacy))
                 Text(notice.body.ifBlank { stringResource(R.string.flow8_no_body) }, style = MaterialTheme.typography.bodyMedium)
                 Text(sentAt(notice), style = MaterialTheme.typography.labelSmall, color = InboxSecondaryText)
                 Text(stringResource(if (notice.read) R.string.flow8_read else R.string.flow8_unread),
