@@ -13,21 +13,31 @@
  */
 package com.lambda.campsite.model.repository
 
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.firebase.Firebase
+import com.google.firebase.FirebaseApp
 import com.google.firebase.Timestamp
+import com.google.firebase.app
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.firestore
+import com.google.firebase.initialize
 import com.lambda.campsite.model.Conversation
 import com.lambda.campsite.model.Message
 import com.lambda.campsite.testutil.FirestoreEmulator
+import com.lambda.campsite.testutil.LambdaTestRunner
 import com.lambda.campsite.testutil.signInAsNewUser
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
@@ -36,7 +46,6 @@ import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import androidx.test.ext.junit.runners.AndroidJUnit4
 
 /**
  * Tests [FirestoreConversationRepository] against the Firestore emulator
@@ -138,6 +147,68 @@ class FirestoreConversationRepositoryTest {
     }
 
     @Test
+    fun sendingAsTheOwnerUpdatesThePreviewAndTheGuestsUnreadCount() {
+        runBlocking { withTimeout(TIMEOUT_MS) { repository.sendMessage("mine", "What time should we arrive?") } }
+
+        val saved = requireNotNull(conversationOnServer("mine"))
+        assertEquals("What time should we arrive?", saved.lastMessage)
+        assertEquals(1, saved.guestUnreadCount)
+        assertEquals(0, saved.ownerUnreadCount)
+        assertEventuallySends(listOf("What time should we arrive?"), mapToText(repository.messages("mine")))
+    }
+
+    @Test
+    fun aSecondMessageAddsToTheUnreadCountInstead() {
+        runBlocking {
+            withTimeout(TIMEOUT_MS) {
+                repository.sendMessage("mine", "one")
+                repository.sendMessage("mine", "two")
+            }
+        }
+
+        assertEquals(2, conversationOnServer("mine")?.guestUnreadCount)
+    }
+
+    @Test
+    fun sendingBeforeTheConversationIsOpenIsRefused() {
+        setUpReservation("fresh", ownerId = uid, guestId = "guest-9")
+
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { withTimeout(TIMEOUT_MS) { repository.sendMessage("fresh", "hi") } }
+        }
+    }
+
+    @Test
+    fun aMessageSentOnOneDeviceShowsUpOnTheOthersDevice() {
+        val (secondAuth, secondFirestore) = secondPhone()
+        val guestUid = runBlocking {
+            secondAuth.signOut()
+            requireNotNull(secondAuth.signInAnonymously().await().user).uid
+        }
+        setUpReservation("shared", ownerId = uid, guestId = guestUid)
+        setUpConversation("shared", ownerId = uid, guestId = guestUid)
+        val secondRepository = FirestoreConversationRepository(secondAuth, secondFirestore, pageSize = 2)
+
+        runBlocking { withTimeout(TIMEOUT_MS) { repository.sendMessage("shared", "See you at noon") } }
+
+        assertEventuallySends(listOf("See you at noon"), mapToText(secondRepository.messages("shared")))
+    }
+
+    private fun mapToText(flow: Flow<List<Message>>): Flow<List<String>> =
+        flow.map { messages -> messages.map { it.text } }
+
+    /** A second Firebase app, so a test can act as a second device signed in as a different user. */
+    private fun secondPhone(): Pair<FirebaseAuth, FirebaseFirestore> {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val app = FirebaseApp.getApps(context).firstOrNull { it.name == SECOND_PHONE }
+            ?: Firebase.initialize(context, Firebase.app.options, SECOND_PHONE).also {
+                Firebase.auth(it).useEmulator(LambdaTestRunner.HOST, LambdaTestRunner.AUTH_PORT)
+                Firebase.firestore(it).useEmulator(LambdaTestRunner.HOST, LambdaTestRunner.FIRESTORE_PORT)
+            }
+        return Firebase.auth(app) to Firebase.firestore(app)
+    }
+
+    @Test
     fun loadingOlderMessagesPastTheOldestReturnsNothing() {
         val oldest = setUpMessage("mine", "oldest", senderId = uid, text = "one", sentAt = Timestamp(1_800_000_000, 0))
 
@@ -202,5 +273,6 @@ class FirestoreConversationRepositoryTest {
 
     private companion object {
         const val TIMEOUT_MS = 10_000L
+        const val SECOND_PHONE = "second-phone"
     }
 }

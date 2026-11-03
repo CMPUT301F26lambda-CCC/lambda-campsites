@@ -14,6 +14,7 @@ package com.lambda.campsite.model.repository
 
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
@@ -107,8 +108,33 @@ class FirestoreConversationRepository(
         }
     }
 
+    /**
+     * Sends [text] as the batch that creates the message and updates the
+     * conversation's preview and the other side's unread count together,
+     * matching what the rules check. The increment is atomic, so this can't
+     * lose a count another send or a read raced it to.
+     */
     override suspend fun sendMessage(reservationId: String, text: String) {
-        TODO("sends a message and updates the conversation's preview and the recipient's unread count")
+        val uid = auth.signedInUserId().first()
+        val conversationRef = conversations.document(reservationId)
+        val conversation = conversationRef.get().await().data?.let { ConversationFields.fromMap(reservationId, it) }
+            ?: error("Can't send a message to $reservationId before its conversation is open.")
+        val recipientField =
+            if (uid == conversation.ownerId) ConversationFields.GUEST_UNREAD_COUNT else ConversationFields.OWNER_UNREAD_COUNT
+        val messageRef = messagesOf(reservationId).document()
+        val message = Message(id = messageRef.id, senderId = uid, text = text, sentAt = Timestamp(0, 0))
+        val batch = firestore.batch()
+        batch.set(messageRef, MessageFields.newMessageFields(message))
+        batch.update(
+            conversationRef,
+            mapOf(
+                ConversationFields.LAST_MESSAGE to text,
+                ConversationFields.LAST_MESSAGE_AT to FieldValue.serverTimestamp(),
+                ConversationFields.LAST_MESSAGE_ID to messageRef.id,
+                recipientField to FieldValue.increment(1),
+            ),
+        )
+        batch.commit().await()
     }
 
     override suspend fun markRead(reservationId: String) {
