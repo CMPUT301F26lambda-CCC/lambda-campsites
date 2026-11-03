@@ -12,6 +12,8 @@
 //   that the others are exactly the nights up to check-out. Rules can't loop
 //   over dates. The app's booking transaction writes the right nights, and
 //   moving booking into a Cloud Function would close the gap.
+// - A message's text has no length limit, so a very long one could still be
+//   stored. No story asks for a cap.
 //
 // AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
 // the profile rules in October 2026, following docs/architecture.md section 4.
@@ -39,6 +41,12 @@
 // Sashreek Addanki add the reservation rules, and fix the profile rule so a
 // profile missing its ownerBanned or removed field can still be saved, on
 // November 2, 2026. Sashreek Addanki reviewed them.
+//
+// The conversation and message rules were coded by Aarush Bhat with the
+// assistance of Claude Sonnet 5 (Anthropic), through Claude Code, in
+// November 2026, following docs/architecture.md section 4 and the
+// reservation and calendar rules' pattern for a paired write. Aarush Bhat
+// reviewed and committed them.
 rules_version = '2';
 
 service cloud.firestore {
@@ -274,6 +282,89 @@ service cloud.firestore {
         && before.toSet().hasAll(after.bookedNights)
         && r.checkIn in removed
         && removed.size() * 86400000 == day(r.checkOut).toMillis() - day(r.checkIn).toMillis();
+    }
+
+    // Every field a conversation has once it's opened. The app always
+    // writes all of them.
+    function conversationFields() {
+      return ['ownerId', 'guestId', 'lastMessage', 'lastMessageAt', 'lastMessageId',
+              'ownerUnreadCount', 'guestUnreadCount'];
+    }
+
+    // The conversation with this reservationId is opened for exactly the
+    // owner and guest that reservation names, with no message in it yet
+    // (US 02.12.01).
+    function opensConversationFor(reservationId, c) {
+      let reservation = get(/databases/$(database)/documents/reservations/$(reservationId)).data;
+      return c.ownerId == reservation.ownerId && c.guestId == reservation.guestId
+        && (request.auth.uid == c.ownerId || request.auth.uid == c.guestId)
+        && c.lastMessage == null && c.lastMessageAt == null && c.lastMessageId == null
+        && c.ownerUnreadCount == 0 && c.guestUnreadCount == 0;
+    }
+
+    // This same write also creates the message that this conversation's
+    // lastMessageId now names, with this text, sent now, by the owner or
+    // the guest, and raises only the other side's unread count by one
+    // (US 02.12.01, 02.12.02). The message's own create rule checks the
+    // other half: that it's the message this conversation now names.
+    function sentMessageUpdatesThisConversation(reservationId, before, after) {
+      let messagePath = /databases/$(database)/documents/conversations/$(reservationId)/messages/$(after.lastMessageId);
+      let message = getAfter(messagePath).data;
+      let sender = message.senderId;
+      let recipientField = sender == before.ownerId ? 'guestUnreadCount' : 'ownerUnreadCount';
+      let senderField = sender == before.ownerId ? 'ownerUnreadCount' : 'guestUnreadCount';
+      return after.lastMessageId is string
+        && !exists(messagePath) && existsAfter(messagePath)
+        && message.text == after.lastMessage
+        && message.sentAt == after.lastMessageAt
+        && (sender == before.ownerId || sender == before.guestId)
+        && after.get(recipientField, 0) == before.get(recipientField, 0) + 1
+        && after.get(senderField, 0) == before.get(senderField, 0);
+    }
+
+    // One chat per reservation, opened empty when the chat screen opens
+    // and filled in by its messages (US 02.12.01, 02.12.02). Only its
+    // owner and guest can read or open it.
+    match /conversations/{reservationId} {
+      allow read: if signedIn()
+        && (resource == null
+            || resource.data.ownerId == request.auth.uid
+            || resource.data.guestId == request.auth.uid);
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(conversationFields())
+        && request.resource.data.keys().hasAll(conversationFields())
+        && opensConversationFor(reservationId, request.resource.data);
+
+      // Either side marks their own unread count read, or this is the
+      // other half of sending a message (US 02.12.02).
+      allow update: if signedIn()
+        && ((resource.data.ownerId == request.auth.uid
+             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerUnreadCount'])
+             && request.resource.data.ownerUnreadCount == 0)
+         || (resource.data.guestId == request.auth.uid
+             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['guestUnreadCount'])
+             && request.resource.data.guestUnreadCount == 0)
+         || sentMessageUpdatesThisConversation(reservationId, resource.data, request.resource.data));
+    }
+
+    // A message in one conversation (US 02.12.01, 02.12.02). Only that
+    // conversation's owner and guest can read or send one. Sending one
+    // only goes through together with the conversation's own update,
+    // which sentMessageUpdatesThisConversation checks.
+    match /conversations/{reservationId}/messages/{messageId} {
+      allow read: if signedIn()
+        && (get(/databases/$(database)/documents/conversations/$(reservationId)).data.ownerId == request.auth.uid
+            || get(/databases/$(database)/documents/conversations/$(reservationId)).data.guestId == request.auth.uid);
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['senderId', 'text', 'sentAt'])
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.sentAt == request.time
+        && request.resource.data.text is string && request.resource.data.text.size() > 0
+        && (request.auth.uid == get(/databases/$(database)/documents/conversations/$(reservationId)).data.ownerId
+            || request.auth.uid == get(/databases/$(database)/documents/conversations/$(reservationId)).data.guestId)
+        && getAfter(/databases/$(database)/documents/conversations/$(reservationId)).data.lastMessageId == messageId;
     }
 
     // One profile per install. The document ID is its Firebase Auth user ID
