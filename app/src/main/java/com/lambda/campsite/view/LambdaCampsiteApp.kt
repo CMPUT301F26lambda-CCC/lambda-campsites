@@ -11,6 +11,8 @@
  * added in November 2026 with GLM 5.3 Flash (Z.ai), through OpenCode, at
  * Raghav Sethi's request.
  */
+// OpenAI GPT-6 through Codex assisted with Flow 6 entrant search/details routing.
+// Human review is pending; existing owner navigation is preserved.
 package com.lambda.campsite.view
 
 import android.net.Uri
@@ -49,6 +51,8 @@ import com.lambda.campsite.controller.OwnerCampsiteAddController
 import com.lambda.campsite.controller.OwnerCampsiteDetailsController
 import com.lambda.campsite.controller.OwnerCampsiteEditController
 import com.lambda.campsite.controller.OwnerCampsiteListController
+import com.lambda.campsite.controller.SearchController
+import com.lambda.campsite.controller.CampsiteController
 import com.lambda.campsite.controller.ProfileController
 import com.lambda.campsite.model.Role
 import com.lambda.campsite.view.screens.CampsiteQrCodeScreen
@@ -58,9 +62,13 @@ import com.lambda.campsite.view.screens.OwnerCampsiteDetailsScreen
 import com.lambda.campsite.view.screens.OwnerCampsiteEditScreen
 import com.lambda.campsite.view.screens.OwnerCampsiteListScreen
 import com.lambda.campsite.view.screens.PlaceholderScreen
+import com.lambda.campsite.view.screens.SearchScreen
+import com.lambda.campsite.view.screens.CampsiteScreen
 import com.lambda.campsite.view.screens.ProfileScreen
 
 /** Routes below a tab's route, keeping the nav bar's tab selected. */
+private const val ENTRANT_DETAILS_ROUTE = "entrant/home/details/{campsiteId}"
+
 private const val OWNER_ADD_ROUTE = "owner/campsites/add"
 private const val OWNER_DETAILS_ROUTE = "owner/campsites/details/{campsiteId}"
 private const val OWNER_EDIT_ROUTE = "owner/campsites/edit/{campsiteId}"
@@ -157,11 +165,29 @@ fun LambdaCampsiteApp(
                 AppTab.entries.forEach { tab ->
                     composable(tab.route) {
                         when (tab) {
+                            AppTab.ENTRANT_HOME -> {
+                                val searchController: SearchController = viewModel(factory = SearchController.Factory)
+                                SearchScreen(searchController, onCampsiteClick = { campsiteId ->
+                                    navController.navigate("entrant/home/details/${Uri.encode(campsiteId)}")
+                                })
+                            }
                             AppTab.PROFILE -> ProfileScreen(profileController)
                             AppTab.OWNER_CAMPSITES -> OwnerCampsitesList(navController)
                             else -> PlaceholderScreen(tab)
                         }
                     }
+                }
+
+                composable(
+                    ENTRANT_DETAILS_ROUTE,
+                    arguments = listOf(navArgument("campsiteId") { type = NavType.StringType }),
+                ) { entry ->
+                    val campsiteId = requireNotNull(entry.arguments?.getString("campsiteId"))
+                    val campsiteController: CampsiteController = viewModel(
+                        key = "entrant-details-$campsiteId",
+                        factory = CampsiteController.createFactory(campsiteId),
+                    )
+                    CampsiteScreen(campsiteController, onBack = { navController.popBackStack() })
                 }
 
                 composable(OWNER_ADD_ROUTE) { entry ->
