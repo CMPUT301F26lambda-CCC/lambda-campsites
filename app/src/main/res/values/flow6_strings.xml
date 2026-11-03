@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- OpenAI GPT-6 through Codex assisted with Flow 6 text; human review pending. -->
+<resources>
+    <string name="flow6_find_title">Find a campsite</string>
+    <string name="flow6_search_label">Search campsites</string>
+    <string name="flow6_loading">Loading campsite information…</string>
+    <string name="flow6_empty">No published campsites are available yet.</string>
+    <string name="flow6_no_matches">No campsites match your search. Try a different name or keyword.</string>
+    <string name="flow6_result_count">%1$d campsites found</string>
+    <string name="flow6_max_guests">Maximum occupancy: %1$d guests</string>
+    <string name="flow6_rating">%1$.1f out of 5 stars · %2$d ratings</string>
+    <string name="flow6_load_failed">Could not load campsite information. Check your connection and retry.</string>
+    <string name="flow6_retry">Retry loading campsites</string>
+    <string name="flow6_back">Back to campsite search</string>
+    <string name="flow6_not_available">This campsite is no longer available.</string>
+    <string name="flow6_photo_placeholder">Campsite photo placeholder</string>
+    <string name="flow6_no_season">The owner has not set a season yet.</string>
+    <string name="flow6_season">Season: %1$s – %2$s. Individual nights may already be booked.</string>
+    <string name="flow6_rules">Rules and cancellation policy</string>
+    <string name="flow6_coordinates">Latitude %1$.5f, longitude %2$.5f</string>
+</resources>
