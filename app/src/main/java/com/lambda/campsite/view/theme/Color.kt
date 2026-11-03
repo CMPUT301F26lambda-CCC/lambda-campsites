@@ -36,3 +36,22 @@ val NightGreenSurface = Color(0xFF16241F)
 val LightSageGreen = Color(0xFFCDE8D5)
 val DarkText = Color(0xFF263D35)
 val PureWhite = Color(0xFFFFFFFF)
+
+// Flow 6/7 Figma reading surfaces. Lalith Valluru, 2026-11-03 (#149).
+// OpenAI GPT-6 through Codex assisted with token mapping; human review pending.
+/** Schemes/On Surface. */
+val CampOnSurface = Color(0xFF12241D)
+/** Schemes/On Surface Variant. */
+val CampSecondaryText = Color(0xFF2F4A40)
+/** Schemes/Surface Container High: cards and dialogs. */
+val CampSurfaceHigh = Color(0xFFE6F4EB)
+/** Schemes/Surface Container Highest: inputs and neutral chips. */
+val CampField = Color(0xFFEEF8F1)
+/** Schemes/Outline Variant. */
+val CampOutline = Color(0xFF9EC2AE)
+/** Schemes/Secondary Container: positive status and tonal actions. */
+val CampPositive = Color(0xFFA8D5BA)
+/** Schemes/On Secondary Container. */
+val CampOnPositive = Color(0xFF12301F)
+/** Brand/Gold: rating stars. */
+val CampGold = Color(0xFFE9A23B)

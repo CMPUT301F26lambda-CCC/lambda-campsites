@@ -8,6 +8,9 @@
   Claude Opus 5.5 (Anthropic), used through Claude Code, also helped Sashreek
   Addanki add the push notification channel strings on November 1, 2026.
   Sashreek Addanki reviewed them.
+  Lalith Valluru, 2026-11-03 (#149): OpenAI GPT-6 (OpenAI), through Codex,
+  assisted with entrant search/registration text and resource consolidation.
+  Follow-up human review remains pending; no known outstanding text issues.
 -->
 <resources>
     <string name="app_name">Lambda Campsite</string>
@@ -149,4 +152,93 @@
     <!--Error loading the profile-->
     <string name="profile_load_failed">We couldn\'t load your profile. Check your connection and restart the app.</string>
 
+
+    <!-- Entrant search and lottery text; Lalith Valluru, 2026-11-03 (#149).
+         OpenAI GPT-6 (OpenAI), through Codex, assisted; human review pending. -->
+<string name="entrant_campsite_find_title">Search for Campsites</string>
+    <string name="entrant_campsite_search_action">Search</string>
+    <string name="entrant_campsite_clear_search">Clear search query</string>
+    <string name="entrant_campsite_clear_results">Clear search</string>
+    <string name="entrant_campsite_view_details">View details</string>
+    <string name="entrant_campsite_join_active">Join active lottery</string>
+    <string name="entrant_campsite_no_active">No active lottery is available for this campsite.</string>
+    <string name="entrant_campsite_lottery_details">View lottery details</string>
+    <plurals name="campsite_result_count">
+        <item quantity="one">%1$d campsite found</item>
+        <item quantity="other">%1$d campsites found</item>
+    </plurals>
+    <plurals name="campsite_rating_count">
+        <item quantity="one">%1$.1f out of 5 stars · %2$d rating</item>
+        <item quantity="other">%1$.1f out of 5 stars · %2$d ratings</item>
+    </plurals>
+    <string name="entrant_campsite_search_label">Search campsites</string>
+    <string name="entrant_campsite_loading">Loading campsite information…</string>
+    <string name="entrant_campsite_empty">No published campsites are available yet.</string>
+    <string name="entrant_campsite_no_matches">No campsites match your search. Try a different name or keyword.</string>
+    <string name="entrant_campsite_result_count">%1$d campsites found</string>
+    <string name="entrant_campsite_max_guests">Maximum occupancy: %1$d guests</string>
+    <string name="entrant_campsite_rating">%1$.1f out of 5 stars · %2$d ratings</string>
+    <string name="entrant_campsite_load_failed">Could not load campsite information. Check your connection and retry.</string>
+    <string name="entrant_campsite_retry">Retry loading campsites</string>
+    <string name="entrant_campsite_back">Back to campsite search</string>
+    <string name="entrant_campsite_not_available">This campsite is no longer available.</string>
+    <string name="entrant_campsite_photo_placeholder">Campsite photo placeholder</string>
+    <string name="entrant_campsite_no_season">The owner has not set a season yet.</string>
+    <string name="entrant_campsite_season">Season: %1$s – %2$s. Individual nights may already be booked.</string>
+    <string name="entrant_campsite_rules">Rules and cancellation policy</string>
+    <string name="entrant_campsite_coordinates">Latitude %1$.5f, longitude %2$.5f</string>
+<string name="entrant_lottery_title">Camping lotteries</string>
+    <string name="entrant_lottery_loading">Loading lotteries…</string>
+    <string name="entrant_lottery_empty">No lotteries are listed for this campsite.</string>
+    <string name="entrant_lottery_registration">Registration: %1$s – %2$s (%3$s)</string>
+    <string name="entrant_lottery_stays">Stay dates: %1$s – %2$s</string>
+    <string name="entrant_lottery_join">Join waiting list</string>
+    <string name="entrant_lottery_leave">Withdraw from Waiting List</string>
+    <string name="entrant_lottery_waiting">You are on the waiting list.</string>
+    <string name="entrant_lottery_joined">You joined the waiting list.</string>
+    <string name="entrant_lottery_left">You left the waiting list.</string>
+    <string name="entrant_lottery_won">You won a place in this lottery.</string>
+    <string name="entrant_lottery_not_selected">You were not selected in this lottery.</string>
+    <string name="entrant_lottery_declined">You declined this lottery offer.</string>
+    <string name="entrant_lottery_booked">You booked a stay through this lottery.</string>
+    <string name="entrant_lottery_saving">Saving your waiting-list change…</string>
+    <string name="entrant_lottery_retry">Retry loading</string>
+    <string name="entrant_lottery_dismiss">Dismiss message</string>
+    <string name="entrant_lottery_load_failed">Could not load lotteries. Check your connection and retry.</string>
+    <string name="entrant_lottery_missing">This lottery is no longer available.</string>
+    <string name="entrant_lottery_closed">Registration is not open for this lottery.</string>
+    <string name="entrant_lottery_full">This waiting list is full.</string>
+    <string name="entrant_lottery_already_joined">You have already joined this waiting list.</string>
+    <string name="entrant_lottery_not_joined">You are not on this waiting list.</string>
+    <string name="entrant_lottery_save_failed">Your change could not be confirmed. Check your connection and try again.</string>
+    <string name="entrant_lottery_details_title">Lottery</string>
+    <string name="entrant_lottery_details_back">Back to campsite details</string>
+    <string name="entrant_lottery_registration_heading">Registration period</string>
+    <string name="entrant_lottery_opens_label">Opens</string>
+    <string name="entrant_lottery_deadline_label">Last day to join</string>
+    <string name="entrant_lottery_booking_heading">Booking period</string>
+    <string name="entrant_lottery_stay_dates_label">Stay dates</string>
+    <string name="entrant_lottery_winners_heading">Winners</string>
+    <string name="entrant_lottery_winner_count_label">Number of winners</string>
+    <string name="entrant_lottery_count_label">Waiting list</string>
+    <string name="entrant_lottery_count_limited">%1$d of %2$d spots taken</string>
+    <string name="entrant_lottery_count_unlimited">%1$d entrants · no capacity limit</string>
+    <string name="entrant_lottery_draw_automatic">Winners are drawn automatically when registration closes.</string>
+    <string name="entrant_lottery_booking_hint">After the draw, winners book their nights first come, first served.</string>
+    <string name="entrant_lottery_status_open">Registration open</string>
+    <string name="entrant_lottery_status_upcoming">Registration not open yet</string>
+    <string name="entrant_lottery_status_closed">Registration closed</string>
+    <string name="entrant_lottery_status_full">Waiting list full</string>
+    <string name="entrant_lottery_status_drawn">Lottery drawn</string>
+    <string name="entrant_lottery_status_ended">Lottery ended</string>
+    <string name="entrant_lottery_upcoming_reason">Registration opens %1$s.</string>
+    <string name="entrant_lottery_closed_reason">Registration closed %1$s.</string>
+    <string name="entrant_lottery_drawn_reason">The lottery has been drawn. Registration is closed.</string>
+    <string name="entrant_lottery_ended_reason">This lottery has ended.</string>
+    <string name="entrant_lottery_withdraw_closed">Withdrawal is unavailable after registration closes.</string>
+    <string name="entrant_lottery_withdraw_title">Leave the waiting list?</string>
+    <string name="entrant_lottery_campsite_summary">%1$s · %2$s</string>
+    <string name="entrant_lottery_withdraw_message">You will leave this lottery’s waiting list. You can rejoin only while registration is open and space is available.</string>
+    <string name="entrant_lottery_confirm_withdraw">Withdraw</string>
+    <string name="entrant_lottery_cancel">Cancel</string>
 </resources>

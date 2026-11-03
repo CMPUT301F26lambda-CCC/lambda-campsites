@@ -1,4 +1,9 @@
-/* Purpose: entrant details tests. AI use: OpenAI GPT-6 through Codex assisted; human review pending. */
+/*
+ * Purpose: entrant details and access-loss tests (US 01.01.05).
+ * Feature owner: Lalith Valluru. Last updated: 2026-11-03 (#149).
+ * Outstanding issues: none known in these controller scenarios.
+ * AI use: OpenAI GPT-6 (OpenAI), through Codex, assisted with test cases; human review pending.
+ */
 package com.lambda.campsite.controller
 
 import com.lambda.campsite.model.Availability
@@ -72,4 +77,5 @@ class CampsiteControllerTest {
         assertEquals(season, control.state.value.availability)
         assertNull(control.state.value.error)
     }
+
 }
