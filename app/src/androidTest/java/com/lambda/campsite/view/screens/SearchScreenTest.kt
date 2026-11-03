@@ -1,9 +1,12 @@
 /*
  * Purpose: Flow 6 search summary, details and error presentation tests.
  * AI use: OpenAI GPT-6 through Codex assisted with Compose assertions; human review pending.
-  * Feature owner: Lalith Valluru. Last updated: 2026-11-03 (#149).
+ * Feature owner: Lalith Valluru. Last updated: 2026-11-03 (#149).
  * Outstanding issues: manual TalkBack verification remains pending.
-*/
+ * Layout follow-up (#154): Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI),
+ * through Codex, assisted with Figma layout/status/navigation-color integration
+ * or its regression checks. Follow-up human review remains pending.
+ */
 package com.lambda.campsite.view.screens
 
 import androidx.compose.runtime.mutableStateOf
@@ -31,8 +34,8 @@ class SearchScreenTest {
         compose.setContent { LambdaCampsiteTheme {
             SearchContent(SearchUiState(results = listOf(site), isLoading = false), {}, {}, { selected = it })
         } }
-        compose.onNodeWithText(text(R.string.entrant_campsite_max_guests, 6), substring = true).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.entrant_campsite_rating, 4.5, 2), substring = true).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.campsite_guest_summary, 6), substring = true).assertIsDisplayed()
+        compose.onNodeWithContentDescription(InstrumentationRegistry.getInstrumentation().targetContext.resources.getQuantityString(R.plurals.campsite_rating_count, 2, 4.5, 2)).assertIsDisplayed()
         compose.onNodeWithText("Alberta", substring = true).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.entrant_campsite_view_details)).performClick()
         compose.runOnIdle { assertEquals(site.id, selected) }
@@ -56,10 +59,14 @@ class SearchScreenTest {
         compose.onNodeWithText(text(R.string.entrant_campsite_search_label)).performTextInput("unmatched")
         compose.runOnIdle { assertEquals(0, submissions); assertEquals("", state.value.submittedQuery) }
         compose.onNodeWithContentDescription(text(R.string.entrant_campsite_search_action)).performClick()
-        compose.onNodeWithText(text(R.string.entrant_campsite_no_matches)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.entrant_no_results_title)).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.entrant_campsite_clear_results)).performClick()
         compose.runOnIdle { assertEquals(1, submissions); assertEquals(1, clears); assertEquals("", state.value.query) }
         compose.onNodeWithText(text(R.string.entrant_campsite_empty)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.entrant_campsite_search_label)).performTextInput("second")
+        compose.onNodeWithContentDescription(text(R.string.entrant_campsite_search_action)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.entrant_campsite_clear_search)).performClick()
+        compose.runOnIdle { assertEquals(2, clears); assertEquals("", state.value.submittedQuery) }
     }
 
     @Test fun emptySearchAndLoadFailureAreDifferentAndRetryIsActionable() {
@@ -68,7 +75,7 @@ class SearchScreenTest {
         compose.setContent { LambdaCampsiteTheme { SearchContent(state.value, {}, { retries++ }, {}) } }
         compose.onNodeWithText(text(R.string.entrant_campsite_empty)).assertIsDisplayed()
         compose.runOnIdle { state.value = SearchUiState(query = "unknown", submittedQuery = "unknown", isLoading = false) }
-        compose.onNodeWithText(text(R.string.entrant_campsite_no_matches)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.entrant_no_results_title)).assertIsDisplayed()
         compose.runOnIdle { state.value = state.value.copy(loadFailed = true) }
         compose.onNodeWithText(text(R.string.entrant_campsite_retry)).performClick()
         compose.runOnIdle { assertEquals(1, retries) }

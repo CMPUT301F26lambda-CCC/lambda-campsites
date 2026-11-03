@@ -41,6 +41,7 @@ import com.lambda.campsite.model.Campsite
  * @param showTitle whether to show the legacy section heading outside the pushed screen.
  * @param showNotice whether success is inline; the pushed screen uses its SnackbarHost instead.
  * @param campsite selected campsite's readable name/location.
+ * @param feedback snackbar content placed above the action without covering it.
  */
 @Composable
 fun LotteryContent(
@@ -54,6 +55,7 @@ fun LotteryContent(
     showTitle: Boolean = true,
     showNotice: Boolean = true,
     campsite: Campsite? = null,
+    feedback: @Composable () -> Unit = {},
 ) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (showTitle) Text(stringResource(R.string.entrant_lottery_title), style = MaterialTheme.typography.titleLarge,
@@ -82,7 +84,7 @@ fun LotteryContent(
             Text(stringResource(R.string.entrant_lottery_empty))
         }
         state.lotteries.forEach { lottery ->
-            EntrantLotteryInfo(state, lottery, campsite, onJoin, onLeave)
+            EntrantLotteryInfo(state, lottery, campsite, onJoin, onLeave, feedback)
         }
     }
 }

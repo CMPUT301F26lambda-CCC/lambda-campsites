@@ -2,10 +2,6 @@
 
 Sashreek and Sreeman · original architecture updated November 1, 2026
 
-Flow 12 update: Lalith Valluru · last updated 2026-11-03.
-Outstanding issues (Flow 12): Callable deployment, shared-project verification and
-manual accessibility review remain pending (#129, #36).
-
 > AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped
 > write this document and its diagrams in October 2026, working from
 > decisions the team made. It also checked the free-tier figures in
@@ -20,86 +16,15 @@ manual accessibility review remain pending (#129, #36).
 > (OpenAI), through Codex, assisted with the entrant navigation/state notes
 > below. Follow-up human review remains pending.
 
+> Documentation organization: Lalith Valluru, 2026-11-03 (#151). OpenAI GPT-6
+> (OpenAI), through Codex, assisted with shortening the Flow 12 addition to a
+> high-level summary; follow-up human review is pending.
+
 This page explains how the app is put together. It covers the class diagram and the reasons behind it, the backend on Firebase, and how the Android app splits into Model, View and Controller. Section 6 follows one entrant from tapping "Join" to holding a reservation, so you can see every layer working in one story. Section 7 is the practical part: where files live, what to name things, and how to add something to the frontend or the backend. If a term is new to you, like repository, Flow or transaction, `docs/glossary.md` explains it.
 
-> Flow 12 update owner: Lalith Valluru. OpenAI GPT-6 (OpenAI), through Codex,
-> assisted with the owner-contact architecture addition. Human review pending.
-
-### Flow 12: owner waiting-list contact access (US 02.09.01)
-
-`OwnerWaitingListScreen` renders `OwnerWaitingListUiState` from
-`OwnerWaitingListController`. It is reached through the owner's Lotteries tab.
-The lottery selector contains only the current owner's lotteries. Existing
-`LotteryRepository.myLotteries()` and `waitingList(lotteryId)` listeners supply
-live registrations in join order. Changing the selection or losing owner access
-cancels the old listener and clears its entries, contacts and details sheet.
-
-The full story requires names and contact details. Direct `profiles/{uid}` reads
-remain private; no Firestore rules were broadened. The new
-`WaitingListContactRepository` calls `owner_waiting_list_contacts` for at most 100
-entrant IDs per request. The callable requires Firebase authentication and checks
-the requester's active OWNER role, ban/removal flags, lottery ownership and each
-registration's existence in one read transaction. It returns only entrant ID,
-name, email and phone. Nonmembers are omitted; removed/missing profiles expose no
-personal data. Nothing is copied into public lottery documents or logged.
-
-`WaitingListContact` is a read-only projection, not a new Firestore collection:
-
-| Type | Attributes / operations | Relationship |
-| --- | --- | --- |
-| `WaitingListContact` | entrantId, name, email?, phone? | One optional projection per visible `LotteryEntry` |
-| `WaitingListContactRepository` | suspend contacts(lotteryId, entrantIds) | Returns a map keyed by entrant ID |
-| `CallableWaitingListContactRepository` | contacts(...) | Implements the interface using Firebase callable Functions |
-| `OwnerWaitingListController` | state, onSelectLottery, onOpenEntrant, onDismissEntrant, onRetry | Uses LotteryRepository, ProfileRepository and WaitingListContactRepository |
-
-The following class-diagram addendum extends the existing domain diagram with
-the new read projection and its application boundaries:
-
-```mermaid
-classDiagram
-    class WaitingListContact {
-        +String entrantId
-        +String name
-        +String email
-        +String phone
-    }
-    class WaitingListContactRepository {
-        <<interface>>
-        +contacts(lotteryId, entrantIds) Map
-    }
-    class CallableWaitingListContactRepository
-    class OwnerWaitingListController {
-        +StateFlow state
-        +onSelectLottery(id)
-        +onOpenEntrant(id)
-        +onDismissEntrant()
-        +onRetry()
-    }
-    class OwnerWaitingListUiState
-    class OwnerWaitingListScreen
-    CallableWaitingListContactRepository ..|> WaitingListContactRepository
-    WaitingListContactRepository ..> WaitingListContact : returns
-    OwnerWaitingListController --> WaitingListContactRepository
-    OwnerWaitingListController --> LotteryRepository
-    OwnerWaitingListController --> ProfileRepository
-    OwnerWaitingListController --> OwnerWaitingListUiState : publishes
-    OwnerWaitingListUiState o-- WaitingListContact : contacts by entrant ID
-    OwnerWaitingListUiState o-- LotteryEntry : ordered entries
-    OwnerWaitingListScreen ..> OwnerWaitingListController : actions and state
-```
-
-Email and phone are nullable in Kotlin. The screen is a Compose function,
-represented here only to show its architectural dependency.
-
-Names are fetched on each registration-list update. The selected entrant's sheet
-shows name, full ID, joined date, status and available contact details, with an
-explicit “Not provided” value for absent email/phone. Contact failures have their
-own retry state and do not masquerade as an empty waiting list. Results from a
-cancelled selection are discarded.
-
-The callable must be deployed by the team's deployment owner before names and
-contact details work against the shared project. Local tests use Auth, Firestore
-and Functions emulators. This addition does not alter automatic drawing.
+Owner waiting-list data flows through `OwnerWaitingListController` and repository
+interfaces. An authenticated callable verifies lottery ownership before returning
+entrant contact details; private profile documents remain protected.
 
 ## Contents
 
@@ -320,6 +245,7 @@ A document that belongs to another one can share its parent's repository. A camp
 | SearchScreen | SearchController | CampsiteSearch | 01.01.01 to 01.01.04, 01.12.01 |
 | CampsiteScreen | CampsiteController | CampsiteRepository | 01.01.05, 01.13.01, 02.01.01 to 02.03.01 |
 | EntrantLotteryDetailsScreen | LotteryController (entrant only) | LotteryRepository | 01.01.06 to 01.02.02 |
+| Owner lottery setup/edit screens (Flow 4, #121; integration pending) | Owner configuration controller supplied by Flow 4 | LotteryRepository | 02.04.01 to 02.04.07, 02.10.01 |
 | OwnerWaitingListScreen | OwnerWaitingListController | LotteryRepository, ProfileRepository, WaitingListContactRepository | 02.09.01 |
 | ReservationsScreen | ReservationController | ReservationRepository | 01.04.01 to 01.07.02, 02.06.01 to 02.08.01, 02.11.01 |
 | ProfileScreen | ProfileController | ProfileRepository | 01.07.03 to 01.11.01, 03.11.01 |

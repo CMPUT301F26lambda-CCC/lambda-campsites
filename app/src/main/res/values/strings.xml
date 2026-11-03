@@ -162,36 +162,22 @@
     <string name="entrant_campsite_view_details">View details</string>
     <string name="entrant_campsite_join_active">Join active lottery</string>
     <string name="entrant_campsite_no_active">No active lottery is available for this campsite.</string>
-    <string name="entrant_campsite_lottery_details">View lottery details</string>
-    <plurals name="campsite_result_count">
-        <item quantity="one">%1$d campsite found</item>
-        <item quantity="other">%1$d campsites found</item>
-    </plurals>
     <plurals name="campsite_rating_count">
         <item quantity="one">%1$.1f out of 5 stars · %2$d rating</item>
         <item quantity="other">%1$.1f out of 5 stars · %2$d ratings</item>
     </plurals>
-    <string name="entrant_campsite_search_label">Search campsites</string>
+    <string name="entrant_campsite_search_label">Search by name or location</string>
     <string name="entrant_campsite_loading">Loading campsite information…</string>
     <string name="entrant_campsite_empty">No published campsites are available yet.</string>
-    <string name="entrant_campsite_no_matches">No campsites match your search. Try a different name or keyword.</string>
-    <string name="entrant_campsite_result_count">%1$d campsites found</string>
-    <string name="entrant_campsite_max_guests">Maximum occupancy: %1$d guests</string>
-    <string name="entrant_campsite_rating">%1$.1f out of 5 stars · %2$d ratings</string>
     <string name="entrant_campsite_load_failed">Could not load campsite information. Check your connection and retry.</string>
     <string name="entrant_campsite_retry">Retry loading campsites</string>
     <string name="entrant_campsite_back">Back to campsite search</string>
     <string name="entrant_campsite_not_available">This campsite is no longer available.</string>
-    <string name="entrant_campsite_photo_placeholder">Campsite photo placeholder</string>
+    <string name="entrant_campsite_photo_placeholder">CAMPSITE PHOTO (PLACEHOLDER)</string>
     <string name="entrant_campsite_no_season">The owner has not set a season yet.</string>
-    <string name="entrant_campsite_season">Season: %1$s – %2$s. Individual nights may already be booked.</string>
-    <string name="entrant_campsite_rules">Rules and cancellation policy</string>
-    <string name="entrant_campsite_coordinates">Latitude %1$.5f, longitude %2$.5f</string>
 <string name="entrant_lottery_title">Camping lotteries</string>
     <string name="entrant_lottery_loading">Loading lotteries…</string>
     <string name="entrant_lottery_empty">No lotteries are listed for this campsite.</string>
-    <string name="entrant_lottery_registration">Registration: %1$s – %2$s (%3$s)</string>
-    <string name="entrant_lottery_stays">Stay dates: %1$s – %2$s</string>
     <string name="entrant_lottery_join">Join waiting list</string>
     <string name="entrant_lottery_leave">Withdraw from Waiting List</string>
     <string name="entrant_lottery_waiting">You are on the waiting list.</string>
@@ -241,4 +227,40 @@
     <string name="entrant_lottery_withdraw_message">You will leave this lottery’s waiting list. You can rejoin only while registration is open and space is available.</string>
     <string name="entrant_lottery_confirm_withdraw">Withdraw</string>
     <string name="entrant_lottery_cancel">Cancel</string>
+
+    <!-- Entrant Figma layout, Lalith Valluru, 2026-11-03 (#154).
+         OpenAI GPT-6 (OpenAI), through Codex, assisted; human review pending. -->
+    <string name="campsite_guest_summary">Up to %1$d</string>
+    <string name="campsite_guests_details">Up to %1$d guests</string>
+    <string name="campsite_rating_compact">%1$.1f (%2$d)</string>
+    <string name="campsite_map_placeholder_description">Illustrative map placeholder, not the campsite’s actual map</string>
+    <string name="campsite_map_caption">Map preview. The map provider is still to be decided.</string>
+    <string name="campsite_header_title">Campsite</string>
+    <string name="campsite_price_rules_heading">Price and rules</string>
+    <string name="campsite_ratings_heading">Ratings</string>
+    <string name="campsite_no_active_badge">No active lottery</string>
+    <string name="campsite_open_badge">Lottery open</string>
+    <string name="campsite_status_loading">Checking lottery status…</string>
+    <string name="campsite_status_unknown">Lottery status unavailable</string>
+    <string name="campsite_available_dates">Open %1$s</string>
+    <string name="campsite_availability_hint">Winners can only book nights in this range.</string>
+    <string name="entrant_home_greeting">Hi %1$s! Find your next campsite.</string>
+    <string name="entrant_home_greeting_default">Find your next campsite.</string>
+    <string name="entrant_no_results_title">No campsites found</string>
+    <string name="entrant_no_results_body">Nothing matches “%1$s”. Try a campsite name, park or town.</string>
+    <plurals name="entrant_search_results_count">
+        <item quantity="one">%1$d campsite</item>
+        <item quantity="other">%1$d campsites</item>
+    </plurals>
+    <plurals name="entrant_search_match_count">
+        <item quantity="one">%1$d campsite matches “%2$s”</item>
+        <item quantity="other">%1$d campsites match “%2$s”</item>
+    </plurals>
+    <plurals name="campsite_rating_summary">
+        <item quantity="one">%1$.1f · %2$d rating</item>
+        <item quantity="other">%1$.1f · %2$d ratings</item>
+    </plurals>
+    <string name="campsite_date_range">%1$s – %2$s</string>
+    <string name="campsite_rule_bullet">• %1$s</string>
+    <string name="entrant_lottery_withdraw_before">You can leave any time before %1$s.</string>
 </resources>

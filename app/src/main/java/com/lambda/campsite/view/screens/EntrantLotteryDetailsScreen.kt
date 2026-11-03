@@ -4,6 +4,9 @@
  * Outstanding issues: Manual TalkBack and physical-device review remain pending.
  * AI use: OpenAI GPT-6 (OpenAI), through Codex, assisted with Figma layout, registration states
  * and navigation callbacks. Human review pending.
+  * Layout follow-up (#154): Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI),
+ * through Codex, assisted with Figma layout/status/navigation-color integration
+ * or its regression checks. Follow-up human review remains pending.
  */
 package com.lambda.campsite.view.screens
 
@@ -38,6 +41,25 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
 
+/** Live read-only status for search cards and the campsite header; never treats a failed load as no lottery. */
+@Composable
+fun CampsiteLotteryBadge(controller: LotteryController, showNoActiveHint: Boolean = false) {
+    val state by controller.state.collectAsStateWithLifecycle()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { controller.onRefreshTime() }
+    val active = state.lotteries.any { it.isRegistrationOpen(state.observedAt) }
+    val label = when {
+        state.isLoading -> R.string.campsite_status_loading
+        state.error == LotteryError.LOAD_FAILED -> R.string.campsite_status_unknown
+        active -> R.string.campsite_open_badge
+        else -> R.string.campsite_no_active_badge
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        com.lambda.campsite.view.components.CampsiteStatusChip(stringResource(label), positive = active)
+        if (showNoActiveHint && !state.isLoading && state.error != LotteryError.LOAD_FAILED && !active)
+            Text(stringResource(R.string.entrant_campsite_no_active), style = MaterialTheme.typography.bodyMedium, color = CampSecondaryText)
+    }
+}
+
 /** Opens a read-only lottery summary from campsite details; registration happens on the pushed screen. */
 @Composable
 fun CampsiteLotteryLinks(controller: LotteryController, onLotteryClick: (String) -> Unit) {
@@ -51,7 +73,6 @@ fun CampsiteLotteryLinks(controller: LotteryController, onLotteryClick: (String)
         }
         else -> {
             val active = state.lotteries.filter { it.isRegistrationOpen(state.observedAt) }
-            if (active.isEmpty()) Text(stringResource(R.string.entrant_campsite_no_active))
             active.forEach { lottery ->
                 Text(lottery.name, style = MaterialTheme.typography.titleMedium)
                 Button(onClick = { onLotteryClick(lottery.id) }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
@@ -85,7 +106,7 @@ fun EntrantLotteryDetailsScreen(controller: LotteryController, campsiteControlle
         }
     }
     StatusBarIconStyle(darkIcons = false)
-    Scaffold(containerColor = ForestGreen, snackbarHost = { SnackbarHost(snackbar) }, topBar = {
+    Scaffold(containerColor = ForestGreen, topBar = {
         TopAppBar(title = { Text(stringResource(R.string.entrant_lottery_details_title)) }, navigationIcon = {
             IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.entrant_lottery_details_back))
@@ -105,7 +126,7 @@ fun EntrantLotteryDetailsScreen(controller: LotteryController, campsiteControlle
                 } else {
                     LotteryContent(state.copy(lotteries = state.lotteries.filter { it.id == lotteryId }),
                         controller::onJoin, controller::onLeave, controller::onRetry, controller::onErrorShown,
-                        controller::onNoticeShown, showTitle = false, showNotice = false, campsite = campsite.campsite)
+                        controller::onNoticeShown, showTitle = false, showNotice = false, campsite = campsite.campsite, feedback = { SnackbarHost(snackbar) })
                 }
             }
         }
@@ -115,7 +136,7 @@ fun EntrantLotteryDetailsScreen(controller: LotteryController, campsiteControlle
 /** Shared details body and guarded actions; used by the screen and isolated presentation tests. */
 @Composable
 internal fun EntrantLotteryInfo(state: LotteryUiState, lottery: Lottery, campsite: Campsite?,
-    onJoin: (String) -> Unit, onLeave: (String) -> Unit) {
+    onJoin: (String) -> Unit, onLeave: (String) -> Unit, feedback: @Composable () -> Unit = {}) {
     var confirming by remember(lottery.id) { mutableStateOf(false) }
     val entry = state.entries.firstOrNull { it.lotteryId == lottery.id }
     val block = state.joinBlock(lottery.id)
@@ -158,6 +179,7 @@ internal fun EntrantLotteryInfo(state: LotteryUiState, lottery: Lottery, campsit
             stringResource(R.string.entrant_lottery_count_limited, lottery.entryCount, it)
         } ?: stringResource(R.string.entrant_lottery_count_unlimited, lottery.entryCount))
         Text(stringResource(R.string.entrant_lottery_draw_automatic), style = MaterialTheme.typography.bodyMedium, color = CampSecondaryText)
+        feedback()
         Spacer(Modifier.height(4.dp))
         if (entry == null) {
             Button(onClick = { onJoin(lottery.id) }, enabled = state.canJoin(lottery.id),
@@ -168,7 +190,8 @@ internal fun EntrantLotteryInfo(state: LotteryUiState, lottery: Lottery, campsit
             FilledTonalButton(onClick = { confirming = true }, enabled = state.canWithdraw(lottery.id),
                 colors = ButtonDefaults.filledTonalButtonColors(containerColor = CampPositive, contentColor = CampOnPositive),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text(stringResource(R.string.entrant_lottery_leave)) }
-            Text(stringResource(if (state.canWithdraw(lottery.id)) R.string.entrant_lottery_already_joined else R.string.entrant_lottery_withdraw_closed),
+            Text(if (state.canWithdraw(lottery.id)) stringResource(R.string.entrant_lottery_withdraw_before, registrationDate(lottery.registrationCloses))
+                else stringResource(R.string.entrant_lottery_withdraw_closed),
                 style = MaterialTheme.typography.bodyMedium)
         } else Text(stringResource(when (entry.status) {
             EntryStatus.WON -> R.string.entrant_lottery_won

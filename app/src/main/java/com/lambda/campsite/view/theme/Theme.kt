@@ -12,6 +12,8 @@
  * OpenAI GPT-6 (OpenAI), through Codex, assisted with retaining the active
  * screen's icon style while navigation transitions dispose the previous screen.
  * Follow-up human review remains pending.
+  * Shared surface scheme follow-up (#154), Lalith Valluru, 2026-11-03:
+ * OpenAI GPT-6 (OpenAI), through Codex, assisted with ui-guide color mapping.
  */
 package com.lambda.campsite.view.theme
 
@@ -36,12 +38,28 @@ private val statusBarStyles = WeakHashMap<View, MutableList<Pair<Any, Boolean>>>
 private val LightColorScheme = lightColorScheme(
     primary = ForestGreen,
     onPrimary = Color.White,
-    primaryContainer = Mint,
+    primaryContainer = CampPrimaryContainer,
     onPrimaryContainer = DeepGreen,
     secondary = SageGreen,
     onSecondary = Color.White,
-    secondaryContainer = Mint,
-    onSecondaryContainer = DeepGreen,
+    secondaryContainer = CampPositive,
+    onSecondaryContainer = CampOnPositive,
+    background = Mint,
+    onBackground = CampOnSurface,
+    surface = Mint,
+    onSurface = CampOnSurface,
+    surfaceVariant = CampField,
+    onSurfaceVariant = CampSecondaryText,
+    surfaceContainerLowest = Color.White,
+    surfaceContainerLow = CampSurfaceLow,
+    surfaceContainer = CampSurfaceContainer,
+    surfaceContainerHigh = CampSurfaceHigh,
+    surfaceContainerHighest = CampField,
+    outline = CampOutlineStrong,
+    outlineVariant = CampOutline,
+    tertiary = CampEmber,
+    inverseSurface = CampInverseSurface,
+    inverseOnSurface = CampInverseText,
 )
 
 private val DarkColorScheme = darkColorScheme(
@@ -55,6 +73,13 @@ private val DarkColorScheme = darkColorScheme(
     onSecondaryContainer = Mint,
     background = NightGreen,
     surface = NightGreenSurface,
+    onSurface = Mint,
+    onSurfaceVariant = ForestGreenDark,
+    surfaceContainerLow = NightGreenSurface,
+    surfaceContainer = NightGreenSurface,
+    surfaceContainerHigh = NightGreenSurface,
+    surfaceContainerHighest = MintDark,
+    outlineVariant = SageGreen,
 )
 
 /**
