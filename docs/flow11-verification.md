@@ -1,10 +1,10 @@
 # Flow 11 — Owner's reservations
 
-Last updated: November 3, 2026.
+> AI use: GPT-6 (OpenAI), through Codex, helped write Flow 11's controllers,
+> screens, navigation, tests, and docs. Sreeman Reddy chose the stories;
+> human code review is pending.
 
-> Feature owner: Sreeman Reddy. AI use: GPT-6 (OpenAI), through Codex, helped
-> implement Flow 11, write its tests, and prepare this verification record.
-> Human review is pending.
+Last updated: November 3, 2026.
 
 Scope: [flow #128](https://github.com/CMPUT301F26lambda-CCC/lambda-campsites/issues/128)
 and owner stories #31 to #34. The existing reservation backend from #108 is reused.
