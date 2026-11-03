@@ -16,6 +16,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.QuerySnapshot
 import com.lambda.campsite.model.Conversation
@@ -50,6 +51,7 @@ class FirestoreConversationRepository(
 ) : ConversationRepository {
 
     private val conversations = firestore.collection(COLLECTION)
+    private val reservations = firestore.collection(RESERVATIONS)
 
     override fun myConversations(): Flow<List<Conversation>> =
         auth.signedInUserId().flatMapLatest { uid ->
@@ -84,8 +86,25 @@ class FirestoreConversationRepository(
             .toMessages()
     }
 
+    /**
+     * Opens it if nobody has yet, reading the real reservation's ownerId and
+     * guestId to fill it in. If another device opens the same conversation
+     * between the check below and this write, the rules refuse this write,
+     * but by then the conversation is open either way, so that refusal
+     * isn't an error.
+     */
     override suspend fun openConversation(reservationId: String) {
-        TODO("opens the conversation with the real reservation's ownerId and guestId")
+        auth.signedInUserId().first()
+        val ref = conversations.document(reservationId)
+        if (ref.get().await().exists()) return
+        val reservation = reservations.document(reservationId).get().await().data.orEmpty()
+        val ownerId = reservation[ReservationFields.OWNER_ID] as? String ?: return
+        val guestId = reservation[ReservationFields.GUEST_ID] as? String ?: return
+        try {
+            ref.set(ConversationFields.newConversationFields(ownerId, guestId)).await()
+        } catch (e: FirebaseFirestoreException) {
+            if (e.code != FirebaseFirestoreException.Code.PERMISSION_DENIED || !ref.get().await().exists()) throw e
+        }
     }
 
     override suspend fun sendMessage(reservationId: String, text: String) {
@@ -112,6 +131,7 @@ class FirestoreConversationRepository(
     private companion object {
         const val COLLECTION = "conversations"
         const val MESSAGES = "messages"
+        const val RESERVATIONS = "reservations"
         const val DEFAULT_PAGE_SIZE = 20
     }
 }

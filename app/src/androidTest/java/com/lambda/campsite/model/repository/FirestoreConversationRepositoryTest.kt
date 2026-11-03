@@ -16,17 +16,23 @@ package com.lambda.campsite.model.repository
 import com.google.firebase.Firebase
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.auth
+import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.firestore
 import com.lambda.campsite.model.Conversation
 import com.lambda.campsite.model.Message
 import com.lambda.campsite.testutil.FirestoreEmulator
 import com.lambda.campsite.testutil.signInAsNewUser
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -91,6 +97,47 @@ class FirestoreConversationRepositoryTest {
     }
 
     @Test
+    fun openingACreatesAnEmptyConversationFromTheRealReservation() {
+        setUpReservation("fresh", ownerId = uid, guestId = "guest-9")
+
+        runBlocking { withTimeout(TIMEOUT_MS) { repository.openConversation("fresh") } }
+
+        assertEquals(Conversation(id = "fresh", ownerId = uid, guestId = "guest-9"), conversationOnServer("fresh"))
+    }
+
+    @Test
+    fun openingAnAlreadyOpenConversationDoesNothing() {
+        // setUp already opened "mine".
+        runBlocking { withTimeout(TIMEOUT_MS) { repository.openConversation("mine") } }
+
+        assertEquals(Conversation(id = "mine", ownerId = uid, guestId = "guest-1"), conversationOnServer("mine"))
+    }
+
+    @Test
+    fun openingAReservationYouCantReadIsRefused() {
+        setUpReservation("theirs", ownerId = "owner-2", guestId = "guest-2")
+
+        assertThrows(FirebaseFirestoreException::class.java) {
+            runBlocking { withTimeout(TIMEOUT_MS) { repository.openConversation("theirs") } }
+        }
+    }
+
+    @Test
+    fun openingTheSameConversationTwiceAtOnceSucceedsForBoth() {
+        setUpReservation("raced", ownerId = uid, guestId = "guest-9")
+
+        val results = runBlocking {
+            withTimeout(TIMEOUT_MS) {
+                listOf(async { repository.openConversation("raced") }, async { repository.openConversation("raced") })
+                    .awaitAll()
+            }
+        }
+
+        assertEquals(2, results.size)
+        assertEquals(Conversation(id = "raced", ownerId = uid, guestId = "guest-9"), conversationOnServer("raced"))
+    }
+
+    @Test
     fun loadingOlderMessagesPastTheOldestReturnsNothing() {
         val oldest = setUpMessage("mine", "oldest", senderId = uid, text = "one", sentAt = Timestamp(1_800_000_000, 0))
 
@@ -145,6 +192,12 @@ class FirestoreConversationRepositoryTest {
         val message = Message(id = id, senderId = senderId, text = text, sentAt = sentAt)
         FirestoreEmulator.setIgnoringRules("conversations/$conversationId/messages/$id", MessageFields.toMap(message))
         return message
+    }
+
+    /** The conversation as the server has it, skipping the phone's cache, or `null` if there isn't one. */
+    private fun conversationOnServer(id: String): Conversation? = runBlocking {
+        val snapshot = firestore.document("conversations/$id").get(Source.SERVER).await()
+        if (!snapshot.exists()) null else ConversationFields.fromMap(id, snapshot.data.orEmpty())
     }
 
     private companion object {
