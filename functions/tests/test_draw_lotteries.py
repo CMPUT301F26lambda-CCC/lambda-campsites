@@ -1,3 +1,4 @@
+# OpenAI GPT-6 (OpenAI), through Codex, assisted with the source-lottery assertion (US 01.03.01/.02); human review pending.
 # Purpose: tests for the draw_lotteries Cloud Function (US 02.04.06,
 # 02.05.01). They call draw_due_lotteries against the Firestore emulator
 # with a `now` of their own, so they don't have to wait for the schedule.
@@ -42,6 +43,7 @@ def test_draws_the_right_number_of_winners(db):
     assert sorted(statuses.values()) == ["NOT_SELECTED", "NOT_SELECTED", "WON", "WON"]
     notifications = _notifications(db)
     assert len(notifications) == 4
+    assert all(n["lotteryId"] == lottery_ref.id for n in notifications)
     assert sum(1 for n in notifications if n["type"] == "WIN") == 2
     assert sum(1 for n in notifications if n["type"] == "LOSE") == 2
 

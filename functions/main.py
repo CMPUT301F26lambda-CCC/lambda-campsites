@@ -1,4 +1,5 @@
-# Last updated: 2026-11-03 (Flow 12).
+# Feature owner: Lalith Valluru. Last updated: 2026-11-03 (Flow 8).
+# OpenAI GPT-6 (OpenAI), through Codex, assisted with source lottery IDs in draw notices; human review pending.
 # Purpose: the app's Cloud Functions, the server side of the design in
 # docs/architecture.md section 4. They do the work the app can't be
 # trusted to do itself, like drawing lotteries and sending pushes. They run
@@ -175,13 +176,13 @@ def _draw_in_transaction(transaction, db, lottery_ref, now):
         won = entry.id in winner_ids
         transaction.update(entry.reference, {"status": "WON" if won else "NOT_SELECTED"})
         notification = db.collection("notifications").document()
-        transaction.set(notification, _lottery_notification(entry.get("entrantId"), lottery["name"], won))
+        transaction.set(notification, _lottery_notification(entry.get("entrantId"), lottery["name"], won, lottery_ref.id))
 
     transaction.update(lottery_ref, {"status": "DRAWN"})
 
 
-def _lottery_notification(recipient_id, lottery_name, won):
-    """A WIN or LOSE notification document, the way NotificationFields.kt stores one."""
+def _lottery_notification(recipient_id, lottery_name, won, lottery_id):
+    """A WIN or LOSE notice with a stable source lottery ID for booking handoff."""
     if won:
         title = "You won the lottery"
         body = f"You won the lottery for {lottery_name}."
@@ -192,6 +193,7 @@ def _lottery_notification(recipient_id, lottery_name, won):
         notification_type = "LOSE"
     return {
         "recipientId": recipient_id,
+        "lotteryId": lottery_id,
         "type": notification_type,
         "title": title,
         "body": body,

@@ -8,6 +8,7 @@
  * Sashreek Addanki change the tests for missing and unknown types in
  * November 2026. Sashreek Addanki reviewed them.
  */
+// OpenAI GPT-6 (OpenAI), through Codex, assisted with lottery-link compatibility tests; human review pending.
 package com.lambda.campsite.model.repository
 
 import com.google.firebase.Timestamp
@@ -71,5 +72,25 @@ class NotificationFieldsTest {
             sentAt = Timestamp(0, 0),
         )
         assertEquals(defaults, read)
+    }
+
+    @Test
+    fun `draw notice preserves its exact lottery ID`() {
+        val linked = notification.copy(lotteryId = "lottery-unique-42")
+        assertEquals(linked, NotificationFields.fromMap(linked.id, NotificationFields.toMap(linked)))
+    }
+
+    @Test
+    fun `legacy notification remains readable without guessing a lottery ID`() {
+        val fields = NotificationFields.toMap(notification) - NotificationFields.LOTTERY_ID
+        assertEquals(notification, NotificationFields.fromMap(notification.id, fields))
+    }
+
+    @Test
+    fun `blank or wrongly typed lottery ID is not a navigation target`() {
+        for (invalid in listOf<Any?>(null, "", "   ", 123)) {
+            val fields = NotificationFields.toMap(notification) + (NotificationFields.LOTTERY_ID to invalid)
+            assertNull(NotificationFields.fromMap(notification.id, fields)?.lotteryId)
+        }
     }
 }
