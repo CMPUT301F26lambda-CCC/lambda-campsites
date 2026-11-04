@@ -1,0 +1,64 @@
+%% Issue #151: GPT-6 (OpenAI), through Codex, assisted me with this editable
+%% class-diagram source. Human review is pending.
+%% Focused source for the owner waiting-list boundary; the PNG in this folder
+%% is the team's broader original class overview.
+classDiagram
+    class Profile {
+        +String deviceId
+        +String name
+        +String email
+        +String? phone
+        +Set~Role~ roles
+    }
+    class Lottery {
+        +String id
+        +String ownerId
+        +List~String~ campsiteIds
+        +LotteryStatus status
+        +Int entryCount
+    }
+    class LotteryEntry {
+        +String lotteryId
+        +String entrantId
+        +Timestamp joinedAt
+        +EntryStatus status
+    }
+    class WaitingListContact {
+        <<owner-authorized projection>>
+        +String entrantId
+        +String name
+        +String? email
+        +String? phone
+    }
+    class LotteryRepository {
+        <<interface>>
+        +ownedLotteries() Flow
+        +entries(lotteryId) Flow
+    }
+    class WaitingListContactRepository {
+        <<interface>>
+        +contacts(lotteryId, entrantIds) Map
+    }
+    class CallableWaitingListContactRepository {
+        +contacts(lotteryId, entrantIds) Map
+    }
+    class OwnerWaitingListController {
+        +StateFlow state
+        +onSelectLottery(id)
+        +onRetry()
+    }
+    class OwnerWaitingListScreen {
+        <<Compose view>>
+    }
+
+    Profile "1" <-- "many" Lottery : ownerId
+    Lottery "1" *-- "many" LotteryEntry : entries
+    Profile "1" <-- "many" LotteryEntry : entrantId
+    Profile ..> WaitingListContact : minimal contact fields
+    LotteryRepository ..> Lottery : reads
+    LotteryRepository ..> LotteryEntry : listens
+    WaitingListContactRepository <|.. CallableWaitingListContactRepository
+    CallableWaitingListContactRepository ..> WaitingListContact : authorized callable
+    OwnerWaitingListController --> LotteryRepository
+    OwnerWaitingListController --> WaitingListContactRepository
+    OwnerWaitingListScreen --> OwnerWaitingListController
