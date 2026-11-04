@@ -53,6 +53,8 @@ class WinnerBookingFirebaseTest {
         compose.setContent { LambdaCampsiteTheme { LambdaCampsiteApp() } }
         awaitText(text(R.string.tab_reservations))
         compose.onNodeWithText(text(R.string.tab_reservations)).performClick()
+        awaitText(text(R.string.flow9_wins_title))
+        compose.onNodeWithText(text(R.string.flow9_wins_title)).performClick()
         awaitText(lottery.name)
         compose.onNodeWithText(text(R.string.flow9_open_win)).performClick()
         awaitText(text(R.string.flow9_dates_heading))

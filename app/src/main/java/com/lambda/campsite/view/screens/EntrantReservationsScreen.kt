@@ -3,6 +3,8 @@
  * AI use: GPT-6 (OpenAI), through Codex, assisted me with this screen.
  * Human review is pending.
  */
+// Booking integration: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted
+// with the winner-offers entry point while preserving Flow 10 history. Review pending.
 package com.lambda.campsite.view.screens
 
 import androidx.compose.foundation.Image
