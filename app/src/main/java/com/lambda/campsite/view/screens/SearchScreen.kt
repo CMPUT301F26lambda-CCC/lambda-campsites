@@ -14,6 +14,8 @@
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code in November 2026,
  * helped Harmanjoth Kaur in connecting the filtes with the search screen.
  */
+// Follow-up #174: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted
+// with filtered-empty actions and partial availability notices; human review pending.
 package com.lambda.campsite.view.screens
 
 import androidx.compose.foundation.Image
@@ -65,7 +67,7 @@ fun SearchScreen(controller: SearchController, onCampsiteClick: (String) -> Unit
     SearchContent(shown, controller::onQueryChanged, { controller.onRetry(); filterController.onRetry() }, onCampsiteClick,
         onSubmitSearch = controller::onSubmitSearch, onClearSearch = { controller.onSearch("") }, profileName = profileName,
         filters = filters, onApplyFilters = filterController::onApplyFilters, onClearFilters = filterController::onClearFilters,
-        onInbox = onInbox, unreadCount = unreadCount,
+        onInbox = onInbox, unreadCount = unreadCount, onRetryCalendars = filterController::onRetry,
         status = { camp ->
             val lottery: LotteryController = viewModel(key = "search-lottery-${camp.id}",
                 factory = LotteryController.createFactory(camp.id))
@@ -97,7 +99,7 @@ fun SearchContent(state: SearchUiState, onSearch: (String) -> Unit, onRetry: () 
                   status: @Composable (Campsite) -> Unit = {}, onInbox: (() -> Unit)? = null, unreadCount: Int = 0,
                   filters: CampsiteFilterUiState = CampsiteFilterUiState(),
                   onApplyFilters: (String, LocalDate?, LocalDate?, Int?) -> Unit = { _, _, _, _ -> },
-                  onClearFilters: () -> Unit = {}) {
+                  onClearFilters: () -> Unit = {}, onRetryCalendars: () -> Unit = onRetry) {
     val keyboard = LocalSoftwareKeyboardController.current
     var showFilters by rememberSaveable { mutableStateOf(false) }
     val submit = { onSubmitSearch(); keyboard?.hide(); Unit }
@@ -135,11 +137,28 @@ fun SearchContent(state: SearchUiState, onSearch: (String) -> Unit, onRetry: () 
                         filters.location, filters.checkIn, filters.checkOut, filters.guests,
                         onClick = { keyboard?.hide(); showFilters = true })
                 }
+                if (filters.failedCalendarCount > 0) item {
+                    Text(stringResource(R.string.flow15_availability_partial),
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                    OutlinedButton(onClick = onRetryCalendars) { Text(stringResource(R.string.flow15_retry_availability)) }
+                }
+                if (!state.isLoading && filters.pendingCalendarCount > 0) item {
+                    Text(stringResource(R.string.flow15_checking_other_availability),
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                }
                 when {
                     state.isLoading -> item { CircularProgressIndicator(); Text(stringResource(R.string.entrant_campsite_loading)) }
                     state.loadFailed -> item { CampsiteLoadError(onRetry) }
                     state.results.isEmpty() -> item {
-                        if (state.submittedQuery.isBlank()) Text(stringResource(R.string.entrant_campsite_empty),
+                        if (filters.hasDates && filters.failedCalendarCount > 0) {
+                            // No confirmed matches: the partial-read notice and retry above explain why.
+                        } else if (filters.hasFilters) Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(stringResource(R.string.flow15_no_filter_results),
+                                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                            TextButton(onClick = onClearFilters, modifier = Modifier.heightIn(min = 48.dp)) {
+                                Text(stringResource(R.string.flow15_clear_filters))
+                            }
+                        } else if (state.submittedQuery.isBlank()) Text(stringResource(R.string.entrant_campsite_empty),
                             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
                         else Column(Modifier.fillMaxWidth().padding(top = 56.dp, bottom = 24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {

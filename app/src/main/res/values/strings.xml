@@ -488,4 +488,8 @@
     <string name="flow15_until_date">Until %1$s</string>
     <string name="flow15_no_filter_results">No campsites match your filters. Try another location, different dates or fewer guests.</string>
     <string name="flow15_clear_filters">Clear filters</string>
+    <!-- Follow-up #174: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted with partial-calendar feedback; human review pending. -->
+    <string name="flow15_availability_partial">Availability could not be checked for some campsites. Only confirmed matches are shown.</string>
+    <string name="flow15_retry_availability">Retry availability</string>
+    <string name="flow15_checking_other_availability">Checking availability for other campsites…</string>
 </resources>
