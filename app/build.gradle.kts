@@ -98,8 +98,8 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
     implementation(libs.firebase.messaging)
-    // Flow 12 (Lalith Valluru): authenticated owner-only contact projection.
-    implementation("com.google.firebase:firebase-functions")
+    // Issue #151: GPT-6 (OpenAI), through Codex, assisted me with the catalog migration.
+    implementation(libs.firebase.functions)
     // Adds await(), so suspend functions can wait for Firebase calls.
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.zxing.core)
