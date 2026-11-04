@@ -1,3 +1,4 @@
+// Issue #150: GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
 /*
  * Flow 8: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted with inbox and booking routing; human review pending.
  * Last updated: 2026-11-03 (Flow 9; Lalith Valluru).
@@ -47,17 +48,21 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -164,6 +169,15 @@ private const val OWNER_PICKER_RETURN_ADD = "ADD"
 /** Where the map picker hands its confirmed location back: the edit form. */
 private const val OWNER_PICKER_RETURN_EDIT = "EDIT"
 
+/** Existing transparent Figma icons for the owner's bottom navigation. */
+internal fun ownerTabIconRes(tab: AppTab): Int? = when (tab) {
+    AppTab.OWNER_HOME -> R.drawable.flow10_nav_home
+    AppTab.OWNER_CAMPSITES -> R.drawable.flow11_tent
+    AppTab.OWNER_LOTTERIES -> R.drawable.flow11_home_active
+    AppTab.PROFILE -> R.drawable.flow10_person
+    else -> null
+}
+
 /** Builds the details route for [campsiteId]. */
 private fun ownerDetailsRoute(campsiteId: String) = "owner/campsites/details/$campsiteId"
 
@@ -205,8 +219,7 @@ private fun ownerMapPickerRoute(
  * selected tab.
  *
  * Switching roles builds a fresh navigation stack, so the app lands on that
- * role's first tab. Owners and admins reach the profile screen from the
- * account button in the top bar, since their nav bars have no Profile tab.
+ * role's first tab. Owners use the Profile tab; admins use the account action.
  *
  * The owner campsites tab's six screens (list, register, map picker, details,
  * edit and QR code) are routes in the same [NavHost], so the system Back
@@ -230,14 +243,19 @@ fun LambdaCampsiteApp(
 
     key(state.activeRole) {
         val navController = rememberNavController()
+        val snackbarHostState = remember { SnackbarHostState() }
+        val snackbarScope = rememberCoroutineScope()
+        val registeredMessage = stringResource(R.string.owner_registration_success)
+        val savedMessage = stringResource(R.string.owner_changes_saved)
         val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
         Scaffold(
             // The root inset lets each screen's app bar draw up under the clock;
             // screens without an app bar pad themselves with statusBarsPadding().
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
-                if (state.activeRole != Role.ENTRANT && currentRoute != FIRST_LAUNCH_ROUTE) {
+                if (state.activeRole == Role.ADMIN && currentRoute in AppTab.forRole(Role.ADMIN).map { it.route }) {
                     TopAppBar(
                         title = { Text(stringResource(R.string.app_name)) },
                         actions = {
@@ -252,7 +270,7 @@ fun LambdaCampsiteApp(
                 }
             },
             bottomBar = {
-                if (currentRoute != FIRST_LAUNCH_ROUTE && currentRoute != ENTRANT_SCAN_ROUTE) {
+                if (currentRoute != FIRST_LAUNCH_ROUTE && currentRoute != ENTRANT_SCAN_ROUTE && currentRoute != OWNER_MAP_PICKER_ROUTE) {
                     NavigationBar(containerColor = com.lambda.campsite.view.theme.CampSurfaceHigh) {
                         tabs.forEach { tab ->
                             NavigationBarItem(
@@ -266,8 +284,10 @@ fun LambdaCampsiteApp(
                                         AppTab.PROFILE -> R.drawable.flow10_person
                                         else -> null
                                     } else null
-                                    if (entrantIcon == null) Icon(tab.icon, contentDescription = null)
-                                    else Icon(painterResource(entrantIcon), contentDescription = null)
+                                    val ownerIcon = if (state.activeRole == Role.OWNER) ownerTabIconRes(tab) else null
+                                    val iconRes = entrantIcon ?: ownerIcon
+                                    if (iconRes == null) Icon(tab.icon, contentDescription = null)
+                                    else Icon(painterResource(iconRes), contentDescription = null)
                                 },
                                 label = { Text(stringResource(tab.labelRes)) },
                                 colors = NavigationBarItemDefaults.colors(
@@ -472,6 +492,7 @@ fun LambdaCampsiteApp(
                             navController.navigate(ownerDetailsRoute(newCampsite.id)) {
                                 popUpTo(AppTab.OWNER_CAMPSITES.route)
                             }
+                            snackbarScope.launch { snackbarHostState.showSnackbar(registeredMessage) }
                         },
                     )
                 }
@@ -545,6 +566,7 @@ fun LambdaCampsiteApp(
                             navController.navigate(ownerBookedDatesRoute(campsiteId))
                         },
                         onQrCodeClick = { navController.navigate(ownerQrRoute(campsiteId)) },
+                        onLotteryClick = { lotteryId -> navController.navigate(ownerLotteryDetailsRoute(lotteryId)) },
                     )
                 }
 
@@ -569,7 +591,10 @@ fun LambdaCampsiteApp(
                                 ),
                             )
                         },
-                        onSaved = { navController.popBackStack() },
+                        onSaved = {
+                            navController.popBackStack()
+                            snackbarScope.launch { snackbarHostState.showSnackbar(savedMessage) }
+                        },
                     )
                 }
 

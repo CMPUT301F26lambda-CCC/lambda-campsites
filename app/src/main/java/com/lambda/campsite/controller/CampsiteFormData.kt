@@ -1,7 +1,8 @@
+// Issue #150: GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
 /**
  * Purpose: Shared form data model and validation logic for creating and editing campsites
  * (US 02.01.01, US 02.01.03).
- * Outstanding issues: Photo uploading is deferred until ImageRepository is implemented.
+ * Shared by the owner registration and edit forms.
  */
 /*
  * AI use: Gemini 3.8 Flash (Google DeepMind) helped write this file in November 2026.
@@ -22,6 +23,8 @@ enum class CampsiteFormError {
     INVALID_SEASON_RANGE,
     /** Only one of start or end date was specified. */
     INCOMPLETE_SEASON,
+    /** Optional price must be a nonnegative number. */
+    INVALID_PRICE,
 }
 
 /**
@@ -37,6 +40,9 @@ enum class CampsiteFormError {
  * @property seasonStart opening date for campsite reservations.
  * @property seasonEnd closing date for campsite reservations.
  * @property tags discovery tags.
+ * @property pricePerNight optional price text, validated before save.
+ * @property rules the campsite rules and cancellation policy.
+ * @property imageId the linked uploaded photo, if any.
  * @property requiredFieldErrors missing required fields from [Campsite.validate].
  * @property seasonError specific error with the season dates, or null.
  * @property isSaving whether a save operation is in-flight.
@@ -53,6 +59,9 @@ data class CampsiteFormData(
     val seasonStart: LocalDate? = null,
     val seasonEnd: LocalDate? = null,
     val tags: List<String> = emptyList(),
+    val pricePerNight: String = "",
+    val rules: String = "",
+    val imageId: String? = null,
     val requiredFieldErrors: Set<CampsiteRequiredField> = emptySet(),
     val seasonError: CampsiteFormError? = null,
     val isSaving: Boolean = false,
@@ -67,6 +76,11 @@ data class CampsiteFormData(
         else -> null
     }
 
+    /** Rejects nonnumeric, negative and nonfinite optional prices. */
+    fun checkPriceError(): CampsiteFormError? =
+        if (pricePerNight.isBlank() || (pricePerNight.toDoubleOrNull()?.let { it.isFinite() && it >= 0 } == true))
+            null else CampsiteFormError.INVALID_PRICE
+
     /** Returns a draft [Campsite] and its validation result. */
     fun toCampsiteDraft(id: String, ownerId: String): Pair<Campsite, Set<CampsiteRequiredField>> {
         val campsite = Campsite(
@@ -79,6 +93,9 @@ data class CampsiteFormData(
             latitude = latitude,
             longitude = longitude,
             tags = tags,
+            pricePerNight = pricePerNight.toDoubleOrNull(),
+            rules = rules,
+            imageId = imageId,
         )
         return campsite to campsite.validate()
     }

@@ -1,8 +1,4 @@
-/**
- * Purpose: Central dependency injection container creating and providing repositories.
- * Last updated: 2026-11-03 (Flow 12).
- * Outstanding issues: The conversation repository remains to be added when that feature lands.
- */
+// Issue #150: GPT-6 (OpenAI), through Codex, assisted me with this header cleanup.
 /*
  * Purpose: builds the app's repositories once and hands them to the
  * controllers. It's the one place that decides which version of each
