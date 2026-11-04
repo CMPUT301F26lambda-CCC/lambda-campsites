@@ -5,6 +5,9 @@
 
   Campsite owner strings were added in November 2026 with Gemini 3.8 Flash (Google DeepMind).
   Raghav Sethi reviewed and committed them.
+  Lottery owner strings were added in November 2026 with GLM 5.3 Flash (Z.ai), through
+  OpenCode, at Raghav Sethi's request.
+
   Claude Opus 5.5 (Anthropic), used through Claude Code, also helped Sashreek
   Addanki add the push notification channel strings on November 1, 2026.
   Sashreek Addanki reviewed them.
@@ -123,6 +126,102 @@
     <string name="qr_share_text">Scan to view %1$s in Lambda Campsite:\n%2$s</string>
     <string name="error_campsite_not_found">Campsite not found.</string>
     <string name="error_campsite_load_failed">Couldn\'t load campsite. Check your connection and try again.</string>
+
+    <!-- Lottery owner: list -->
+    <string name="lotteries_title">Lotteries</string>
+    <string name="new_lottery_button">New lottery</string>
+    <string name="lotteries_section_active">Active</string>
+    <string name="lotteries_section_upcoming">Upcoming</string>
+    <string name="lotteries_section_completed">Completed</string>
+    <string name="lottery_status_open">Active · Registration open</string>
+    <string name="lottery_status_upcoming">Upcoming · Not open yet</string>
+    <string name="lottery_status_completed">Completed · Drawn</string>
+    <string name="lottery_status_drawn">Drawn</string>
+    <string name="lottery_status_ended">Ended</string>
+    <string name="lottery_registration_format">Registration: %1$s – %2$s</string>
+    <string name="lottery_count_one_campsite">1 campsite</string>
+    <string name="lottery_count_many_campsites">%1$d campsites</string>
+    <string name="no_lotteries_empty">No lotteries yet. Tap New lottery to create one.</string>
+    <string name="error_lottery_load_failed">Couldn\'t load your lotteries. Check your connection and try again.</string>
+
+    <!-- Lottery owner: new lottery wizard -->
+    <string name="new_lottery_title">New lottery</string>
+    <string name="new_lottery_step_format">Step %1$d of %2$d · %3$s</string>
+    <string name="new_lottery_step_campsites">Campsites</string>
+    <string name="new_lottery_step_dates">Dates</string>
+    <string name="new_lottery_step_settings">Settings</string>
+    <string name="new_lottery_step_review">Review</string>
+    <string name="new_lottery_select_campsites">Select campsites</string>
+    <string name="new_lottery_count_one_campsite">1 campsite selected</string>
+    <string name="new_lottery_count_many_campsites">%1$d campsites selected</string>
+    <string name="new_lottery_registration_period">Registration period</string>
+    <string name="new_lottery_registration_opens">Opens*</string>
+    <string name="new_lottery_registration_closes">Closes*</string>
+    <string name="new_lottery_booking_period">Booking period</string>
+    <string name="new_lottery_check_in">Check-in*</string>
+    <string name="new_lottery_check_out">Check-out*</string>
+    <string name="new_lottery_dates_hint">Dates winners can book. Winners are drawn automatically when registration closes.</string>
+    <string name="new_lottery_pick_date">Pick a date</string>
+    <string name="new_lottery_settings">Settings</string>
+    <string name="new_lottery_name_required">Lottery name*</string>
+    <string name="new_lottery_name_placeholder">Aspen Hollow summer lottery</string>
+    <string name="new_lottery_number_of_winners">Number of winners*</string>
+    <string name="new_lottery_limit_waiting_list">Limit the waiting list</string>
+    <string name="new_lottery_waiting_list_capacity">Waiting-list capacity</string>
+    <string name="new_lottery_unlimited_hint">Turn off the limit to allow an unlimited waiting list.</string>
+    <string name="new_lottery_review">Review</string>
+    <string name="new_lottery_review_campsites">Campsites</string>
+    <string name="new_lottery_review_dates">Dates</string>
+    <string name="new_lottery_not_set">Not set</string>
+    <string name="new_lottery_review_settings_limited">%1$d winners · Waiting-list capacity %2$d</string>
+    <string name="new_lottery_review_settings_unlimited">%1$d winners · Unlimited waiting list</string>
+    <string name="new_lottery_create_hint">Everything can be edited until the draw picks the winners.</string>
+    <string name="action_continue">Continue</string>
+    <string name="create_lottery_button">Create lottery</string>
+    <string name="action_back">Back</string>
+    <string name="action_close">Close</string>
+    <string name="action_ok">OK</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_decrease">Less</string>
+    <string name="action_increase">More</string>
+    <string name="error_lottery_no_campsites">Select at least one campsite.</string>
+    <string name="error_lottery_too_many_campsites">A lottery can cover at most five campsites.</string>
+    <string name="error_lottery_missing_dates">Choose every date before continuing.</string>
+    <string name="error_lottery_invalid_dates">Registration has to close after it opens, the stay has to end after check-in, and registration closes by the first stay night.</string>
+    <string name="error_lottery_missing_name">Enter a lottery name.</string>
+    <string name="error_lottery_save_failed">Couldn\'t create the lottery. Check your connection and try again.</string>
+
+    <!-- Lottery owner: details -->
+    <string name="lottery_details_title">Lottery</string>
+    <string name="action_edit_lottery">Edit lottery</string>
+    <string name="heading_lottery_campsites">Campsites</string>
+    <string name="heading_lottery_dates">Dates</string>
+    <string name="heading_lottery_settings">Settings</string>
+    <string name="lottery_stay_dates">Stay dates</string>
+    <string name="lottery_stay_dates_format">%1$s – %2$s</string>
+    <string name="heading_waiting_list">Waiting list</string>
+    <string name="action_waiting_list">Waiting list</string>
+    <string name="waiting_list_row_subtitle">%1$d entrants</string>
+    <string name="action_message_waiting_list">Message waiting list</string>
+    <string name="message_waiting_list_row_subtitle">Send an update to everyone on it</string>
+    <string name="action_sent_messages">Sent messages</string>
+    <string name="sent_messages_row_subtitle">The messages sent to this waiting list</string>
+    <string name="error_lottery_not_found">Lottery not found.</string>
+
+    <!-- Lottery owner: results -->
+    <string name="lottery_results_title">Lottery results</string>
+    <string name="lottery_results_status">Drawn %1$s</string>
+    <string name="lottery_results_note">Winners were selected automatically after registration closed.</string>
+    <string name="heading_lottery_summary">Lottery summary</string>
+    <string name="lottery_results_heading">Results</string>
+    <string name="action_lottery_results">Lottery results</string>
+    <string name="lottery_results_row_subtitle">%1$d winners · choosing their dates</string>
+    <string name="action_winners">Winners</string>
+    <string name="lottery_winners_row_subtitle">%1$d entrants · choosing their dates</string>
+    <string name="action_not_selected">Not selected</string>
+    <string name="lottery_not_selected_row_subtitle">%1$d entrants</string>
+
     <!-- Push notifications. The channel ID is a key, not text the user sees. -->
     <string name="notification_channel_id" translatable="false">updates</string>
     <string name="notification_channel_name">Lottery and booking updates</string>
