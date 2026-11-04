@@ -1,3 +1,5 @@
+# Flow 5: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted
+# with draw metadata/edge-case coverage; human review pending.
 # Last updated: 2026-11-03 (Flow 12).
 # Purpose: the app's Cloud Functions, the server side of the design in
 # docs/architecture.md section 4. They do the work the app can't be
@@ -168,6 +170,12 @@ def _draw_in_transaction(transaction, db, lottery_ref, now):
         .where(filter=FieldFilter("status", "==", "WAITING"))
         .get(transaction=transaction)
     )
+    # Read public campsite labels before any transaction writes; retain a draw-time snapshot.
+    campsite_names = []
+    for campsite_id in lottery.get("campsiteIds", []):
+        campsite = db.collection("campsites").document(campsite_id).get(transaction=transaction).to_dict() or {}
+        if isinstance(campsite.get("name"), str) and campsite["name"].strip():
+            campsite_names.append(campsite["name"].strip())
     winners = random.sample(waiting, k=min(lottery["numberOfWinners"], len(waiting)))
     winner_ids = {entry.id for entry in winners}
 
@@ -177,7 +185,11 @@ def _draw_in_transaction(transaction, db, lottery_ref, now):
         notification = db.collection("notifications").document()
         transaction.set(notification, _lottery_notification(entry.get("entrantId"), lottery["name"], won))
 
-    transaction.update(lottery_ref, {"status": "DRAWN"})
+    transaction.update(lottery_ref, {
+        "status": "DRAWN", "drawnAt": firestore.SERVER_TIMESTAMP,
+        "drawnWinnerCount": len(winner_ids), "drawnEntryCount": len(waiting),
+        "drawnCampsiteNames": campsite_names,
+    })
 
 
 def _lottery_notification(recipient_id, lottery_name, won):

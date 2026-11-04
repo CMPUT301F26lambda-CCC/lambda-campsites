@@ -1,5 +1,5 @@
 /*
- * Last updated: 2026-11-03 (Flow 12).
+ * Last updated: 2026-11-03 (Flow 6/7 follow-up #149; Lalith Valluru).
  * Outstanding issues: Flow 12 shared-project navigation verification remains pending (#129).
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Compose navigation code, syntax
@@ -20,7 +20,8 @@
  * through Codex, assisted with Figma layout/status/navigation-color integration
  * or its regression checks. Follow-up human review remains pending.
  */
-
+// Flow 5: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex,
+// assisted with read-only draw metadata/results integration; human review pending.
 // Flow 11 feature owner: Sreeman Reddy. GPT-6 (OpenAI), through Codex,
 // also helped route the owner reservation lists
 // and booked-date calendar for Flow 11 (US 02.06.01 and 02.07.01 to 02.07.03).
@@ -38,7 +39,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -60,7 +60,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.lambda.campsite.R
-import com.lambda.campsite.model.Role
 import com.lambda.campsite.controller.CampsiteQrCodeController
 import com.lambda.campsite.controller.MapLocationController
 import com.lambda.campsite.controller.OwnerCampsiteAddController
@@ -77,6 +76,7 @@ import com.lambda.campsite.controller.LotteryController
 import com.lambda.campsite.controller.ProfileController
 import com.lambda.campsite.controller.OwnerWaitingListController
 import com.lambda.campsite.view.screens.OwnerWaitingListScreen
+import com.lambda.campsite.model.Role
 import com.lambda.campsite.view.screens.CampsiteQrCodeScreen
 import com.lambda.campsite.view.screens.MapLocationScreen
 import com.lambda.campsite.view.screens.OwnerCampsiteAddScreen
@@ -93,18 +93,19 @@ import com.lambda.campsite.view.screens.EntrantLotteryDetailsScreen
 import com.lambda.campsite.view.screens.EntrantReservationsScreen
 import com.lambda.campsite.view.screens.EntrantReservationDetailsScreen
 import com.lambda.campsite.view.screens.ProfileScreen
+import com.lambda.campsite.view.screens.OwnerLotteryResultsScreen
 import com.lambda.campsite.controller.ProfileError
 import com.lambda.campsite.view.screens.SettingScreen
 import com.lambda.campsite.view.screens.EditProfileScreen
 import com.lambda.campsite.view.screens.FirstLaunchScreen
+import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.IconButton
-import  androidx.compose.material.icons.Icons
-
 
 /** Entrant pushed routes retain Home selection and the selected campsite's parent state. */
 private const val ENTRANT_DETAILS_ROUTE = "entrant/home/details/{campsiteId}"
+private const val OWNER_RESULTS_ROUTE = "owner/lotteries/results/{lotteryId}"
 private const val ENTRANT_LOTTERY_ROUTE = "entrant/home/details/{campsiteId}/lottery/{lotteryId}"
 private const val ENTRANT_RESERVATION_DETAILS_ROUTE = "entrant/reservations/details/{reservationId}"
 
@@ -187,6 +188,9 @@ fun LambdaCampsiteApp(
         val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
         Scaffold(
+            // The root inset lets each screen's app bar draw up under the clock;
+            // screens without an app bar pad themselves with statusBarsPadding().
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 if (state.activeRole != Role.ENTRANT && currentRoute != FIRST_LAUNCH_ROUTE) {
                     TopAppBar(
@@ -211,21 +215,14 @@ fun LambdaCampsiteApp(
                                 onClick = { navController.navigateToTab(tab) },
                                 // The label below names the tab, so the icon needs no description.
                                 icon = {
-                                    val entrantIcon =
-                                        if (state.activeRole == Role.ENTRANT) when (tab) {
-                                            AppTab.ENTRANT_HOME -> R.drawable.flow10_nav_home
-                                            AppTab.ENTRANT_RESERVATIONS -> R.drawable.flow11_home_active
-                                            AppTab.PROFILE -> R.drawable.flow10_person
-                                            else -> null
-                                        } else null
-                                    if (entrantIcon == null) Icon(
-                                        tab.icon,
-                                        contentDescription = null
-                                    )
-                                    else Icon(
-                                        painterResource(entrantIcon),
-                                        contentDescription = null
-                                    )
+                                    val entrantIcon = if (state.activeRole == Role.ENTRANT) when (tab) {
+                                        AppTab.ENTRANT_HOME -> R.drawable.flow10_nav_home
+                                        AppTab.ENTRANT_RESERVATIONS -> R.drawable.flow11_home_active
+                                        AppTab.PROFILE -> R.drawable.flow10_person
+                                        else -> null
+                                    } else null
+                                    if (entrantIcon == null) Icon(tab.icon, contentDescription = null)
+                                    else Icon(painterResource(entrantIcon), contentDescription = null)
                                 },
                                 label = { Text(stringResource(tab.labelRes)) },
                                 colors = NavigationBarItemDefaults.colors(
@@ -257,16 +254,11 @@ fun LambdaCampsiteApp(
                                     navController.navigate("entrant/home/details/${Uri.encode(campsiteId)}")
                                 })
                             }
-                            AppTab.PROFILE -> ProfileScreen( controller = profileController,
-                                onEditProfile = {
-                                    navController.navigate(EDIT_PROFILE_ROUTE)
-                                },
-                                onSettings = {
-                                    navController.navigate(SETTINGS_ROUTE)
-                                },)
-
-
-                            AppTab.PROFILE -> ProfileScreen(profileController)
+                            AppTab.PROFILE -> ProfileScreen(
+                                controller = profileController,
+                                onEditProfile = { navController.navigate(EDIT_PROFILE_ROUTE) },
+                                onSettings = { navController.navigate(SETTINGS_ROUTE) },
+                            )
                             AppTab.ENTRANT_RESERVATIONS -> {
                                 val reservationsController: EntrantReservationsController =
                                     viewModel(factory = EntrantReservationsController.Factory)
@@ -288,11 +280,19 @@ fun LambdaCampsiteApp(
                                     factory = OwnerWaitingListController.createFactory(),
                                 )
                                 OwnerWaitingListScreen(waitingListController,
-                                    onBack = { navController.navigateToTab(AppTab.OWNER_HOME) })
+                                    onBack = { navController.navigateToTab(AppTab.OWNER_HOME) },
+                                    onResults = { id -> navController.navigate("owner/lotteries/results/${Uri.encode(id)}") })
                             }
                             else -> PlaceholderScreen(tab)
                         }
                     }
+                }
+
+                composable(OWNER_RESULTS_ROUTE,
+                    arguments = listOf(navArgument("lotteryId") { type = NavType.StringType })) { entry ->
+                    val id = requireNotNull(entry.arguments?.getString("lotteryId"))
+                    val results: OwnerWaitingListController = viewModel(factory = OwnerWaitingListController.createFactory(id, includeContacts = false))
+                    OwnerLotteryResultsScreen(results, onBack = { navController.popBackStack() })
                 }
 
                 composable(OWNER_RESERVATIONS_ROUTE,
@@ -455,7 +455,6 @@ fun LambdaCampsiteApp(
                         key = "details_${campsiteId}",
                         factory = OwnerCampsiteDetailsController.createFactory(campsiteId),
                     )
-
                     OwnerCampsiteDetailsScreen(
                         controller = detailsController,
                         onBack = { navController.popBackStack() },
@@ -503,6 +502,16 @@ fun LambdaCampsiteApp(
                         onBack = { navController.popBackStack() },
                     )
                 }
+
+                composable(OWNER_BOOKED_DATES_ROUTE) { entry ->
+                    val campsiteId = entry.arguments?.getString("campsiteId").orEmpty()
+                    val bookedDatesController: OwnerBookedDatesController = viewModel(
+                        key = "booked_${campsiteId}",
+                        factory = OwnerBookedDatesController.createFactory(campsiteId),
+                    )
+                    OwnerBookedDatesScreen(bookedDatesController, onBack = { navController.popBackStack() })
+                }
+
                 composable(SETTINGS_ROUTE) {
                     SettingScreen(
                         name = state.profile?.name.orEmpty(),
@@ -519,15 +528,14 @@ fun LambdaCampsiteApp(
                         },
                     )
                 }
+
                 composable(EDIT_PROFILE_ROUTE) {
                     val profile = state.profile
-
                     if (profile != null) {
                         EditProfileScreen(
                             name = profile.name,
                             email = profile.email,
                             phone = profile.phone,
-
                             saveFailed = state.error == ProfileError.SAVE_FAILED,
                             onCancel = {
                                 profileController.onEditProfileClosed()
@@ -541,6 +549,7 @@ fun LambdaCampsiteApp(
                         )
                     }
                 }
+
                 composable(FIRST_LAUNCH_ROUTE) {
                     FirstLaunchScreen(
                         onGetStarted = { name ->
@@ -552,21 +561,10 @@ fun LambdaCampsiteApp(
                         saveFailed = state.error == ProfileError.SAVE_FAILED,
                     )
                 }
-
-
-
-                composable(OWNER_BOOKED_DATES_ROUTE) { entry ->
-                    val campsiteId = entry.arguments?.getString("campsiteId").orEmpty()
-                    val bookedDatesController: OwnerBookedDatesController = viewModel(
-                        key = "booked_${campsiteId}",
-                        factory = OwnerBookedDatesController.createFactory(campsiteId),
-                    )
-                    OwnerBookedDatesScreen(bookedDatesController, onBack = { navController.popBackStack() })
-                }
             }
         }
-            }
     }
+}
 
 /**
  * The first screen of the owner campsites tab: the owner's campsites, leading

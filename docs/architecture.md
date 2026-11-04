@@ -24,6 +24,8 @@ Flow 10 frontend update: Sreeman Reddy · last updated 2026-11-03.
 > GPT-6 (OpenAI), through Codex, assisted me with the Flow 10 entrant
 > reservation screen/controller architecture. Human review is pending.
 
+> Flow 5 summary: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted with the automatic-results summary; human review pending.
+>
 > Documentation organization: Lalith Valluru, 2026-11-03 (#151). OpenAI GPT-6
 > (OpenAI), through Codex, assisted with shortening the Flow 12 addition to a
 > high-level summary; follow-up human review is pending.
@@ -247,6 +249,8 @@ A document that belongs to another one can share its parent's repository. A camp
 - Slow work, like shrinking a photo before upload or building a CSV file, runs on a background thread inside the controller's `viewModelScope`, so the screen stays responsive.
 
 ### Features
+
+Automatic lottery results reuse the ownership-checked lottery/entry listeners. The server records draw time and actual counts atomically with the results; the owner UI is read-only and never triggers a draw.
 
 | Screen | Controller | Model it calls | Stories |
 |---|---|---|---|

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lalith Valluru, 2026-11-03. OpenAI GPT-6 through Codex assisted with Flow 5 labels; human review pending. -->
+<resources>
+    <string name="flow5_title">Lottery results</string>
+    <string name="flow5_view_results">View lottery results</string>
+    <string name="flow5_drawn">Drawn · %1$s</string>
+    <string name="flow5_draw_time_unknown">Drawn · time unavailable</string>
+    <string name="flow5_automatic">Winners were selected automatically after registration closed.</string>
+    <string name="flow5_pending">Winners will be selected automatically after registration closes. No action is required.</string>
+    <string name="flow5_summary">Lottery summary</string>
+    <string name="flow5_campsite_ids">Campsite IDs: %1$s</string>
+    <string name="flow5_expanded">Expanded</string>
+    <string name="flow5_collapsed">Collapsed</string>
+    <string name="flow5_registration">Registration: %1$s – %2$s</string>
+    <string name="flow5_stay">Stay dates: %1$s – %2$s</string>
+    <string name="flow5_results">Results</string>
+    <string name="flow5_winners">Winners</string>
+    <string name="flow5_not_selected">Not selected</string>
+    <plurals name="flow5_entrants">
+        <item quantity="one">%1$d entrant</item>
+        <item quantity="other">%1$d entrants</item>
+    </plurals>
+    <string name="flow5_removed_entries">Counts reflect the completed draw. Some entrant records are no longer available.</string>
+    <string name="flow5_no_entrants">No eligible entrants were registered. This draw completed with zero winners.</string>
+    <string name="flow5_no_group">No entrants in this group.</string>
+    <string name="flow5_entrant">Entrant ID: %1$s</string>
+    <string name="flow5_waiting">Waiting for the automatic draw</string>
+    <string name="flow5_ended">This lottery has ended.</string>
+    <string name="flow5_load_error">Could not load these results. Check your connection and retry.</string>
+    <string name="flow5_retry">Retry</string>
+    <string name="flow5_back">Back</string>
+    <string name="flow5_won">Selected</string>
+    <string name="flow5_booked">Booked</string>
+    <string name="flow5_declined">Declined</string>
+</resources>
