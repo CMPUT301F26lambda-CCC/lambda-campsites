@@ -29,7 +29,7 @@ explicit copy-action requirement.
 
 ## Local verification
 
-- All 231 debug unit tests passed, including the targeted controller regressions.
+- All 254 debug unit tests passed on current `main`, including the targeted controller regressions.
 - All five Flow 12 Compose tests passed on the Android 17 emulator; debug Android-test Kotlin compiled.
 - The Python callable passed syntax compilation. Its pytest suite was not run locally because pytest and the Firebase CLI emulator are not installed in this workspace.
 - Team review and passing CI are required before merge, per `docs/CONTRIBUTING.md`.
