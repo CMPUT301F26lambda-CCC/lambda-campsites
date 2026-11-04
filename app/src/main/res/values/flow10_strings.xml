@@ -1,0 +1,54 @@
+<!--
+  Feature owner: Sreeman Reddy, Flow 10 (#127), November 2026.
+  AI use: GPT-6 (OpenAI), through Codex, assisted me with entrant reservation
+  labels matched to Raghav's read-only Figma mockups. Human review is pending.
+-->
+<resources>
+    <string name="flow10_reservations_title">Reservations</string>
+    <string name="flow10_active_tab">Active</string>
+    <string name="flow10_past_tab">Past</string>
+    <string name="flow10_no_active">No active reservations.</string>
+    <string name="flow10_no_active_hint">When you book a campsite, it shows up here.</string>
+    <string name="flow10_no_past">No past reservations.</string>
+    <string name="flow10_no_past_hint">Completed and cancelled stays show up here.</string>
+    <string name="flow10_browse_campsites">Browse campsites</string>
+    <string name="flow10_load_failed">Unable to load your reservations. Check your connection and try again.</string>
+    <string name="flow10_reservation_unavailable">This reservation is no longer available.</string>
+    <string name="flow10_reservation_title">Reservation</string>
+    <string name="flow10_photo_placeholder">Campsite photo (placeholder)</string>
+    <string name="flow10_reservation_number">Reservation number</string>
+    <string name="flow10_dates">Dates</string>
+    <string name="flow10_guests">Guests</string>
+    <string name="flow10_campsite_rules">Campsite rules</string>
+    <string name="flow10_agreed_on">Agreed on %1$s</string>
+    <string name="flow10_cancel_policy">You can cancel any time before check-in.</string>
+    <string name="flow10_cancel_reservation">Cancel reservation</string>
+    <string name="flow10_cancel_title">Cancel this reservation?</string>
+    <string name="flow10_cancel_explanation">%1$s will go back to other winners. This can’t be undone.</string>
+    <string name="flow10_keep_reservation">Keep reservation</string>
+    <string name="flow10_cancelled_message">Reservation cancelled.</string>
+    <string name="flow10_cancel_not_allowed">This reservation can no longer be cancelled.</string>
+    <string name="flow10_cancel_not_found">This reservation is no longer available.</string>
+    <string name="flow10_cancel_failed">Cancellation failed. Check your connection and try again.</string>
+    <string name="flow10_status_staying_now">Staying now</string>
+    <string name="flow10_status_confirmed">Confirmed</string>
+    <string name="flow10_status_completed">Completed</string>
+    <string name="flow10_status_cancelled">Cancelled</string>
+    <string name="flow10_status_rejected">Rejected by owner</string>
+    <plurals name="flow10_reservation_count">
+        <item quantity="one">%1$d reservation · soonest first</item>
+        <item quantity="other">%1$d reservations · soonest first</item>
+    </plurals>
+    <plurals name="flow10_past_count">
+        <item quantity="one">%1$d stay · newest first</item>
+        <item quantity="other">%1$d stays · newest first</item>
+    </plurals>
+    <plurals name="flow10_nights">
+        <item quantity="one">%1$d night</item>
+        <item quantity="other">%1$d nights</item>
+    </plurals>
+    <plurals name="flow10_guest_count">
+        <item quantity="one">%1$d guest</item>
+        <item quantity="other">%1$d guests</item>
+    </plurals>
+</resources>
