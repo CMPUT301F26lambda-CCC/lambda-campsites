@@ -3,10 +3,13 @@
 # Feature owner: Lalith Valluru. Purpose: US 02.09.01 contact authorization tests.
 # AI use: OpenAI GPT-6 through Codex assisted with emulator security cases.
 # Human review pending. Shared db fixture points only at the Firestore emulator.
+# Issue #151: GPT-6 (OpenAI), through Codex, assisted me with callable
+# entry-point regression coverage. Human review pending.
 """Verify active ownership, registration membership and minimal contact output."""
 import pytest
+from flask import Flask, request
 from firebase_functions import https_fn
-from main import waiting_list_contacts
+from main import owner_waiting_list_contacts, waiting_list_contacts
 
 
 def seed(db):
@@ -24,6 +27,19 @@ def test_returns_only_minimal_contacts_for_members(db):
     result = waiting_list_contacts(db, "owner", {"lotteryId": "mine", "entrantIds": ["entrant", "nonmember", "entrant"]})
     assert result == {"contacts": [{"entrantId": "entrant", "name": "Alex Demo",
                                    "email": "alex@example.com", "phone": "780-555-0101"}]}
+
+
+def test_callable_entry_point_uses_admin_firestore_emulator(admin_db, monkeypatch):
+    """Exercise the decorated callable and its Admin client; stub only Auth transport."""
+    seed(admin_db)
+    monkeypatch.setattr(https_fn._util, "_on_call_check_auth_token", lambda _: {"uid": "owner"})
+    app = Flask(__name__)
+    with app.test_request_context("/owner_waiting_list_contacts", method="POST",
+                                  json={"data": {"lotteryId": "mine", "entrantIds": ["entrant"]}}):
+        response = owner_waiting_list_contacts(request._get_current_object())
+    assert response.status_code == 200
+    assert response.get_json() == {"result": {"contacts": [{"entrantId": "entrant",
+        "name": "Alex Demo", "email": "alex@example.com", "phone": "780-555-0101"}]}}
 
 
 @pytest.mark.parametrize("owner", [{"roles": ["ENTRANT"]}, {"roles": ["OWNER"], "ownerBanned": True},
