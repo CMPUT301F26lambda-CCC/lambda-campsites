@@ -191,21 +191,6 @@ fun LambdaCampsiteApp(
             // The root inset lets each screen's app bar draw up under the clock;
             // screens without an app bar pad themselves with statusBarsPadding().
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            topBar = {
-                if (state.activeRole != Role.ENTRANT && currentRoute != FIRST_LAUNCH_ROUTE) {
-                    TopAppBar(
-                        title = { Text(stringResource(R.string.app_name)) },
-                        actions = {
-                            IconButton(onClick = { navController.navigateToTab(AppTab.PROFILE) }) {
-                                Icon(
-                                    Icons.Filled.AccountCircle,
-                                    contentDescription = stringResource(R.string.open_profile),
-                                )
-                            }
-                        },
-                    )
-                }
-            },
             bottomBar = {
                 if (currentRoute != FIRST_LAUNCH_ROUTE) {
                     NavigationBar(containerColor = com.lambda.campsite.view.theme.CampSurfaceHigh) {
