@@ -28,6 +28,8 @@ Flow 16 scanner update: Sreeman Reddy · last updated 2026-11-03.
 > GPT-6 (OpenAI), through Codex, assisted me with the Flow 16 scanner
 > architecture. Human review is pending.
 
+> Flow 8 summary: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted with the notification summary; human review pending.
+
 > Flow 9 summary: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted with the booking summary; human review pending.
 
 > Flow 5 summary: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted with the automatic-results summary; human review pending.
@@ -255,6 +257,8 @@ A document that belongs to another one can share its parent's repository. A camp
 - Slow work, like shrinking a photo before upload or building a CSV file, runs on a background thread inside the controller's `viewModelScope`, so the screen stays responsive.
 
 ### Features
+
+Lottery notices (Flow 8) use the current user's notification listener. Win notices open the winner booking flow or confirm a persisted decline; lose notices show campsite and registration information.
 
 Winner booking (Flow 9) uses `WinnerBookingController` and the existing lottery, campsite and reservation repositories. Live calendars constrain selection; the booking transaction consumes one win and the confirmation reads the saved reservation.
 
