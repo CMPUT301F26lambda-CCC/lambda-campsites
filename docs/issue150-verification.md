@@ -15,6 +15,7 @@ retry. Owner details show the uploaded photo, related lotteries and a generated
 QR preview. Profile role selection now switches the app's active role. The
 shared app header no longer duplicates owner screen headers, and the map picker
 uses its own navigation area. Register and edit saves show confirmation snackbars.
+The duplicate AppContainer header was consolidated.
 Existing owner Booked dates navigation is already
 implemented, so its action remains available.
 
