@@ -34,6 +34,9 @@ import kotlinx.coroutines.launch
 private fun startOfDay(date: LocalDate): Timestamp =
     Timestamp(java.util.Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant()))
 
+/** Midnight immediately after [date], so the selected final day remains open. */
+private fun endOfDay(date: LocalDate): Timestamp = startOfDay(date.plusDays(1))
+
 /** Why the wizard refused to move on or to create the lottery. */
 enum class NewLotteryError {
     /** Step 1: no campsite is selected (US 02.04.02). */
@@ -97,6 +100,10 @@ data class NewLotteryUiState(
     val isLoadingCampsites: Boolean = true,
     val isSaving: Boolean = false,
     val saveFailed: Boolean = false,
+    /** True when this wizard is editing an existing, still-open lottery. */
+    val isEditing: Boolean = false,
+    /** True until the existing lottery has populated the edit form. */
+    val isLoadingLottery: Boolean = false,
 )
 
 /**
@@ -116,6 +123,7 @@ class NewLotteryController(
     private val lotteryRepository: LotteryRepository,
     campsiteRepository: CampsiteRepository,
     private val profileRepository: ProfileRepository,
+    private val lotteryIdToEdit: String? = null,
 ) : ViewModel() {
 
     /** A lottery covers at most five campsites (see docs/architecture.md, section 3). */
@@ -126,6 +134,8 @@ class NewLotteryController(
     /** The current UI state. The screen reads it with `collectAsStateWithLifecycle()`. */
     val state: StateFlow<NewLotteryUiState> = _state.asStateFlow()
 
+    private var editingLottery: Lottery? = null
+
     init {
         viewModelScope.launch {
             campsiteRepository.myCampsites()
@@ -133,6 +143,29 @@ class NewLotteryController(
                 .collect { campsites ->
                     _state.update { it.copy(campsites = campsites, isLoadingCampsites = false) }
                 }
+        }
+        lotteryIdToEdit?.let { lotteryId ->
+            _state.update { it.copy(isEditing = true, isLoadingLottery = true) }
+            viewModelScope.launch {
+                lotteryRepository.lottery(lotteryId).firstOrNull()?.let { lottery ->
+                    editingLottery = lottery
+                    _state.update {
+                        it.copy(
+                            selectedCampsiteIds = lottery.campsiteIds,
+                            registrationOpens = lottery.registrationOpens.toInstant().atZone(ZoneId.systemDefault()).toLocalDate(),
+                            // Stored as the start of the following day: present the day the owner chose.
+                            registrationCloses = lottery.registrationCloses.toInstant().atZone(ZoneId.systemDefault()).toLocalDate().minusDays(1),
+                            stayStart = lottery.stayStart,
+                            stayEnd = lottery.stayEnd,
+                            name = lottery.name,
+                            numberOfWinners = lottery.numberOfWinners,
+                            limitWaitingList = lottery.capacity != null,
+                            capacity = lottery.capacity ?: it.capacity,
+                            isLoadingLottery = false,
+                        )
+                    }
+                } ?: _state.update { it.copy(isLoadingLottery = false, saveFailed = true) }
+            }
         }
     }
 
@@ -260,13 +293,13 @@ class NewLotteryController(
         }
 
         val lottery = Lottery(
-            id = lotteryRepository.newLotteryId(),
+            id = editingLottery?.id ?: lotteryRepository.newLotteryId(),
             // Filled in when the owner's profile is loaded below.
-            ownerId = "",
+            ownerId = editingLottery?.ownerId.orEmpty(),
             name = current.name.trim(),
             campsiteIds = current.selectedCampsiteIds,
             registrationOpens = startOfDay(current.registrationOpens!!),
-            registrationCloses = startOfDay(current.registrationCloses!!),
+            registrationCloses = endOfDay(current.registrationCloses!!),
             stayStart = current.stayStart!!,
             stayEnd = current.stayEnd!!,
             numberOfWinners = current.numberOfWinners,
@@ -280,14 +313,14 @@ class NewLotteryController(
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true, saveFailed = false) }
             try {
-                val profile = profileRepository.currentProfile().firstOrNull()
-                if (profile == null) {
+                val ownerId = editingLottery?.ownerId ?: profileRepository.currentProfile().firstOrNull()?.deviceId
+                if (ownerId == null) {
                     // The profile a lottery needs, like this device's, should
                     // always exist. If it doesn't, the save would be refused.
                     _state.update { it.copy(isSaving = false, saveFailed = true) }
                     return@launch
                 }
-                val owned = lottery.copy(ownerId = profile.deviceId)
+                val owned = lottery.copy(ownerId = ownerId)
                 lotteryRepository.save(owned)
                 _state.update { it.copy(isSaving = false, saveFailed = false, error = null) }
                 onSuccess(owned)
@@ -320,6 +353,20 @@ class NewLotteryController(
                     lotteryRepository = application.container.lotteryRepository,
                     campsiteRepository = application.container.campsiteRepository,
                     profileRepository = application.container.profileRepository,
+                )
+            }
+        }
+
+        /** Creates a wizard pre-filled from [lotteryId] for owner editing. */
+        fun createFactory(lotteryId: String): ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]
+                    as LambdaApplication
+                NewLotteryController(
+                    lotteryRepository = application.container.lotteryRepository,
+                    campsiteRepository = application.container.campsiteRepository,
+                    profileRepository = application.container.profileRepository,
+                    lotteryIdToEdit = lotteryId,
                 )
             }
         }

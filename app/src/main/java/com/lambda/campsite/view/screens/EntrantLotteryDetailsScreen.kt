@@ -165,7 +165,7 @@ internal fun EntrantLotteryInfo(state: LotteryUiState, lottery: Lottery, campsit
         HorizontalDivider(color = CampOutline)
         LotterySectionHeading(R.string.entrant_lottery_registration_heading)
         LotteryInfoRow(Icons.Outlined.Event, R.string.entrant_lottery_opens_label, registrationDate(lottery.registrationOpens))
-        LotteryInfoRow(Icons.Outlined.Event, R.string.entrant_lottery_deadline_label, registrationDate(lottery.registrationCloses))
+        LotteryInfoRow(Icons.Outlined.Event, R.string.entrant_lottery_deadline_label, lastJoinDate(lottery))
         LotterySectionHeading(R.string.entrant_lottery_booking_heading)
         val endFormat = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
         val startFormat = if (lottery.stayStart.year == lottery.stayEnd.year)
@@ -190,7 +190,7 @@ internal fun EntrantLotteryInfo(state: LotteryUiState, lottery: Lottery, campsit
             FilledTonalButton(onClick = { confirming = true }, enabled = state.canWithdraw(lottery.id),
                 colors = ButtonDefaults.filledTonalButtonColors(containerColor = CampPositive, contentColor = CampOnPositive),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text(stringResource(R.string.entrant_lottery_leave)) }
-            Text(if (state.canWithdraw(lottery.id)) stringResource(R.string.entrant_lottery_withdraw_before, registrationDate(lottery.registrationCloses))
+            Text(if (state.canWithdraw(lottery.id)) stringResource(R.string.entrant_lottery_withdraw_before, lastJoinDate(lottery))
                 else stringResource(R.string.entrant_lottery_withdraw_closed),
                 style = MaterialTheme.typography.bodyMedium)
         } else Text(stringResource(when (entry.status) {
@@ -232,10 +232,15 @@ private fun LotteryInfoRow(icon: ImageVector, label: Int, value: String) {
 private fun registrationDate(value: Timestamp): String = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
     .withLocale(Locale.getDefault()).withZone(ZoneId.systemDefault()).format(value.toDate().toInstant())
 
+/** Registration closes at midnight after the final calendar day shown to entrants. */
+private fun lastJoinDate(lottery: Lottery): String = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+    .withLocale(Locale.getDefault())
+    .format(lottery.registrationCloses.toInstant().atZone(ZoneId.systemDefault()).toLocalDate().minusDays(1))
+
 @Composable
 private fun joinBlockText(block: LotteryJoinBlock, lottery: Lottery): String = when (block) {
     LotteryJoinBlock.UPCOMING -> stringResource(R.string.entrant_lottery_upcoming_reason, registrationDate(lottery.registrationOpens))
-    LotteryJoinBlock.CLOSED -> stringResource(R.string.entrant_lottery_closed_reason, registrationDate(lottery.registrationCloses))
+    LotteryJoinBlock.CLOSED -> stringResource(R.string.entrant_lottery_closed_reason, lastJoinDate(lottery))
     LotteryJoinBlock.FULL -> stringResource(R.string.entrant_lottery_full)
     LotteryJoinBlock.DRAWN -> stringResource(R.string.entrant_lottery_drawn_reason)
     LotteryJoinBlock.ENDED -> stringResource(R.string.entrant_lottery_ended_reason)

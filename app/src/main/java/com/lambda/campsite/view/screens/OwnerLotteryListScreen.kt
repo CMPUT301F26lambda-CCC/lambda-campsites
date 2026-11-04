@@ -246,7 +246,7 @@ private fun LotteryRow(lottery: Lottery, statusText: String, onClick: () -> Unit
     val registrationText = stringResource(
         R.string.lottery_registration_format,
         lottery.registrationOpens.toInstant().atZone(ZoneId.systemDefault()).toLocalDate().format(LotteryDate),
-        lottery.registrationCloses.toInstant().atZone(ZoneId.systemDefault()).toLocalDate().format(LotteryDate),
+        lottery.registrationCloses.toInstant().atZone(ZoneId.systemDefault()).toLocalDate().minusDays(1).format(LotteryDate),
     )
     val campsiteText = if (lottery.campsiteIds.size == 1) {
         stringResource(R.string.lottery_count_one_campsite)

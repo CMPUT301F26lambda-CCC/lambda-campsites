@@ -148,7 +148,7 @@ fun NewLotteryScreen(
                             controller.onCreateLottery { lottery -> onCreated(lottery) }
                         }
                     },
-                    enabled = !state.isSaving,
+                    enabled = !state.isSaving && !state.isLoadingLottery,
                     colors = ButtonDefaults.buttonColors(containerColor = CampGreenDark),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -157,7 +157,8 @@ fun NewLotteryScreen(
                     } else {
                         Text(
                             stringResource(
-                                if (state.step < WizardSteps.size) R.string.action_continue else R.string.create_lottery_button,
+                                if (state.step < WizardSteps.size) R.string.action_continue
+                                else R.string.create_lottery_button,
                             ),
                         )
                     }
