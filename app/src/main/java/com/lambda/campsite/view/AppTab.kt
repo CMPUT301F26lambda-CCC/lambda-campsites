@@ -3,6 +3,8 @@
  * this file in October 2026, following the nav bar component in the team's
  * Figma file. It helped with the Kotlin code, syntax and KDoc. Sashreek Addanki
  * reviewed it and committed it.
+ * Flow 10 frontend update: Sreeman Reddy, November 2026. GPT-6 (OpenAI),
+ * through Codex, assisted me with the entrant tab description.
  */
 package com.lambda.campsite.view
 
@@ -45,7 +47,8 @@ enum class AppTab(
     ),
     ENTRANT_RESERVATIONS(
         "entrant/reservations", R.string.tab_reservations, Icons.Filled.DateRange,
-        "Winning, booking, confirmations and your reservations (US 01.04 to 01.07, Raghav).",
+        "Winning and booking (US 01.04 to 01.05, Raghav); entrant reservation " +
+            "list and details frontend (Flow 10, Sreeman).",
     ),
     PROFILE(
         "profile", R.string.tab_profile, Icons.Filled.Person,
