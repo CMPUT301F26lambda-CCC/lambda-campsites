@@ -19,6 +19,8 @@
   Claude Opus 5.5 (Anthropic), used through Claude Code, also helped Sashreek
   Addanki add the Google Maps key entry on November 3, 2026. Sashreek Addanki
   reviewed it.
+  GPT-6 (OpenAI), through Codex, assisted me with the Flow 16 camera
+  permission and optional camera feature declarations. Human review is pending.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
@@ -26,6 +28,8 @@
     <!-- Android 13 and later need this to show any notification, including
          a push (US 01.10.01). MainActivity asks for it at startup. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
         android:name=".LambdaApplication"

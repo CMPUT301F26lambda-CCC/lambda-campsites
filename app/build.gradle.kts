@@ -21,6 +21,8 @@
 // Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
 // Sashreek Addanki read MAPS_API_KEY from local.properties into the manifest,
 // on November 3, 2026. Sashreek Addanki reviewed it.
+// Flow 16: GPT-6 (OpenAI), through Codex, assisted me with the CameraX
+// dependencies used by the entrant QR scanner. Human review is pending.
 import java.util.Properties
 
 plugins {
@@ -101,6 +103,9 @@ dependencies {
     // Adds await(), so suspend functions can wait for Firebase calls.
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.zxing.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
     // Loads campsite photos from their Storage download URL.
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
