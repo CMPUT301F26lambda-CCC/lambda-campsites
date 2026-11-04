@@ -22,6 +22,8 @@
  * through Codex, assisted with Figma layout/status/navigation-color integration
  * or its regression checks. Follow-up human review remains pending.
  */
+// Flow 5: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex,
+// assisted with read-only draw metadata/results integration; human review pending.
 // Flow 11 feature owner: Sreeman Reddy. GPT-6 (OpenAI), through Codex,
 // also helped route the owner reservation lists
 // and booked-date calendar for Flow 11 (US 02.06.01 and 02.07.01 to 02.07.03).
@@ -93,11 +95,13 @@ import com.lambda.campsite.view.screens.WinnerBookingScreen
 import com.lambda.campsite.view.screens.WinnerOffersScreen
 import com.lambda.campsite.controller.NotificationController
 import com.lambda.campsite.view.screens.InboxScreen
+import com.lambda.campsite.view.screens.OwnerLotteryResultsScreen
 
 /** Entrant pushed routes retain Home selection and the selected campsite's parent state. */
 private const val ENTRANT_DETAILS_ROUTE = "entrant/home/details/{campsiteId}"
 private const val WINNER_BOOKING_ROUTE = "entrant/reservations/book/{lotteryId}"
 private const val ENTRANT_INBOX_ROUTE = "entrant/home/inbox"
+private const val OWNER_RESULTS_ROUTE = "owner/lotteries/results/{lotteryId}"
 private const val ENTRANT_LOTTERY_ROUTE = "entrant/home/details/{campsiteId}/lottery/{lotteryId}"
 
 /** Owner campsite routes keep the Campsites tab selected. */
@@ -241,7 +245,8 @@ fun LambdaCampsiteApp(
                                     factory = OwnerWaitingListController.createFactory(),
                                 )
                                 OwnerWaitingListScreen(waitingListController,
-                                    onBack = { navController.navigateToTab(AppTab.OWNER_HOME) })
+                                    onBack = { navController.navigateToTab(AppTab.OWNER_HOME) },
+                                    onResults = { id -> navController.navigate("owner/lotteries/results/${Uri.encode(id)}") })
                             }
                             else -> PlaceholderScreen(tab)
                         }
@@ -263,6 +268,13 @@ fun LambdaCampsiteApp(
                     WinnerBookingScreen(booking, onClose = { navController.popBackStack() }, onCampsite = { campsiteId ->
                         navController.navigate("entrant/home/details/${Uri.encode(campsiteId)}")
                     })
+                }
+
+                composable(OWNER_RESULTS_ROUTE,
+                    arguments = listOf(navArgument("lotteryId") { type = NavType.StringType })) { entry ->
+                    val id = requireNotNull(entry.arguments?.getString("lotteryId"))
+                    val results: OwnerWaitingListController = viewModel(factory = OwnerWaitingListController.createFactory(id, includeContacts = false))
+                    OwnerLotteryResultsScreen(results, onBack = { navController.popBackStack() })
                 }
 
                 composable(OWNER_RESERVATIONS_ROUTE,

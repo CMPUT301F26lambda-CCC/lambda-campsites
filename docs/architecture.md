@@ -21,6 +21,8 @@ Flow 11 update: Sreeman Reddy · last updated 2026-11-03.
 > below. Follow-up human review remains pending.
 
 > Flow 9 summary: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted with the booking summary; human review pending.
+
+> Flow 5 summary: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted with the automatic-results summary; human review pending.
 >
 > Documentation organization: Lalith Valluru, 2026-11-03 (#151). OpenAI GPT-6
 > (OpenAI), through Codex, assisted with shortening the Flow 12 addition to a
@@ -247,6 +249,8 @@ A document that belongs to another one can share its parent's repository. A camp
 ### Features
 
 Winner booking (Flow 9) uses `WinnerBookingController` and the existing lottery, campsite and reservation repositories. Live calendars constrain selection; the booking transaction consumes one win and the confirmation reads the saved reservation.
+
+Automatic lottery results reuse the ownership-checked lottery/entry listeners. The server records draw time and actual counts atomically with the results; the owner UI is read-only and never triggers a draw.
 
 | Screen | Controller | Model it calls | Stories |
 |---|---|---|---|
