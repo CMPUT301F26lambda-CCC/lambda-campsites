@@ -1,4 +1,6 @@
 /* OpenAI GPT-6 (OpenAI), through Codex, assisted with mapping the Figma inbox tokens; human review pending. */
+// Flow 8 update: Lalith Valluru, 2026-11-03.
+// Outstanding issues: manual TalkBack and deployed push delivery checks remain.
 package com.lambda.campsite.view.theme
 
 import androidx.compose.ui.graphics.Color

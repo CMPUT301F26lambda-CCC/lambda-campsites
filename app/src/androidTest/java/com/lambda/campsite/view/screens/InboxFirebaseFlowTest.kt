@@ -2,9 +2,12 @@
  * Purpose: real Flow 8 app navigation, notification isolation and read persistence on local emulators.
  * AI use: OpenAI GPT-6 through Codex assisted with test fixtures/assertions; human review pending.
  */
+// Flow 8 update: Lalith Valluru, 2026-11-03.
+// Outstanding issues: manual TalkBack and deployed push delivery checks remain.
 package com.lambda.campsite.view.screens
 
 import androidx.compose.ui.test.*
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.firebase.Firebase
@@ -51,6 +54,7 @@ class InboxFirebaseFlowTest {
         launchInbox(); awaitText(notification.title)
         compose.onNodeWithText(notification.title).performClick()
         awaitText(text(R.string.flow8_accept))
+        screenshot("flow8-winning.png")
         compose.onNodeWithText(text(R.string.flow8_accept)).performScrollTo().performClick()
         awaitText(text(R.string.flow9_choose_dates))
         compose.onNodeWithText(text(R.string.flow9_dates_heading)).assertExists()
@@ -77,8 +81,15 @@ class InboxFirebaseFlowTest {
         compose.onNodeWithText("Notice Demo Campsite", substring = true).assertExists()
         compose.onNodeWithText("Opened:", substring = true).assertExists()
         compose.onNodeWithText("Closed:", substring = true).assertExists()
+        screenshot("flow8-losing.png")
         compose.onNodeWithText(text(R.string.flow8_accept)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.flow9_decline)).assertDoesNotExist()
+    }
+    private fun screenshot(name: String) {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        java.io.File(context.filesDir, name).outputStream().use {
+            compose.onRoot().captureToImage().asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+        }
     }
     @get:Rule val compose = createComposeRule()
     private lateinit var uid: String

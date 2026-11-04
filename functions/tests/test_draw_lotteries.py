@@ -122,6 +122,10 @@ def test_draw_metadata_is_immutable_on_retry_and_keeps_public_campsite_names(db)
     main.draw_due_lotteries(db, now)
     original = lottery_ref.get().to_dict()
     assert original["drawnCampsiteNames"] == ["Demo Campsite"]
+    for notice in _notifications(db):
+        assert notice["lotteryId"] == lottery_ref.id
+        assert "Demo Campsite" in notice["body"]
+        assert now.isoformat() in notice["body"]
     main._draw_lottery(db, lottery_ref, now + timedelta(minutes=5))
     assert lottery_ref.get().to_dict() == original
     assert len(_notifications(db)) == 2

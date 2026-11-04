@@ -8,6 +8,8 @@
  * the app doesn't know reads as null. Sashreek Addanki reviewed the change.
  */
 // OpenAI GPT-6 (OpenAI), through Codex, assisted with lotteryId mapping and legacy defaults; human review pending.
+// Flow 8 update: Lalith Valluru, 2026-11-03.
+// Outstanding issues: manual TalkBack and deployed push delivery checks remain.
 package com.lambda.campsite.model.repository
 
 import com.google.firebase.Timestamp

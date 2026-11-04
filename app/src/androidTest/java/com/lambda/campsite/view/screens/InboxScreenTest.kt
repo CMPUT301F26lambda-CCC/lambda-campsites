@@ -2,6 +2,8 @@
  * Purpose: isolated Flow 8 Compose inbox/detail states and accessible actions.
  * AI use: OpenAI GPT-6 through Codex assisted with test code; human review pending.
  */
+// Flow 8 update: Lalith Valluru, 2026-11-03.
+// Outstanding issues: manual TalkBack and deployed push delivery checks remain.
 package com.lambda.campsite.view.screens
 
 import androidx.compose.runtime.mutableStateOf

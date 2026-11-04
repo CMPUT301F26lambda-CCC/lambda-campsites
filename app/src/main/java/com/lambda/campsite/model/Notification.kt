@@ -5,6 +5,8 @@
  * committed it.
  */
 // OpenAI GPT-6 (OpenAI), through Codex, assisted with the optional lotteryId contract; human review pending.
+// Flow 8 update: Lalith Valluru, 2026-11-03.
+// Outstanding issues: manual TalkBack and deployed push delivery checks remain.
 package com.lambda.campsite.model
 
 import com.google.firebase.Timestamp

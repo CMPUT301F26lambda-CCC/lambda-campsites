@@ -2,6 +2,8 @@
  * Purpose: Flow 8 notice loading, selection, read acknowledgements and retries.
  * AI use: OpenAI GPT-6 through Codex assisted with test cases and code; human review pending.
  */
+// Flow 8 update: Lalith Valluru, 2026-11-03.
+// Outstanding issues: manual TalkBack and deployed push delivery checks remain.
 package com.lambda.campsite.controller
 
 import com.google.firebase.Timestamp

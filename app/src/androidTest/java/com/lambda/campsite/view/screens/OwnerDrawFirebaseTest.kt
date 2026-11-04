@@ -7,6 +7,7 @@
 package com.lambda.campsite.view.screens
 
 import androidx.compose.ui.test.*
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.firebase.Firebase
@@ -56,6 +57,10 @@ class OwnerDrawFirebaseTest {
         awaitText(text(R.string.flow5_pending))
         android.util.Log.i("Flow5Review","FLOW5_FIXTURE_READY")
         awaitText("Drawn",90_000)
+        compose.waitForIdle()
+        java.io.File(InstrumentationRegistry.getInstrumentation().targetContext.filesDir,"flow5-results.png").outputStream().use {
+            compose.onRoot().captureToImage().asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)
+        }
         val entries=runBlocking{withTimeout(15_000){Firebase.firestore.collection("lotteries/${lottery.id}/entries").get(Source.SERVER).await().documents}}
         val winner=entries.single{it.getString("status")=="WON"}.id
         val other=entries.single{it.getString("status")=="NOT_SELECTED"}.id

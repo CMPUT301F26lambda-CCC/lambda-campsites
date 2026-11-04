@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- OpenAI GPT-6 through Codex assisted with Flow 8 text; human review pending. -->
+<!-- Lalith Valluru, 2026-11-03. Outstanding issues: translation review remains. -->
 <resources>
     <string name="flow8_inbox">Notifications</string>
     <string name="flow8_open_inbox">Open notifications</string>
