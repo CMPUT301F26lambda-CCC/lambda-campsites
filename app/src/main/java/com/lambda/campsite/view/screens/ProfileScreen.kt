@@ -16,12 +16,10 @@ can turn notifications on or off, view the campsite policy they agreed
 to on FirstLaunchScreen, and delete their profile.
 
 Outstanding Issue:
-1.When a person clicks on Use App As Entrant, the navigation bar works
-correctly. However, when they click on Owner, the navigation bar does
-not update. It still needs to be connected to the Owner or Admin
-screens for users with those roles.
-The UI part is complete, so the slider will show the selected role
-change.
+1.RESOLVED: the slider now calls ProfileController.onSwitchRole (or
+onBecomeOwner for someone who doesn't hold the owner role yet), so the
+navigation bar follows the selected role. For profiles that don't hold
+Owner yet, picking Owner saves it ("List your campsite", US 03.07.01).
 2.The back button on the Profile screen needs to navigate to the correct
 landing screen based on the user's active role (Entrant, Owner or Admin),
 since each role has a different navigation bar and set of screens.
@@ -41,6 +39,11 @@ since each role has a different navigation bar and set of screens.
  * ProfileController and ProfileRepository, building the role selection slider
  * UI, and improving the KDoc for ProfileScreen. Harmanjoth Kaur reviewed the suggestions
  * and made the final changes myself.
+ *
+ * The role slider was connected to the controller in November 2026 with GLM
+ * 5.3 Flash (Z.ai), through OpenCode, at Raghav Sethi's request: the slider
+ * now calls onSwitchRole (or onBecomeOwner for someone who doesn't hold the
+ * owner role) and follows the app's active role. Raghav Sethi tested it.
  */
 
 package com.lambda.campsite.view.screens
@@ -123,7 +126,8 @@ fun ProfileScreen(controller: ProfileController,
 ) {
     val state by controller.state.collectAsStateWithLifecycle()
     val profile = state.profile
-    var selectedRole by remember {mutableStateOf(Role.ENTRANT)
+    var selectedRole by remember(state.activeRole) {
+        mutableStateOf(state.activeRole)
     }
     // Checking whether the profile has loaded before accessing its properties.
     // If the profile is null, show a loading or error message instead of displaying
@@ -277,8 +281,13 @@ fun ProfileScreen(controller: ProfileController,
                                     .fillMaxHeight()
                                     .background(if (isSelected) SelectedMint else Color.Transparent)
                                     .clickable {
-                                        if (role != Role.ADMIN || profile.hasRole(Role.ADMIN)) {
-                                            selectedRole = role
+                                        when {
+                                            // Admin is only selectable by profiles that hold it.
+                                            role == Role.ADMIN && !profile.hasRole(Role.ADMIN) -> Unit
+                                            profile.hasRole(role) -> controller.onSwitchRole(role)
+                                            // Owner is the only role the app can grant:
+                                            // "List your campsite" adds it and switches (US 03.11.01).
+                                            else -> controller.onBecomeOwner()
                                         }
                                     },
                                 contentAlignment = Alignment.Center
