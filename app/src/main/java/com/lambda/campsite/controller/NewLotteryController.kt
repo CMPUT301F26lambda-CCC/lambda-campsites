@@ -9,6 +9,9 @@
  * lock once entrants joined, the capacity floor against the live wait list,
  * and the fresh re-read of the stored lottery on save.
  */
+// Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 (OpenAI), through Codex,
+// assisted with edit guards, race handling and merge preservation. Human review pending.
+// Outstanding issues: manual TalkBack review and rules deployment remain pending.
 package com.lambda.campsite.controller
 
 import androidx.lifecycle.ViewModel
@@ -20,6 +23,8 @@ import com.lambda.campsite.LambdaApplication
 import com.google.firebase.Timestamp
 import com.lambda.campsite.model.Campsite
 import com.lambda.campsite.model.Lottery
+import com.lambda.campsite.model.LotteryEditRestriction
+import com.lambda.campsite.model.repository.LotteryEditException
 import com.lambda.campsite.model.LotteryStatus
 import com.lambda.campsite.model.repository.CampsiteRepository
 import com.lambda.campsite.model.repository.LotteryRepository
@@ -74,6 +79,9 @@ enum class NewLotteryError {
 
     /** The lottery couldn't be saved, for example because the phone is offline. */
     SAVE_FAILED,
+
+    /** Registration changed during editing; review the refreshed locked fields before saving. */
+    LOCKED_FIELDS_CHANGED,
 }
 
 /**
@@ -325,8 +333,8 @@ class NewLotteryController(
      * while a save is in flight, so a quick double tap creates one lottery.
      *
      * On an edit (US 02.04.06), the stored lottery is read back first and
-     * decides what's locked: its campsites and registration dates win over the
-     * form once anyone has joined, and the waiting-list capacity has to still
+     * decides what's locked: conflicting campsite/registration changes are refused
+     * once anyone has joined, and the waiting-list capacity has to still
      * cover everyone already on it, because entrants can join while the wizard
      * sits open.
      *
@@ -370,12 +378,12 @@ class NewLotteryController(
                 val joined = stored?.entryCount ?: 0
 
                 if (stored != null && stored.status != LotteryStatus.OPEN) {
-                    _state.update { it.copy(isSaving = false, error = NewLotteryError.NOT_DRAWABLE) }
+                    refuseEdit(LotteryEditRestriction.NOT_OPEN, stored)
                     return@launch
                 }
 
                 if (current.limitWaitingList && current.capacity < joined) {
-                    _state.update { it.copy(isSaving = false, error = NewLotteryError.CAPACITY_BELOW_JOINED) }
+                    refuseEdit(LotteryEditRestriction.CAPACITY_BELOW_JOINED, stored)
                     return@launch
                 }
 
@@ -383,16 +391,20 @@ class NewLotteryController(
                     id = editingLottery?.id ?: lotteryRepository.newLotteryId(),
                     ownerId = ownerId,
                     name = current.name.trim(),
-                    // With entrants joined, these keep the stored values: they
-                    // joined for those exact campsites and dates (US 02.04.06).
-                    campsiteIds = if (joined > 0) stored!!.campsiteIds else current.selectedCampsiteIds,
-                    registrationOpens = if (joined > 0) stored!!.registrationOpens else startOfDay(current.registrationOpens!!),
-                    registrationCloses = if (joined > 0) stored!!.registrationCloses else endOfDay(current.registrationCloses!!),
+                    // Keep the proposal intact so a newly locked edit is explicitly refused.
+                    campsiteIds = current.selectedCampsiteIds,
+                    registrationOpens = if (stored != null && current.registrationOpens == registrationOpenDate(stored)) stored.registrationOpens else startOfDay(current.registrationOpens!!),
+                    registrationCloses = if (stored != null && current.registrationCloses == registrationCloseDate(stored)) stored.registrationCloses else endOfDay(current.registrationCloses!!),
                     stayStart = current.stayStart!!,
                     stayEnd = current.stayEnd!!,
                     numberOfWinners = current.numberOfWinners,
                     capacity = if (current.limitWaitingList) current.capacity else null,
                 )
+                val restriction = stored?.let(lottery::editRestriction)
+                if (restriction != null) {
+                    refuseEdit(restriction, stored)
+                    return@launch
+                }
                 if (!lottery.validateDates()) {
                     _state.update { it.copy(isSaving = false, error = NewLotteryError.INVALID_DATES) }
                     return@launch
@@ -403,9 +415,40 @@ class NewLotteryController(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _state.update { it.copy(isSaving = false, saveFailed = true) }
+                val refusal = generateSequence(e as Throwable?) { it.cause }
+                    .filterIsInstance<LotteryEditException>().firstOrNull()
+                if (refusal != null) {
+                    val latest = editingLottery?.let {
+                        try { lotteryRepository.lottery(it.id).firstOrNull() }
+                        catch (cancelled: CancellationException) { throw cancelled }
+                        catch (_: Exception) { null }
+                    }
+                    refuseEdit(refusal.restriction, latest)
+                } else _state.update { it.copy(isSaving = false, saveFailed = true) }
             }
         }
+    }
+
+    private fun registrationOpenDate(lottery: Lottery): LocalDate =
+        lottery.registrationOpens.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
+
+    private fun registrationCloseDate(lottery: Lottery): LocalDate =
+        lottery.registrationCloses.toInstant().atZone(ZoneId.systemDefault()).toLocalDate().minusDays(1)
+
+    /** Refresh locked fields after a refused edit; the user must review and save again. */
+    private fun refuseEdit(reason: LotteryEditRestriction, latest: Lottery?) {
+        if (latest != null) editingLottery = latest
+        _state.update { current -> current.copy(
+            isSaving = false, saveFailed = false,
+            joinedEntrants = latest?.entryCount ?: current.joinedEntrants,
+            selectedCampsiteIds = if (reason == LotteryEditRestriction.LOCKED_FIELDS_CHANGED && latest != null) latest.campsiteIds else current.selectedCampsiteIds,
+            registrationOpens = if (reason == LotteryEditRestriction.LOCKED_FIELDS_CHANGED && latest != null) registrationOpenDate(latest) else current.registrationOpens,
+            registrationCloses = if (reason == LotteryEditRestriction.LOCKED_FIELDS_CHANGED && latest != null) registrationCloseDate(latest) else current.registrationCloses,
+            error = when (reason) {
+                LotteryEditRestriction.NOT_OPEN -> NewLotteryError.NOT_DRAWABLE
+                LotteryEditRestriction.LOCKED_FIELDS_CHANGED -> NewLotteryError.LOCKED_FIELDS_CHANGED
+                LotteryEditRestriction.CAPACITY_BELOW_JOINED -> NewLotteryError.CAPACITY_BELOW_JOINED
+            }) }
     }
 
     /** Why step 2 can't continue, or `null` if its dates allow it. */
