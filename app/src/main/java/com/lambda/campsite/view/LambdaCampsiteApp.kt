@@ -60,6 +60,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.lambda.campsite.R
+import com.lambda.campsite.model.Role
 import com.lambda.campsite.controller.CampsiteQrCodeController
 import com.lambda.campsite.controller.MapLocationController
 import com.lambda.campsite.controller.OwnerCampsiteAddController
@@ -76,7 +77,6 @@ import com.lambda.campsite.controller.LotteryController
 import com.lambda.campsite.controller.ProfileController
 import com.lambda.campsite.controller.OwnerWaitingListController
 import com.lambda.campsite.view.screens.OwnerWaitingListScreen
-import com.lambda.campsite.model.Role
 import com.lambda.campsite.view.screens.CampsiteQrCodeScreen
 import com.lambda.campsite.view.screens.MapLocationScreen
 import com.lambda.campsite.view.screens.OwnerCampsiteAddScreen
@@ -187,8 +187,6 @@ fun LambdaCampsiteApp(
         val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
         Scaffold(
-            // The root inset lets each screen's app bar draw up under the clock;
-            // screens without an app bar pad themselves with statusBarsPadding().
             topBar = {
                 if (state.activeRole != Role.ENTRANT && currentRoute != FIRST_LAUNCH_ROUTE) {
                     TopAppBar(
@@ -212,7 +210,23 @@ fun LambdaCampsiteApp(
                                 selected = isSelectedTab(tab, currentRoute),
                                 onClick = { navController.navigateToTab(tab) },
                                 // The label below names the tab, so the icon needs no description.
-                                icon = { Icon(tab.icon, contentDescription = null) },
+                                icon = {
+                                    val entrantIcon =
+                                        if (state.activeRole == Role.ENTRANT) when (tab) {
+                                            AppTab.ENTRANT_HOME -> R.drawable.flow10_nav_home
+                                            AppTab.ENTRANT_RESERVATIONS -> R.drawable.flow11_home_active
+                                            AppTab.PROFILE -> R.drawable.flow10_person
+                                            else -> null
+                                        } else null
+                                    if (entrantIcon == null) Icon(
+                                        tab.icon,
+                                        contentDescription = null
+                                    )
+                                    else Icon(
+                                        painterResource(entrantIcon),
+                                        contentDescription = null
+                                    )
+                                },
                                 label = { Text(stringResource(tab.labelRes)) },
                                 colors = NavigationBarItemDefaults.colors(
                                     indicatorColor = com.lambda.campsite.view.theme.CampPositive,
@@ -223,31 +237,6 @@ fun LambdaCampsiteApp(
                                 ),
                             )
                         }
-                NavigationBar(containerColor = com.lambda.campsite.view.theme.CampSurfaceHigh) {
-                    tabs.forEach { tab ->
-                        NavigationBarItem(
-                            selected = isSelectedTab(tab, currentRoute),
-                            onClick = { navController.navigateToTab(tab) },
-                            // The label below names the tab, so the icon needs no description.
-                            icon = {
-                                val entrantIcon = if (state.activeRole == Role.ENTRANT) when (tab) {
-                                    AppTab.ENTRANT_HOME -> R.drawable.flow10_nav_home
-                                    AppTab.ENTRANT_RESERVATIONS -> R.drawable.flow11_home_active
-                                    AppTab.PROFILE -> R.drawable.flow10_person
-                                    else -> null
-                                } else null
-                                if (entrantIcon == null) Icon(tab.icon, contentDescription = null)
-                                else Icon(painterResource(entrantIcon), contentDescription = null)
-                            },
-                            label = { Text(stringResource(tab.labelRes)) },
-                            colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = com.lambda.campsite.view.theme.CampPositive,
-                                selectedIconColor = com.lambda.campsite.view.theme.ForestGreen,
-                                selectedTextColor = com.lambda.campsite.view.theme.ForestGreen,
-                                unselectedIconColor = com.lambda.campsite.view.theme.CampSecondaryText,
-                                unselectedTextColor = com.lambda.campsite.view.theme.CampSecondaryText,
-                            ),
-                        )
                     }
                 }
             },
@@ -466,6 +455,7 @@ fun LambdaCampsiteApp(
                         key = "details_${campsiteId}",
                         factory = OwnerCampsiteDetailsController.createFactory(campsiteId),
                     )
+
                     OwnerCampsiteDetailsScreen(
                         controller = detailsController,
                         onBack = { navController.popBackStack() },
@@ -575,8 +565,8 @@ fun LambdaCampsiteApp(
                 }
             }
         }
+            }
     }
-}
 
 /**
  * The first screen of the owner campsites tab: the owner's campsites, leading
