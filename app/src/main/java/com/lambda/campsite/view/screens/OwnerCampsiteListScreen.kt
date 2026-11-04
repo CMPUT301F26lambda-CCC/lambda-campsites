@@ -1,3 +1,4 @@
+// Issue #150: GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
 /*
  * AI use: Gemini 3.8 Flash (Google DeepMind) helped write this file in November 2026.
  * It helped with the controller integration, TalkBack accessibility semantics,
@@ -30,6 +31,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -51,6 +53,8 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lambda.campsite.R
 import com.lambda.campsite.controller.CampsiteListError
@@ -58,9 +62,9 @@ import com.lambda.campsite.controller.OwnerCampsiteListController
 import com.lambda.campsite.model.Campsite
 import com.lambda.campsite.view.theme.StatusBarIconStyle
 
-internal val CampGreenDark = Color(0xFF2F5D50)
-internal val CampGreenLight = Color(0xFFC9E5D3)
-internal val CampGreenField = Color(0xFFEAF5EE)
+internal val CampGreenDark = com.lambda.campsite.view.theme.ForestGreen
+internal val CampGreenLight = com.lambda.campsite.view.theme.Mint
+internal val CampGreenField = com.lambda.campsite.view.theme.CampField
 
 /**
  * The owner's campsites tab screen (US 02.03.01).
@@ -81,7 +85,7 @@ fun OwnerCampsiteListScreen(
     onCampsiteClick: (Campsite) -> Unit,
     onRegisterClick: () -> Unit,
     modifier: Modifier = Modifier,
-    hasPhoto: (Campsite) -> Boolean = { false },
+    hasPhoto: (Campsite) -> Boolean = { it.imageId != null },
 ) {
     val state by controller.state.collectAsStateWithLifecycle()
 
@@ -93,6 +97,8 @@ fun OwnerCampsiteListScreen(
         onRegisterClick = onRegisterClick,
         modifier = modifier,
         hasPhoto = hasPhoto,
+        photoUrls = state.photoUrls,
+        onRetry = controller::retry,
     )
 }
 
@@ -112,7 +118,7 @@ fun OwnerCampsiteListScreen(
     onCampsiteClick: (Campsite) -> Unit,
     onRegisterClick: () -> Unit,
     modifier: Modifier = Modifier,
-    hasPhoto: (Campsite) -> Boolean = { false },
+    hasPhoto: (Campsite) -> Boolean = { it.imageId != null },
 ) {
     OwnerCampsiteListContent(
         campsites = campsites,
@@ -122,6 +128,8 @@ fun OwnerCampsiteListScreen(
         onRegisterClick = onRegisterClick,
         modifier = modifier,
         hasPhoto = hasPhoto,
+        photoUrls = emptyMap(),
+        onRetry = {},
     )
 }
 
@@ -134,14 +142,16 @@ private fun OwnerCampsiteListContent(
     onCampsiteClick: (Campsite) -> Unit,
     onRegisterClick: () -> Unit,
     modifier: Modifier = Modifier,
-    hasPhoto: (Campsite) -> Boolean = { false },
+    hasPhoto: (Campsite) -> Boolean = { it.imageId != null },
+    photoUrls: Map<String, String>,
+    onRetry: () -> Unit,
 ) {
     // The dark green app bar runs under the clock, so the clock draws white.
     StatusBarIconStyle(darkIcons = false)
 
     Scaffold(
         modifier = modifier,
-        containerColor = CampGreenLight,
+        containerColor = CampGreenDark,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -169,7 +179,9 @@ private fun OwnerCampsiteListContent(
         Column(
             Modifier
                 .padding(padding)
-                .fillMaxSize(),
+                .fillMaxSize()
+                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                .background(CampGreenLight),
         ) {
             when {
                 isLoading && campsites.isEmpty() -> {
@@ -178,13 +190,15 @@ private fun OwnerCampsiteListContent(
                     }
                 }
                 error != null && campsites.isEmpty() -> {
-                    Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+                    Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center) {
                         Text(
                             text = stringResource(R.string.error_load_failed),
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                         )
+                        Button(onClick = onRetry) { Text(stringResource(R.string.owner_retry)) }
                     }
                 }
                 campsites.isEmpty() -> {
@@ -197,6 +211,9 @@ private fun OwnerCampsiteListContent(
                     }
                 }
                 else -> {
+                    if (error != null) Button(onClick = onRetry, modifier = Modifier.padding(16.dp)) {
+                        Text(stringResource(R.string.owner_retry))
+                    }
                     val countText = if (campsites.size == 1) {
                         stringResource(R.string.campsite_count_one)
                     } else {
@@ -212,7 +229,7 @@ private fun OwnerCampsiteListContent(
                     )
                     LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
                         items(campsites, key = { it.id }) { camp ->
-                            CampsiteRow(camp, hasPhoto(camp)) { onCampsiteClick(camp) }
+                            CampsiteRow(camp, hasPhoto(camp), photoUrls[camp.imageId]) { onCampsiteClick(camp) }
                         }
                     }
                 }
@@ -222,7 +239,7 @@ private fun OwnerCampsiteListContent(
 }
 
 @Composable
-private fun CampsiteRow(camp: Campsite, hasPhoto: Boolean, onClick: () -> Unit) {
+private fun CampsiteRow(camp: Campsite, hasPhoto: Boolean, photoUrl: String?, onClick: () -> Unit) {
     val photoNotice = if (hasPhoto) "" else " · " + stringResource(R.string.no_photo_yet)
     val subtitle = camp.location + photoNotice
     val rowDescription = "${camp.name}, $subtitle"
@@ -244,7 +261,8 @@ private fun CampsiteRow(camp: Campsite, hasPhoto: Boolean, onClick: () -> Unit) 
                 .background(CampGreenField),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(20.dp))
+            if (photoUrl != null) AsyncImage(photoUrl, null, modifier = Modifier.size(40.dp), contentScale = ContentScale.Crop)
+            else Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(20.dp))
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {

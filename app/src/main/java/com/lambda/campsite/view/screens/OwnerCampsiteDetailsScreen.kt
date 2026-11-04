@@ -1,3 +1,4 @@
+// Issue #150: GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
 /*
  * AI use: Gemini 3.8 Flash (Google DeepMind) helped write this file in November 2026.
  * It helped with controller integration, TalkBack accessibility, formatted availability
@@ -10,7 +11,9 @@
 package com.lambda.campsite.view.screens
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -59,6 +62,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -71,11 +77,18 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lambda.campsite.R
 import com.lambda.campsite.controller.OwnerCampsiteDetailsController
+import com.lambda.campsite.controller.OwnerDetailsError
 import com.lambda.campsite.model.Availability
 import com.lambda.campsite.model.Campsite
+import com.lambda.campsite.model.Lottery
+import com.lambda.campsite.model.LotteryStatus
+import com.google.firebase.Timestamp
+import android.graphics.Bitmap
 import com.lambda.campsite.view.theme.StatusBarIconStyle
 import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -98,6 +111,7 @@ fun OwnerCampsiteDetailsScreen(
     onEditClick: () -> Unit,
     onBookedDatesClick: () -> Unit,
     onQrCodeClick: () -> Unit,
+    onLotteryClick: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val state by controller.state.collectAsStateWithLifecycle()
@@ -122,7 +136,7 @@ fun OwnerCampsiteDetailsScreen(
                         title = { Text(stringResource(R.string.campsite_details_title)) },
                         navigationIcon = {
                             IconButton(onClick = onBack) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                             }
                         },
                         colors = TopAppBarDefaults.topAppBarColors(
@@ -135,7 +149,8 @@ fun OwnerCampsiteDetailsScreen(
             ) { padding ->
                 Box(Modifier.padding(padding).fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
                     Text(
-                        text = state.error ?: "Campsite not found.",
+                        text = stringResource(if (state.error == OwnerDetailsError.LOAD_FAILED)
+                            R.string.error_campsite_load_failed else R.string.error_campsite_not_found),
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                     )
@@ -143,14 +158,20 @@ fun OwnerCampsiteDetailsScreen(
             }
         }
         else -> {
-            val availabilityText = formatAvailability(state.availability)
+            val availabilityText = state.availability?.let {
+                stringResource(R.string.campsite_available_dates, formatAvailability(it))
+            }
             OwnerCampsiteDetailsContent(
                 campsite = state.campsite!!,
                 availabilityText = availabilityText,
+                lotteries = state.lotteries,
+                photoUrl = state.photoUrl,
+                qrBitmap = state.qrBitmap,
                 onBack = onBack,
                 onEditClick = onEditClick,
                 onBookedDatesClick = onBookedDatesClick,
                 onQrCodeClick = onQrCodeClick,
+                onLotteryClick = onLotteryClick,
                 modifier = modifier,
             )
         }
@@ -167,6 +188,7 @@ fun OwnerCampsiteDetailsScreen(
     onEditClick: () -> Unit,
     onBookedDatesClick: () -> Unit,
     onQrCodeClick: () -> Unit,
+    onLotteryClick: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     availabilityText: String? = null,
 ) {
@@ -177,6 +199,7 @@ fun OwnerCampsiteDetailsScreen(
         onEditClick = onEditClick,
         onBookedDatesClick = onBookedDatesClick,
         onQrCodeClick = onQrCodeClick,
+        onLotteryClick = onLotteryClick,
         modifier = modifier,
     )
 }
@@ -186,10 +209,14 @@ fun OwnerCampsiteDetailsScreen(
 private fun OwnerCampsiteDetailsContent(
     campsite: Campsite,
     availabilityText: String?,
+    lotteries: List<Lottery> = emptyList(),
+    photoUrl: String? = null,
+    qrBitmap: Bitmap? = null,
     onBack: () -> Unit,
     onEditClick: () -> Unit,
     onBookedDatesClick: () -> Unit,
     onQrCodeClick: () -> Unit,
+    onLotteryClick: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     // The dark green app bar runs under the clock, so the clock draws white.
@@ -208,7 +235,7 @@ private fun OwnerCampsiteDetailsContent(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -225,10 +252,16 @@ private fun OwnerCampsiteDetailsContent(
                 .verticalScroll(rememberScrollState()),
         ) {
             // Hero campfire/forest illustration banner
-            CampsiteHeroBanner(modifier = Modifier.fillMaxWidth().height(180.dp))
+            if (photoUrl != null) {
+                AsyncImage(photoUrl, contentDescription = stringResource(R.string.owner_campsite_photo, campsite.name),
+                    modifier = Modifier.fillMaxWidth().height(232.dp), contentScale = ContentScale.Crop)
+            } else {
+                CampsiteHeroBanner(modifier = Modifier.fillMaxWidth().height(232.dp))
+            }
 
             Column(
-                Modifier.padding(16.dp),
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                    .background(CampGreenLight).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text(
@@ -277,13 +310,6 @@ private fun OwnerCampsiteDetailsContent(
                     )
                 }
 
-                campsite.pricePerNight?.let {
-                    Text(
-                        stringResource(R.string.price_per_night_format, it),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-
                 if (campsite.amenities.isNotEmpty()) {
                     Text(
                         stringResource(R.string.heading_amenities),
@@ -320,13 +346,39 @@ private fun OwnerCampsiteDetailsContent(
                     )
                 }
 
-                if (campsite.rules.isNotBlank()) {
-                    Text(
-                        "Rules",
+                if (campsite.pricePerNight != null || campsite.rules.isNotBlank()) {
+                    Text(stringResource(R.string.campsite_price_rules_heading),
                         style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.semantics { heading() },
-                    )
-                    Text(campsite.rules, style = MaterialTheme.typography.bodySmall)
+                        modifier = Modifier.semantics { heading() })
+                    campsite.pricePerNight?.let {
+                        Text(stringResource(R.string.price_per_night_format, it),
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (campsite.rules.isNotBlank()) Text(campsite.rules, style = MaterialTheme.typography.bodySmall)
+                }
+                HorizontalDivider()
+
+                Text(stringResource(R.string.owner_lotteries_heading),
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.semantics { heading() })
+                if (lotteries.isEmpty()) Text(stringResource(R.string.owner_no_lotteries),
+                    style = MaterialTheme.typography.bodySmall)
+                lotteries.forEach { lottery ->
+                    Surface(shape = RoundedCornerShape(12.dp), color = CampGreenField,
+                        modifier = Modifier.fillMaxWidth().clickable { onLotteryClick(lottery.id) }) {
+                        Column(Modifier.padding(12.dp)) {
+                            Text(lottery.name, style = MaterialTheme.typography.titleSmall)
+                            Text(stringResource(when (lottery.statusAt(Timestamp.now())) {
+                                LotteryStatus.OPEN -> R.string.lottery_status_open
+                                LotteryStatus.UPCOMING -> R.string.lottery_status_upcoming
+                                LotteryStatus.DRAWN -> R.string.lottery_status_drawn
+                                LotteryStatus.ENDED -> R.string.lottery_status_ended
+                            }),
+                                style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(R.string.campsite_date_range, lottery.stayStart.toString(), lottery.stayEnd.toString()),
+                                style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
                 }
                 HorizontalDivider()
 
@@ -357,6 +409,18 @@ private fun OwnerCampsiteDetailsContent(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                }
+
+                Text(stringResource(R.string.campsite_map_caption), style = MaterialTheme.typography.bodySmall)
+
+                Text(stringResource(R.string.campsite_qr_title), style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.semantics { heading() })
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (qrBitmap != null) Image(qrBitmap.asImageBitmap(),
+                        contentDescription = stringResource(R.string.owner_qr_preview, campsite.name),
+                        modifier = Modifier.size(120.dp))
+                    else Icon(Icons.Default.QrCode, contentDescription = null, modifier = Modifier.size(80.dp))
+                    Text(stringResource(R.string.qr_scan_prompt), style = MaterialTheme.typography.bodySmall)
                 }
 
                 Spacer(Modifier.height(6.dp))
@@ -443,7 +507,7 @@ private fun CampsiteHeroBanner(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun MapPreviewMini(latitude: Double, longitude: Double, modifier: Modifier = Modifier) {
+internal fun MapPreviewMini(latitude: Double, longitude: Double, modifier: Modifier = Modifier) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
@@ -458,13 +522,16 @@ private fun MapPreviewMini(latitude: Double, longitude: Double, modifier: Modifi
             drawPath(road, color = Color.White, style = Stroke(width = 16f, cap = StrokeCap.Round))
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Default.LocationOn, contentDescription = "Pinned location", tint = Color(0xFFC8382B), modifier = Modifier.size(32.dp))
+            Icon(Icons.Default.LocationOn, contentDescription = stringResource(R.string.owner_pinned_location),
+                tint = Color(0xFFC8382B), modifier = Modifier.size(32.dp))
             Surface(
                 shape = RoundedCornerShape(12.dp),
                 color = Color(0xCC1A382F),
             ) {
                 Text(
-                    text = "%.4f° N, %.4f° W".format(latitude, -longitude),
+                    text = stringResource(R.string.owner_map_coordinates,
+                        abs(latitude), stringResource(if (latitude >= 0) R.string.owner_north else R.string.owner_south),
+                        abs(longitude), stringResource(if (longitude >= 0) R.string.owner_east else R.string.owner_west)),
                     color = Color.White,
                     style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
@@ -474,8 +541,7 @@ private fun MapPreviewMini(latitude: Double, longitude: Double, modifier: Modifi
     }
 }
 
-private fun formatAvailability(availability: Availability?): String? {
-    if (availability == null) return null
-    val fmt = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US)
-    return "Open ${availability.seasonStart.format(fmt)} – ${availability.seasonEnd.format(fmt)}"
+private fun formatAvailability(availability: Availability): String {
+    val fmt = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(Locale.getDefault())
+    return "${availability.seasonStart.format(fmt)} – ${availability.seasonEnd.format(fmt)}"
 }
