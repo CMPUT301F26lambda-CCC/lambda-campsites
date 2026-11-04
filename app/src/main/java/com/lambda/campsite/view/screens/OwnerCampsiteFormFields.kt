@@ -251,7 +251,8 @@ internal fun OwnerCampsiteFormFields(
 private fun SeasonDateField(labelRes: Int, date: LocalDate?, enabled: Boolean, onSelected: (LocalDate?) -> Unit) {
     var open by remember { mutableStateOf(false) }
     OutlinedButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth(), enabled = enabled) {
-        Text(stringResource(labelRes) + ": " + (date?.toString() ?: stringResource(R.string.owner_pick_date)))
+        Text(stringResource(R.string.owner_season_date_format, stringResource(labelRes),
+            date?.let(::formatOwnerCampsiteDate) ?: stringResource(R.string.owner_pick_date)))
     }
     if (open) {
         val pickerState = rememberDatePickerState(initialSelectedDateMillis = date?.atStartOfDay(ZoneOffset.UTC)?.toInstant()?.toEpochMilli())

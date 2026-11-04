@@ -85,9 +85,6 @@ import com.lambda.campsite.model.LotteryStatus
 import com.google.firebase.Timestamp
 import android.graphics.Bitmap
 import com.lambda.campsite.view.theme.StatusBarIconStyle
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
-import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -542,6 +539,5 @@ internal fun MapPreviewMini(latitude: Double, longitude: Double, modifier: Modif
 }
 
 private fun formatAvailability(availability: Availability): String {
-    val fmt = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(Locale.getDefault())
-    return "${availability.seasonStart.format(fmt)} – ${availability.seasonEnd.format(fmt)}"
+    return "${formatOwnerCampsiteDate(availability.seasonStart)} – ${formatOwnerCampsiteDate(availability.seasonEnd)}"
 }

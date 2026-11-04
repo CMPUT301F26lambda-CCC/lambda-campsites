@@ -61,6 +61,8 @@ import com.lambda.campsite.controller.CampsiteListError
 import com.lambda.campsite.controller.OwnerCampsiteListController
 import com.lambda.campsite.model.Campsite
 import com.lambda.campsite.view.theme.StatusBarIconStyle
+import com.lambda.campsite.view.theme.CampOnSurface
+import com.lambda.campsite.view.theme.CampSecondaryText
 
 internal val CampGreenDark = com.lambda.campsite.view.theme.ForestGreen
 internal val CampGreenLight = com.lambda.campsite.view.theme.Mint
@@ -206,7 +208,7 @@ private fun OwnerCampsiteListContent(
                         Text(
                             text = stringResource(R.string.no_campsites_empty),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = CampSecondaryText,
                         )
                     }
                 }
@@ -223,6 +225,7 @@ private fun OwnerCampsiteListContent(
                     Text(
                         text = countText,
                         style = MaterialTheme.typography.labelMedium,
+                        color = CampSecondaryText,
                         modifier = Modifier
                             .padding(16.dp)
                             .semantics { heading() },
@@ -262,17 +265,17 @@ private fun CampsiteRow(camp: Campsite, hasPhoto: Boolean, photoUrl: String?, on
             contentAlignment = Alignment.Center,
         ) {
             if (photoUrl != null) AsyncImage(photoUrl, null, modifier = Modifier.size(40.dp), contentScale = ContentScale.Crop)
-            else Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(20.dp))
+            else Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(20.dp), tint = CampSecondaryText)
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(camp.name, style = MaterialTheme.typography.bodyMedium)
+            Text(camp.name, style = MaterialTheme.typography.bodyMedium, color = CampOnSurface)
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = CampSecondaryText,
             )
         }
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = CampSecondaryText)
     }
 }

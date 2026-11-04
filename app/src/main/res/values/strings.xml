@@ -98,6 +98,7 @@
     <string name="section_availability">Availability</string>
     <string name="season_opens_label">Season opens</string>
     <string name="season_closes_label">Season closes</string>
+    <string name="owner_season_date_format">%1$s: %2$s</string>
     <string name="season_range_hint">Winners can only book nights in this range.</string>
     <string name="section_map_location">Map location</string>
     <string name="action_set_map_location">Set map location</string>

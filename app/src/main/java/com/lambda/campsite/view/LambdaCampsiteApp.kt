@@ -169,6 +169,15 @@ private const val OWNER_PICKER_RETURN_ADD = "ADD"
 /** Where the map picker hands its confirmed location back: the edit form. */
 private const val OWNER_PICKER_RETURN_EDIT = "EDIT"
 
+/** Existing transparent Figma icons for the owner's bottom navigation. */
+internal fun ownerTabIconRes(tab: AppTab): Int? = when (tab) {
+    AppTab.OWNER_HOME -> R.drawable.flow10_nav_home
+    AppTab.OWNER_CAMPSITES -> R.drawable.flow11_tent
+    AppTab.OWNER_LOTTERIES -> R.drawable.flow11_home_active
+    AppTab.PROFILE -> R.drawable.flow10_person
+    else -> null
+}
+
 /** Builds the details route for [campsiteId]. */
 private fun ownerDetailsRoute(campsiteId: String) = "owner/campsites/details/$campsiteId"
 
@@ -275,13 +284,7 @@ fun LambdaCampsiteApp(
                                         AppTab.PROFILE -> R.drawable.flow10_person
                                         else -> null
                                     } else null
-                                    val ownerIcon = if (state.activeRole == Role.OWNER) when (tab) {
-                                        AppTab.OWNER_HOME -> R.drawable.flow10_nav_home
-                                        AppTab.OWNER_CAMPSITES -> R.drawable.flow8_tent
-                                        AppTab.OWNER_LOTTERIES -> R.drawable.flow11_home_active
-                                        AppTab.PROFILE -> R.drawable.flow10_person
-                                        else -> null
-                                    } else null
+                                    val ownerIcon = if (state.activeRole == Role.OWNER) ownerTabIconRes(tab) else null
                                     val iconRes = entrantIcon ?: ownerIcon
                                     if (iconRes == null) Icon(tab.icon, contentDescription = null)
                                     else Icon(painterResource(iconRes), contentDescription = null)
