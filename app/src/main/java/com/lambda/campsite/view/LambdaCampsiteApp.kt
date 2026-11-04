@@ -30,14 +30,18 @@
 // Human review is pending.
 // Flow 10 feature owner: Sreeman Reddy. GPT-6 (OpenAI), through Codex,
 // assisted me with entrant reservation list and detail navigation.
+// Flow 16 feature owner: Sreeman Reddy. GPT-6 (OpenAI), through Codex,
+// assisted me with the Home scan button and full-screen scanner route.
 package com.lambda.campsite.view
 
 import android.net.Uri
 import android.os.Bundle
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -49,8 +53,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -76,6 +82,7 @@ import com.lambda.campsite.controller.OwnerBookedDatesController
 import com.lambda.campsite.controller.OwnerReservationsController
 import com.lambda.campsite.controller.OwnerReservationTab
 import com.lambda.campsite.controller.EntrantReservationsController
+import com.lambda.campsite.controller.QrScanController
 import com.lambda.campsite.controller.SearchController
 import com.lambda.campsite.controller.CampsiteController
 import com.lambda.campsite.controller.LotteryController
@@ -109,6 +116,8 @@ import com.lambda.campsite.view.screens.WinnerBookingScreen
 import com.lambda.campsite.view.screens.WinnerOffersScreen
 import com.lambda.campsite.controller.NotificationController
 import com.lambda.campsite.view.screens.InboxScreen
+import com.lambda.campsite.view.screens.QrScannerScreen
+import com.lambda.campsite.view.screens.ProfileScreen
 import com.lambda.campsite.controller.ProfileError
 import com.lambda.campsite.view.screens.SettingScreen
 import com.lambda.campsite.view.screens.EditProfileScreen
@@ -125,6 +134,7 @@ private const val ENTRANT_INBOX_ROUTE = "entrant/home/inbox"
 private const val WINNER_OFFERS_ROUTE = "entrant/reservations/wins"
 private const val ENTRANT_LOTTERY_ROUTE = "entrant/home/details/{campsiteId}/lottery/{lotteryId}"
 private const val ENTRANT_RESERVATION_DETAILS_ROUTE = "entrant/reservations/details/{reservationId}"
+private const val ENTRANT_SCAN_ROUTE = "entrant/home/scan"
 
 /** Owner campsite routes keep the Campsites tab selected. */
 private const val OWNER_ADD_ROUTE = "owner/campsites/add"
@@ -242,7 +252,7 @@ fun LambdaCampsiteApp(
                 }
             },
             bottomBar = {
-                if (currentRoute != FIRST_LAUNCH_ROUTE) {
+                if (currentRoute != FIRST_LAUNCH_ROUTE && currentRoute != ENTRANT_SCAN_ROUTE) {
                     NavigationBar(containerColor = com.lambda.campsite.view.theme.CampSurfaceHigh) {
                         tabs.forEach { tab ->
                             NavigationBarItem(
@@ -270,6 +280,18 @@ fun LambdaCampsiteApp(
                             )
                         }
                     }
+                }
+            },
+            floatingActionButton = {
+                if (state.activeRole == Role.ENTRANT && currentRoute == AppTab.ENTRANT_HOME.route) {
+                    ExtendedFloatingActionButton(
+                        onClick = { navController.navigate(ENTRANT_SCAN_ROUTE) },
+                        icon = { Icon(painterResource(R.drawable.flow16_scan), null, Modifier.size(20.dp)) },
+                        text = { Text(stringResource(R.string.flow16_scan_title)) },
+                        containerColor = com.lambda.campsite.view.theme.ForestGreen,
+                        contentColor = Color.White,
+                        modifier = Modifier.padding(bottom = 24.dp),
+                    )
                 }
             },
         ) { innerPadding ->
@@ -371,6 +393,15 @@ fun LambdaCampsiteApp(
                     }
                     EntrantReservationDetailsScreen(reservationId, reservationsController,
                         campsiteController, onBack = { navController.popBackStack() })
+                }
+
+                composable(ENTRANT_SCAN_ROUTE) {
+                    val scanController: QrScanController = viewModel(factory = QrScanController.Factory)
+                    QrScannerScreen(scanController, onBack = { navController.popBackStack() },
+                        onCampsiteFound = { campsiteId ->
+                            navController.popBackStack()
+                            navController.navigate("entrant/home/details/${Uri.encode(campsiteId)}")
+                        })
                 }
 
                 composable(OWNER_HOME_BOOKED_DATES_ROUTE) {

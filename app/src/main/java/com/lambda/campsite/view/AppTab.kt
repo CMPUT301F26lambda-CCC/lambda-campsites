@@ -5,6 +5,8 @@
  * reviewed it and committed it.
  * Flow 10 frontend update: Sreeman Reddy, November 2026. GPT-6 (OpenAI),
  * through Codex, assisted me with the entrant tab description.
+ * Flow 16 frontend update: Sreeman Reddy, November 2026. GPT-6 (OpenAI),
+ * through Codex, assisted me with the QR-scanning tab description.
  */
 package com.lambda.campsite.view
 
@@ -43,7 +45,7 @@ enum class AppTab(
     ENTRANT_HOME(
         "entrant/home", R.string.tab_home, Icons.Filled.Home,
         "Search, filters, campsite details and joining lotteries (US 01.01 to 01.03, Harman). " +
-            "Scanning a QR code (US 01.12, Sashreek).",
+            "Scanning a QR code (Flow 16, Sreeman).",
     ),
     ENTRANT_RESERVATIONS(
         "entrant/reservations", R.string.tab_reservations, Icons.Filled.DateRange,

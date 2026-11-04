@@ -4,6 +4,7 @@ Sashreek and Sreeman · original architecture updated November 1, 2026
 
 Flow 11 update: Sreeman Reddy · last updated 2026-11-03.
 Flow 10 frontend update: Sreeman Reddy · last updated 2026-11-03.
+Flow 16 scanner update: Sreeman Reddy · last updated 2026-11-03.
 > AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped
 > write this document and its diagrams in October 2026, working from
 > decisions the team made. It also checked the free-tier figures in
@@ -23,6 +24,9 @@ Flow 10 frontend update: Sreeman Reddy · last updated 2026-11-03.
 >
 > GPT-6 (OpenAI), through Codex, assisted me with the Flow 10 entrant
 > reservation screen/controller architecture. Human review is pending.
+>
+> GPT-6 (OpenAI), through Codex, assisted me with the Flow 16 scanner
+> architecture. Human review is pending.
 
 > Flow 8 summary: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted with the notification summary; human review pending.
 
@@ -262,7 +266,8 @@ Automatic lottery results reuse the ownership-checked lottery/entry listeners. T
 
 | Screen | Controller | Model it calls | Stories |
 |---|---|---|---|
-| SearchScreen | SearchController | CampsiteSearch | 01.01.01 to 01.01.04, 01.12.01 |
+| SearchScreen | SearchController | CampsiteSearch | 01.01.01 to 01.01.04 |
+| QrScannerScreen | QrScanController | QRCode, CampsiteRepository | 01.12.01 |
 | CampsiteScreen | CampsiteController | CampsiteRepository | 01.01.05, 01.13.01, 02.01.01 to 02.03.01 |
 | EntrantLotteryDetailsScreen | LotteryController (entrant only) | LotteryRepository | 01.01.06 to 01.02.02 |
 | EntrantReservationsScreen | EntrantReservationsController | ReservationRepository | 01.06.01, 01.06.02 |
@@ -279,6 +284,13 @@ Automatic lottery results reuse the ownership-checked lottery/entry listeners. T
 | AdminScreen | AdminController | AdminModeration | 03.01.01 to 03.12.01 |
 
 `CampsiteSearch` and `AdminModeration` are services from the class diagram, and they call the repositories themselves.
+
+The entrant Home route owns the Scan QR code action. `QrScannerScreen` requests
+camera permission and presents a CameraX preview; `QrFrameDecoder` reads QR
+payloads from the camera's luminance frames. `QrScanController` accepts the
+existing `QRCode` payload format, checks that the campsite still exists and is
+published through `CampsiteRepository`, then opens the existing entrant
+`CampsiteScreen` route. The details screen retains ownership of lottery actions.
 
 The entrant Reservations tab uses the existing `ReservationRepository.myReservations()`
 feed. Its tab and pushed details route share one `EntrantReservationsController`, so
