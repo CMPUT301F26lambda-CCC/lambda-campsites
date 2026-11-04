@@ -1,0 +1,19 @@
+<!--
+  Feature owner: Sreeman Reddy, Flow 16 (#133), November 2026.
+  AI use: GPT-6 (OpenAI), through Codex, assisted me with scanner labels
+  matched to the read-only Figma mockups. Human review is pending.
+-->
+<resources>
+    <string name="flow16_scan_title">Scan QR code</string>
+    <string name="flow16_scan_hint">Point your camera at a campsite’s QR code</string>
+    <string name="flow16_camera_needed">Camera access needed</string>
+    <string name="flow16_camera_explanation">Lambda Campsite uses your camera only to scan campsite QR codes. You can turn on camera access in your phone’s Settings.</string>
+    <string name="flow16_open_settings">Open Settings</string>
+    <string name="flow16_not_now">Not now</string>
+    <string name="flow16_invalid_code">That QR code isn’t for a Lambda Campsite listing. Try another code.</string>
+    <string name="flow16_lookup_failed">Couldn’t check that campsite right now. Try scanning again.</string>
+    <string name="flow16_camera_unavailable">The camera isn’t available right now.</string>
+    <string name="flow16_torch_on">Turn flashlight on</string>
+    <string name="flow16_torch_off">Turn flashlight off</string>
+    <string name="flow16_checking">Checking campsite…</string>
+</resources>
