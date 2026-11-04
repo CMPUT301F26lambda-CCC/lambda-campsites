@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
+  Purpose: declares the app's activity, its FCM service, the notification
+  permission, and the settings Firebase Messaging and Google Maps read.
+  Outstanding issues: None known.
+
   AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped add the
   LambdaApplication entry in October 2026. Sashreek Addanki reviewed and committed it.
 
@@ -11,6 +15,10 @@
   Claude Opus 5.5 (Anthropic), used through Claude Code, also helped Sashreek
   Addanki add the default push icon and channel on November 1, 2026. Sashreek
   Addanki reviewed them.
+
+  Claude Opus 5.5 (Anthropic), used through Claude Code, also helped Sashreek
+  Addanki add the Google Maps key entry on November 3, 2026. Sashreek Addanki
+  reviewed it.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
@@ -60,6 +68,12 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="@string/notification_channel_id" />
+
+        <!-- The Google Maps key (#98). Gradle fills it in from MAPS_API_KEY in
+             local.properties, so the key itself is never committed. -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
     </application>
 
 </manifest>
