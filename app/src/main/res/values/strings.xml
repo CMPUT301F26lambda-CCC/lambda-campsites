@@ -14,6 +14,7 @@
   Lalith Valluru, 2026-11-03 (#149): OpenAI GPT-6 (OpenAI), through Codex,
   assisted with entrant search/registration text and resource consolidation.
   Follow-up human review remains pending; no known outstanding text issues.
+  Issue #151: GPT-6 (OpenAI), through Codex, assisted me with owner waiting-list resource names.
 -->
 <resources>
     <string name="app_name">Lambda Campsite</string>
@@ -398,4 +399,36 @@
     <string name="delete_dialog_message">This permanently deletes your name, contact details and profile picture, and removes you from any waiting lists you\'ve joined. This can\'t be undone.</string>
     <string name="delete">Delete</string>
     <string name="cancel">Cancel</string>
+    <!-- Owner waiting-list flow (US 02.09.01). -->
+
+    <string name="owner_waiting_list_title">Waiting list</string>
+    <string name="owner_waiting_list_back">Back to lottery details</string>
+    <string name="owner_waiting_list_lottery">Lottery</string>
+    <string name="owner_waiting_list_choose">Choose a lottery</string>
+    <string name="owner_waiting_list_loading_lotteries">Loading your lotteries…</string>
+    <string name="owner_waiting_list_loading_entries">Loading waiting list…</string>
+    <string name="owner_waiting_list_empty">No entrants on the waiting list.</string>
+    <string name="owner_waiting_list_no_lotteries">You have no lotteries yet.</string>
+    <string name="owner_waiting_list_no_lotteries_help">Your lotteries will appear here when they are created.</string>
+    <string name="owner_waiting_list_load_lotteries_error">Could not load your lotteries. Check your connection and retry.</string>
+    <string name="owner_waiting_list_load_entries_error">Could not load this waiting list. Check your connection or select another lottery.</string>
+    <string name="owner_waiting_list_denied">You need an active campsite-owner role to view waiting lists.</string>
+    <string name="owner_waiting_list_unavailable">This lottery is unavailable or no longer belongs to you. Select another lottery.</string>
+    <string name="owner_waiting_list_retry">Retry</string>
+    <string name="owner_waiting_list_updates">The list updates when entrants join or leave.</string>
+    <string name="owner_waiting_list_entrant">Entrant ID: %1$s</string>
+    <string name="owner_waiting_list_joined">Joined %1$s</string>
+    <string name="owner_waiting_list_sheet_title">Entrant details</string>
+    <string name="owner_waiting_list_loading_contacts">Loading entrant contacts…</string>
+    <string name="owner_waiting_list_contacts_error">Could not load entrant contacts. Retry to see names and contact details.</string>
+    <string name="owner_waiting_list_not_provided">Not provided</string>
+    <string name="owner_waiting_list_contacts_private">Contact details are visible only to this lottery’s owner.</string>
+    <plurals name="owner_waiting_list_count">
+        <item quantity="one">%d entrant</item>
+        <item quantity="other">%d entrants</item>
+    </plurals>
+    <string name="owner_waiting_list_copy_email">Copy email address</string>
+    <string name="owner_waiting_list_copy_phone">Copy phone number</string>
+    <string name="owner_waiting_list_email_copied">Email address copied</string>
+    <string name="owner_waiting_list_phone_copied">Phone number copied</string>
 </resources>
