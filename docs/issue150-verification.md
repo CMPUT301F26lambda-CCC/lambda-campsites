@@ -36,3 +36,16 @@ editing price/rules and discard confirmation on a local Android emulator.
 The photo tests check uploaded image IDs on registration, replacement on edit,
 removal of the link, and preservation of the campsite ID.
 The Profile UI test checks that the Admin selection changes the active role.
+
+## Review fixes
+
+The owner Campsites tab uses the existing transparent `flow11_tent` asset;
+`flow8_tent` had an opaque background that appeared as a tinted square.
+Register and edit now display season dates with the same abbreviated-month
+formatter as owner details. The owner campsite count, names and locations use
+explicit dark Figma text tokens on the mint list surface, including when the
+phone uses dark mode.
+
+The owner form emulator test checks the exact displayed dates and the icon's
+transparent corner. `OwnerCampsiteListContrastTest` checks the rendered text
+colors under dark mode. Unit tests and both targeted emulator suites passed.

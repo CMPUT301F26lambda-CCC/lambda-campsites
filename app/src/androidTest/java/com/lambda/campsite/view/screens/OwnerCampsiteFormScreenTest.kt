@@ -4,6 +4,8 @@
  */
 package com.lambda.campsite.view.screens
 
+import android.graphics.BitmapFactory
+import android.graphics.Color
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -18,7 +20,11 @@ import androidx.compose.ui.test.performTextInput
 import androidx.test.platform.app.InstrumentationRegistry
 import com.lambda.campsite.R
 import com.lambda.campsite.controller.CampsiteFormData
+import com.lambda.campsite.view.AppTab
+import com.lambda.campsite.view.ownerTabIconRes
+import java.time.LocalDate
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -29,7 +35,10 @@ class OwnerCampsiteFormScreenTest {
 
 
     @Test fun priceRulesAndSeasonControlsAppearInBothForms() {
-        var form by mutableStateOf(CampsiteFormData())
+        var form by mutableStateOf(CampsiteFormData(
+            seasonStart = LocalDate.of(2026, 11, 20),
+            seasonEnd = LocalDate.of(2027, 10, 12),
+        ))
         var saved = 0
         compose.setContent {
             OwnerCampsiteFormScreen(
@@ -56,6 +65,8 @@ class OwnerCampsiteFormScreenTest {
         compose.onNodeWithText(label(R.string.add_photo_button)).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText(label(R.string.season_opens_label), substring = true).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText(label(R.string.season_closes_label), substring = true).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Season opens: Nov 20, 2026").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Season closes: Oct 12, 2027").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText(label(R.string.owner_price_label)).performScrollTo().performTextInput("32")
         compose.onNodeWithText(label(R.string.owner_rules_label)).performScrollTo().performTextInput("No fires")
         compose.runOnIdle {
@@ -64,6 +75,15 @@ class OwnerCampsiteFormScreenTest {
         }
         compose.onNode(hasText(label(R.string.register_campsite_button)) and hasClickAction()).performClick()
         compose.runOnIdle { assertEquals(1, saved) }
+    }
+
+    @Test fun ownerCampsitesTabUsesTransparentTentAsset() {
+        val resource = ownerTabIconRes(AppTab.OWNER_CAMPSITES)
+        assertEquals(R.drawable.flow11_tent, resource)
+        val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
+        val bitmap = BitmapFactory.decodeResource(resources, resource!!)
+        assertTrue(bitmap.width >= 48)
+        assertEquals(0, Color.alpha(bitmap.getPixel(0, 0)))
     }
 
     @Test fun cancelWithChangesAsksBeforeDiscarding() {
