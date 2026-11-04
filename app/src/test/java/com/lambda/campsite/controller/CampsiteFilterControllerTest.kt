@@ -3,8 +3,7 @@
  * Each test checks one filter on its own:
  * 1. Location "loc": only the campsite whose location contains "loc" is shown.
  * 2. 7 guests: only the campsite whose max occupancy is 7 or more is shown.
- * 3. Check-in and check-out: campsites free for the exact stay come first,
- *    then the campsite that is only free if the user leaves one day earlier.
+ * 3. Check-in and check-out: only the complete requested stay matches.
  * 4. Only check-out: campsites free on the night before check-out are shown,
  *    and a campsite booked on that night is hidden.
  * 5. Only check-in: campsites free on the check-in night are shown, with the
@@ -14,6 +13,8 @@
  * Kaur with the syntax of the test cases and Kdoc. All the test cases are chosen by
  * Harmanjoth Kaur
  */
+// Follow-up #174: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted
+// with exact-night, combined-filter and listener-isolation regressions; human review pending.
 package com.lambda.campsite.controller
 
 import com.lambda.campsite.model.Availability
@@ -72,13 +73,13 @@ class CampsiteFilterControllerTest {
         assertEquals(listOf("test"), control.ids())
     }
 
-    @Test fun `check-in and check-out shows exact matches first then leaving a day early`() {
+    @Test fun `check-in and check-out excludes campsites that need an earlier checkout`() {
         val control = controller()
         // July 2 to 4 needs the nights of July 2 and 3.
         control.onApplyFilters("", july(2), july(4), null)
         // PR144 Test Site Edited and test are free both nights, so they come first.
-        // PR144 Test Site has July 3 booked, but July 2 to 3 is free, so it comes last.
-        assertEquals(listOf("pr144-edited", "test", "pr144"), control.ids())
+        // PR144 Test Site has July 3 booked, so a shorter stay must not count.
+        assertEquals(listOf("pr144-edited", "test"), control.ids())
     }
 
     @Test fun `only check-out shows campsites free the night before`() {
@@ -97,5 +98,113 @@ class CampsiteFilterControllerTest {
         // and PR144 Test Site Edited is free the full 7 nights.
         control.onApplyFilters("", july(1), null, null)
         assertEquals(listOf("pr144", "test", "pr144-edited"), control.ids())
+    }
+
+    @Test fun `checkout night stays exclusive and a one-night blocked stay never matches`() {
+        val control = controller()
+        control.onApplyFilters("", july(2), july(3), null)
+        assertEquals(listOf("pr144", "pr144-edited", "test"), control.ids())
+        control.onApplyFilters("", july(3), july(4), null)
+        assertEquals(listOf("pr144-edited", "test"), control.ids())
+    }
+
+    @Test fun `all filter conditions apply together and clearing restores searched candidates`() {
+        val control = controller()
+        control.onSearchResultsChanged(listOf(small, edited))
+        control.onApplyFilters("Hinton", july(2), july(4), 6)
+        assertEquals(listOf("pr144-edited"), control.ids())
+        control.onApplyFilters("Hinton", july(2), july(4), 7)
+        assertEquals(emptyList<String>(), control.ids())
+        control.onClearFilters()
+        assertEquals(listOf("pr144", "pr144-edited"), control.ids())
+    }
+
+    @Test fun `one failed calendar preserves matches and retry restarts only that listener`() {
+        val base = repository()
+        val reads = all.associate { it.id to kotlinx.coroutines.flow.MutableStateFlow(
+            Result.success<com.lambda.campsite.model.Availability?>(Availability(july(1), july(31)))) }
+        val calls = mutableMapOf<String, Int>()
+        reads.getValue(small.id).value = Result.failure(java.io.IOException("Unavailable"))
+        val repo = object : com.lambda.campsite.model.repository.CampsiteRepository by base {
+            override fun availability(id: String): kotlinx.coroutines.flow.Flow<Availability?> {
+                calls[id] = (calls[id] ?: 0) + 1
+                return kotlinx.coroutines.flow.flow { reads.getValue(id).collect { emit(it.getOrThrow()) } }
+            }
+        }
+        val control = CampsiteFilterController(repo) { july1 }
+        control.onSearchResultsChanged(all)
+        control.onApplyFilters("", july(2), july(4), null)
+        assertEquals(listOf(edited.id, test.id), control.ids())
+        assertEquals(1, control.state.value.failedCalendarCount)
+        org.junit.Assert.assertFalse(control.state.value.loadFailed)
+        reads.getValue(edited.id).value = Result.success(Availability(july(1), july(31), setOf(july(3))))
+        assertEquals(listOf(test.id), control.ids())
+        reads.getValue(small.id).value = Result.success(Availability(july(1), july(31)))
+        control.onRetry()
+        assertEquals(listOf(small.id, test.id), control.ids())
+        assertEquals(0, control.state.value.failedCalendarCount)
+        assertEquals(2, calls[small.id])
+        assertEquals(1, calls[edited.id])
+        assertEquals(1, calls[test.id])
+    }
+
+    @Test fun `a pending calendar does not hide confirmed matches and clearing cancels stale failures`() {
+        val base = repository()
+        val repo = object : com.lambda.campsite.model.repository.CampsiteRepository by base {
+            override fun availability(id: String): kotlinx.coroutines.flow.Flow<Availability?> =
+                if (id == small.id) kotlinx.coroutines.flow.flow { kotlinx.coroutines.awaitCancellation() }
+                else base.availability(id)
+        }
+        val control = CampsiteFilterController(repo) { july1 }
+        control.onSearchResultsChanged(all)
+        control.onApplyFilters("", july(2), july(4), null)
+        assertEquals(listOf(edited.id, test.id), control.ids())
+        org.junit.Assert.assertFalse(control.state.value.isLoading)
+        assertEquals(1, control.state.value.pendingCalendarCount)
+        control.onClearFilters()
+        assertEquals(0, control.state.value.pendingCalendarCount)
+        assertEquals(0, control.state.value.failedCalendarCount)
+        assertEquals(all.map { it.id }, control.ids())
+    }
+
+    @Test fun `all calendars failing is an unknown availability state and clear restores results`() {
+        val base = repository()
+        val repo = object : com.lambda.campsite.model.repository.CampsiteRepository by base {
+            override fun availability(id: String): kotlinx.coroutines.flow.Flow<Availability?> =
+                kotlinx.coroutines.flow.flow { throw java.io.IOException("Unavailable") }
+        }
+        val control = CampsiteFilterController(repo) { july1 }
+        control.onSearchResultsChanged(all)
+        control.onApplyFilters("", july(2), july(4), null)
+        assertEquals(emptyList<String>(), control.ids())
+        assertEquals(all.size, control.state.value.failedCalendarCount)
+        org.junit.Assert.assertFalse(control.state.value.isLoading)
+        control.onClearFilters()
+        assertEquals(all.map { it.id }, control.ids())
+        assertEquals(0, control.state.value.failedCalendarCount)
+    }
+
+    @Test fun `live bookings remove exact matches and cancellation restores them`() {
+        val repo = repository()
+        val control = CampsiteFilterController(repo) { july1 }
+        control.onSearchResultsChanged(all)
+        control.onApplyFilters("", july(2), july(4), null)
+        repo.changeCalendarElsewhere(edited.id, Availability(july(1), july(31), setOf(july(3))))
+        assertEquals(listOf(test.id), control.ids())
+        repo.changeCalendarElsewhere(edited.id, Availability(july(1), july(31)))
+        assertEquals(listOf(edited.id, test.id), control.ids())
+    }
+
+    @Test fun `invalid date ranges and unset seasons do not match or crash`() {
+        val control = controller()
+        control.onApplyFilters("", july(4), july(4), null)
+        assertEquals(emptyList<String>(), control.ids())
+        control.onApplyFilters("", july(4), july(2), null)
+        assertEquals(emptyList<String>(), control.ids())
+        val noSeasons = CampsiteFilterController(FakeCampsiteRepository(initial = all)) { july1 }
+        noSeasons.onSearchResultsChanged(all)
+        noSeasons.onApplyFilters("", july(2), july(4), null)
+        assertEquals(emptyList<String>(), noSeasons.ids())
+        assertEquals(0, noSeasons.state.value.failedCalendarCount)
     }
 }

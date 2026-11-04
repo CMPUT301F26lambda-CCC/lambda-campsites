@@ -20,6 +20,8 @@
  * Harmanjoth Kaur reviewed the suggestion and implemented them.
 */
 
+// Follow-up #174: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted
+// with the first allowed picker month; human review pending.
 package com.lambda.campsite.view.components
 
 import androidx.compose.foundation.BorderStroke
@@ -437,6 +439,7 @@ private fun StayDateDialog(
     val earliestMillis = remember(earliest) { earliest.toUtcMillis() }
     val pickerState = rememberDatePickerState(
         initialSelectedDateMillis = initial?.takeIf { !it.isBefore(earliest) }?.toUtcMillis(),
+        initialDisplayedMonthMillis = (initial?.takeIf { !it.isBefore(earliest) } ?: earliest).toUtcMillis(),
         selectableDates = object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis >= earliestMillis
         },
