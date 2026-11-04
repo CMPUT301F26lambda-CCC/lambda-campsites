@@ -2,12 +2,17 @@
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * these tests in October 2026. It helped with the test cases and the Kotlin
  * syntax. Sashreek Addanki reviewed them, ran them and committed them.
+ *
+ * The imageId test was added by Aarush Bhat with the assistance of Claude
+ * Sonnet 5 (Anthropic), through Claude Code, in November 2026. Aarush Bhat
+ * reviewed, ran and committed it.
  */
 package com.lambda.campsite.model.repository
 
 import com.lambda.campsite.model.Campsite
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 /** Tests for [CampsiteFields], how a campsite is stored in Firestore. */
@@ -27,6 +32,7 @@ class CampsiteFieldsTest {
         pricePerNight = 32.5,
         rules = "No pets. Cancel up to 3 days before check-in.",
         published = true,
+        imageId = "image-1",
     )
 
     @Test
@@ -71,6 +77,13 @@ class CampsiteFieldsTest {
 
         assertEquals(53.0, read.latitude!!, 0.0)
         assertEquals(30.0, read.pricePerNight!!, 0.0)
+    }
+
+    @Test
+    fun `a campsite with no image reads as having none`() {
+        val fields = CampsiteFields.toMap(campsite.copy(imageId = null))
+
+        assertNull(CampsiteFields.fromMap("campsite-1", fields).imageId)
     }
 
     @Test

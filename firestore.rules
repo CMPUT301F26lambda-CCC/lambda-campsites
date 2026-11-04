@@ -1,3 +1,18 @@
+// Purpose: the Firestore security rules, the server-side check on every read
+// and write the app makes. The app can be modified, so anything that must
+// hold, like who owns a campsite or which nights are free, is enforced here.
+//
+// Outstanding issues:
+// - Admins have no access yet. It comes with the admin stories.
+// - Cancelling and rejecting are allowed until the end of check-in day in
+//   UTC, a few hours past what the app allows, because the rules don't
+//   know the phone's time zone. The app stops them at local midnight.
+// - A booking's rules check how many new nights it adds to the calendar,
+//   that check-in is one of them and that none were booked before, but not
+//   that the others are exactly the nights up to check-out. Rules can't loop
+//   over dates. The app's booking transaction writes the right nights, and
+//   moving booking into a Cloud Function would close the gap.
+//
 // AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
 // the profile rules in October 2026, following docs/architecture.md section 4.
 // It helped with the rules syntax and comments. It also helped add the
@@ -7,9 +22,23 @@
 // Claude Sonnet 5 (Anthropic), through Claude Code, in November 2026. Aarush
 // Bhat reviewed and committed them.
 //
+// The image rules were also coded by Aarush Bhat with the assistance of
+// Claude Sonnet 5 (Anthropic), through Claude Code, in November 2026. Aarush
+// Bhat reviewed and committed them.
+//
 // Claude Opus 5.5 (Anthropic), used through Claude Code, also helped Sashreek
 // Addanki add the check that read is true or false, the availability rules
 // and the lottery rules, in November 2026. Sashreek Addanki reviewed them.
+//
+// Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+// Sashreek Addanki add the check that a campsite's photo is its owner's,
+// and limit image documents to ownerId, on November 1, 2026. Sashreek
+// Addanki reviewed them.
+//
+// Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+// Sashreek Addanki add the reservation rules, and fix the profile rule so a
+// profile missing its ownerBanned or removed field can still be saved, on
+// November 2, 2026. Sashreek Addanki reviewed them.
 rules_version = '2';
 
 service cloud.firestore {
@@ -53,6 +82,15 @@ service cloud.firestore {
     function ownsCampsite(campsiteId) {
       return activeOwner()
         && get(/databases/$(database)/documents/campsites/$(campsiteId)).data.ownerId == request.auth.uid;
+    }
+
+    // A campsite's photo has to be one its owner uploaded, or none, so
+    // deleting the campsite can't take someone else's photo with it
+    // (US 02.01.02). Checking the photo costs one more document read, and a
+    // photo that doesn't exist fails the check.
+    function ownPhotoOrNone(data) {
+      return data.get('imageId', null) == null
+        || get(/databases/$(database)/documents/images/$(data.imageId)).data.ownerId == request.auth.uid;
     }
 
     // Text like 2027-07-02, which is how dates without a time are stored.
@@ -151,6 +189,93 @@ service cloud.firestore {
         && exists(entry) && !existsAfter(entry);
     }
 
+    // The midnight that starts a date stored as text like 2027-07-02, so the
+    // number of nights between two dates can be worked out.
+    function day(date) {
+      let parts = date.split('-');
+      return timestamp.date(int(parts[0]), int(parts[1]), int(parts[2]));
+    }
+
+    // Every field a reservation has. The app always writes all of them.
+    function reservationFields() {
+      return ['guestId', 'guestName', 'ownerId', 'campsiteId', 'campsiteName', 'lotteryId',
+              'checkIn', 'checkOut', 'guests', 'rulesAgreedAt', 'createdAt', 'status', 'cancelledAt'];
+    }
+
+    // A new reservation r with this ID, checked against everything it copies
+    // or depends on: the guest's profile, the campsite, the lottery they won,
+    // their entry and the campsite's calendar (US 01.04.02, 01.05.01,
+    // 02.11.01). The same write has to set the entry from WON to BOOKED and
+    // add the stay's nights to the calendar.
+    function booksStay(reservationId, r) {
+      let lottery = get(/databases/$(database)/documents/lotteries/$(r.lotteryId)).data;
+      let campsite = get(/databases/$(database)/documents/campsites/$(r.campsiteId)).data;
+      let entry = /databases/$(database)/documents/lotteries/$(r.lotteryId)/entries/$(request.auth.uid);
+      let calendar = /databases/$(database)/documents/campsites/$(r.campsiteId)/availability/calendar;
+      return r.status == 'CONFIRMED' && r.cancelledAt == null
+        && r.createdAt == request.time && r.rulesAgreedAt == request.time
+        && r.guestName == myProfile().get('name', '')
+        && r.ownerId == campsite.ownerId && r.campsiteName == campsite.name
+        && r.guests is int && r.guests >= 1 && r.guests <= campsite.get('maxOccupancy', 1)
+        && isDate(r.checkIn) && isDate(r.checkOut) && r.checkIn < r.checkOut
+        && r.campsiteId in lottery.campsiteIds
+        && lottery.stayStart <= r.checkIn && r.checkOut <= lottery.stayEnd
+        && get(entry).data.status == 'WON'
+        && getAfter(entry).data.status == 'BOOKED'
+        && getAfter(entry).data.reservationId == reservationId
+        && addsNights(get(calendar).data, getAfter(calendar).data, reservationId, r);
+    }
+
+    // The calendar after a booking names this reservation as the one that
+    // changed it, keeps every night it had, and has exactly as many new
+    // nights as the stay, starting with check-in, all inside the season.
+    function addsNights(before, after, reservationId, r) {
+      let booked = before.get('bookedNights', []);
+      let added = after.bookedNights.toSet().difference(booked.toSet());
+      return after.lastReservationId == reservationId
+        && before.seasonStart <= r.checkIn && r.checkOut <= before.seasonEnd
+        && after.bookedNights.toSet().hasAll(booked)
+        && after.bookedNights.size() == after.bookedNights.toSet().size()
+        && r.checkIn in added
+        && added.size() * 86400000 == day(r.checkOut).toMillis() - day(r.checkIn).toMillis();
+    }
+
+    // This same write creates the reservation with this ID, or changes its
+    // status, and it's at this campsite. The calendar's rule uses it, so the
+    // booked nights only change along with a reservation, whose own rules
+    // check the nights.
+    function reservationChangesWith(reservationId, campsiteId) {
+      let path = /databases/$(database)/documents/reservations/$(reservationId);
+      return reservationId is string
+        && existsAfter(path)
+        && getAfter(path).data.campsiteId == campsiteId
+        && (!exists(path) || get(path).data.status != getAfter(path).data.status);
+    }
+
+    // This same write creates the reservation with this ID for the signed-in
+    // user, in this lottery. The entry's rule uses it when booking.
+    function newReservationFor(reservationId, lotteryId) {
+      let path = /databases/$(database)/documents/reservations/$(reservationId);
+      return reservationId is string
+        && !exists(path) && existsAfter(path)
+        && getAfter(path).data.guestId == request.auth.uid
+        && getAfter(path).data.lotteryId == lotteryId;
+    }
+
+    // The same write takes this stay's nights out of the calendar: it names
+    // this reservation, adds no nights, and drops exactly as many as the stay
+    // has, check-in included (US 01.07.01, 02.08.01).
+    function freesNights(reservationId, r) {
+      let calendar = /databases/$(database)/documents/campsites/$(r.campsiteId)/availability/calendar;
+      let before = get(calendar).data.get('bookedNights', []);
+      let after = getAfter(calendar).data;
+      let removed = before.toSet().difference(after.bookedNights.toSet());
+      return after.lastReservationId == reservationId
+        && before.toSet().hasAll(after.bookedNights)
+        && r.checkIn in removed
+        && removed.size() * 86400000 == day(r.checkOut).toMillis() - day(r.checkIn).toMillis();
+    }
+
     // One profile per install. The document ID is its Firebase Auth user ID
     // (US 01.09.01). Admin access comes with the admin stories.
     match /profiles/{uid} {
@@ -164,10 +289,14 @@ service cloud.firestore {
 
       // Only admins and Cloud Functions set ownerBanned and removed, and they
       // skip these rules. A removed profile can't be changed (US 03.02.01),
-      // and a banned one can't become an owner again (US 03.07.01).
+      // and a banned one can't become an owner again (US 03.07.01). The two
+      // fields are compared by value, with a missing one counting as false,
+      // so a profile that doesn't have them yet can still be saved with them
+      // set to false.
       allow update: if isSelf(uid)
         && resource.data.get('removed', false) == false
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerBanned', 'removed'])
+        && request.resource.data.get('ownerBanned', false) == resource.data.get('ownerBanned', false)
+        && request.resource.data.get('removed', false) == resource.data.get('removed', false)
         && (!('ADMIN' in newRoles()) || 'ADMIN' in oldRoles())
         && (!('OWNER' in newRoles()) || 'OWNER' in oldRoles()
             || resource.data.get('ownerBanned', false) == false);
@@ -184,19 +313,23 @@ service cloud.firestore {
             || resource.data.published == true
             || resource.data.ownerId == request.auth.uid);
 
-      // An owner lists a campsite as themselves, with no ratings yet
-      // (US 02.01.01).
+      // An owner lists a campsite as themselves, with no ratings yet and a
+      // photo they uploaded, if any (US 02.01.01).
       allow create: if activeOwner()
         && request.resource.data.ownerId == request.auth.uid
-        && !request.resource.data.keys().hasAny(['ratingCount', 'ratingSum']);
+        && !request.resource.data.keys().hasAny(['ratingCount', 'ratingSum'])
+        && ownPhotoOrNone(request.resource.data);
 
-      // An owner edits their own campsites (US 02.01.03). Only Cloud Functions
-      // change the rating totals, and only admins unpublish (US 03.07.01).
-      // Deleting comes with the admin stories (US 03.01.01).
+      // An owner edits their own campsites (US 02.01.03). A new photo has to
+      // be one they uploaded. Only Cloud Functions change the rating totals,
+      // and only admins unpublish (US 03.07.01). Deleting comes with the
+      // admin stories (US 03.01.01).
       allow update: if activeOwner()
         && resource.data.ownerId == request.auth.uid
         && !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['ownerId', 'published', 'ratingCount', 'ratingSum']);
+            .hasAny(['ownerId', 'published', 'ratingCount', 'ratingSum'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['imageId'])
+            || ownPhotoOrNone(request.resource.data));
 
       // Each campsite has one calendar, `availability/calendar`, with its
       // season and booked nights. Anyone signed in can see which nights are
@@ -206,8 +339,8 @@ service cloud.firestore {
         allow read: if signedIn();
 
         // The owner sets the season of a campsite they've already saved
-        // (US 02.01.02). Booked nights only change when a stay is booked,
-        // which comes with reservations.
+        // (US 02.01.02). Booked nights only change along with a reservation,
+        // in the rule after these.
         allow create: if docId == 'calendar'
           && ownsCampsite(campsiteId)
           && request.resource.data.keys().hasOnly(['seasonStart', 'seasonEnd'])
@@ -216,6 +349,15 @@ service cloud.firestore {
         allow update: if ownsCampsite(campsiteId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seasonStart', 'seasonEnd'])
           && validSeason(request.resource.data);
+
+        // A booking, cancel or reject changes the booked nights in the same
+        // write as the reservation it names in lastReservationId. That
+        // reservation's rules check the nights (US 01.04.02, 01.07.01,
+        // 02.08.01).
+        allow update: if signedIn()
+          && docId == 'calendar'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bookedNights', 'lastReservationId'])
+          && reservationChangesWith(request.resource.data.lastReservationId, campsiteId);
       }
     }
 
@@ -275,10 +417,26 @@ service cloud.firestore {
           && lotteryAfter(lotteryId).get('entryCount', 0) == lotteryBefore(lotteryId).get('entryCount', 0) + 1;
 
         // An entrant leaves while registration is still open (US 01.02.02).
-        // Only the draw and booking change an entry, so there's no update.
+        // Only the draw, booking and declining change an entry.
         allow delete: if isSelf(entrantId)
           && registrationOpen(lotteryBefore(lotteryId))
           && lotteryAfter(lotteryId).get('entryCount', 0) == lotteryBefore(lotteryId).get('entryCount', 0) - 1;
+
+        // Booking sets the winner's own entry from WON to BOOKED, in the same
+        // write that creates the reservation it names (US 01.04.02).
+        allow update: if isSelf(entrantId)
+          && resource.data.status == 'WON'
+          && request.resource.data.status == 'BOOKED'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reservationId'])
+          && newReservationFor(request.resource.data.reservationId, lotteryId);
+
+        // A winner turns down their own win without booking (US 01.04.03).
+        // Only the status changes. A declined win never held any nights, and
+        // there's no second draw, so nothing else changes with it.
+        allow update: if isSelf(entrantId)
+          && resource.data.status == 'WON'
+          && request.resource.data.status == 'DECLINED'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
       }
     }
 
@@ -289,6 +447,39 @@ service cloud.firestore {
       allow read: if signedIn() && resource.data.entrantId == request.auth.uid;
     }
 
+    // A lottery winner's booked stay (US 01.04.02). Only its guest and the
+    // campsite's owner can read it (US 01.06.01, 02.07.01). Reading one that
+    // doesn't exist is allowed, so the app can tell a missing reservation
+    // from an error. Rules don't filter queries, so a query has to ask for
+    // the user's own reservations as guest or as owner, or it's refused.
+    match /reservations/{reservationId} {
+      allow read: if signedIn()
+        && (resource == null
+            || resource.data.guestId == request.auth.uid
+            || resource.data.ownerId == request.auth.uid);
+
+      // A winner books a stay for themselves (US 01.04.02). booksStay checks
+      // everything else.
+      allow create: if isSelf(request.resource.data.guestId)
+        && activeEntrant()
+        && request.resource.data.keys().hasOnly(reservationFields())
+        && request.resource.data.keys().hasAll(reservationFields())
+        && booksStay(reservationId, request.resource.data);
+
+      // The guest cancels, or the campsite's owner rejects, a stay that's
+      // still confirmed (US 01.07.01, 02.08.01). Only the status and when it
+      // changed can change, and the same write frees the stay's nights.
+      allow update: if signedIn()
+        && resource.data.status == 'CONFIRMED'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelledAt'])
+        && request.resource.data.cancelledAt == request.time
+        && ((request.resource.data.status == 'CANCELLED' && resource.data.guestId == request.auth.uid)
+            || (request.resource.data.status == 'REJECTED' && resource.data.ownerId == request.auth.uid
+                && activeOwner()))
+        && request.time < day(resource.data.checkIn) + duration.value(1, 'd')
+        && freesNights(reservationId, resource.data);
+    }
+
     // Only a Cloud Function creates a notification (US 01.03.01, 01.03.02).
     // The app can only read its own and mark it read.
     match /notifications/{notificationId} {
@@ -297,6 +488,17 @@ service cloud.firestore {
       allow update: if isSelf(resource.data.recipientId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
         && request.resource.data.read is bool;
+    }
+
+    // Any signed-in user can read an image, since campsite photos are shown
+    // to every entrant browsing campsites. Only the uploader's own document
+    // is created, holding nothing but who uploaded it, and nothing about an
+    // image ever changes once it exists (US 02.01.02).
+    match /images/{imageId} {
+      allow read: if signedIn();
+
+      allow create: if isSelf(request.resource.data.ownerId)
+        && request.resource.data.keys().hasOnly(['ownerId']);
     }
 
     // Everything not matched above is denied.

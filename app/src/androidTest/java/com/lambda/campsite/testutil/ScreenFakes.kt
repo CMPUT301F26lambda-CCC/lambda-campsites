@@ -115,4 +115,9 @@ class ScreenFakeProfile(
     override suspend fun save(profile: Profile) {
         stored.value = profile
     }
+
+    override suspend fun savePushToken(token: String) {
+        // No lottery screen test changes a push token; check the profile's
+        // test fakes for how a real fake would store it.
+    }
 }

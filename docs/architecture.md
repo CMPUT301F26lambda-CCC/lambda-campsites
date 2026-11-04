@@ -1,7 +1,9 @@
 # Lambda Campsite architecture
 
-Sashreek and Sreeman · last updated November 1, 2026
+Sashreek and Sreeman · original architecture updated November 1, 2026
 
+Flow 11 update: Sreeman Reddy · last updated 2026-11-03.
+Flow 10 frontend update: Sreeman Reddy · last updated 2026-11-03.
 > AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped
 > write this document and its diagrams in October 2026, working from
 > decisions the team made. It also checked the free-tier figures in
@@ -11,8 +13,28 @@ Sashreek and Sreeman · last updated November 1, 2026
 > add the campsite repository to sections 3, 5 and 7, and helped add the
 > availability calendar to sections 4, 5 and 7, and helped add lotteries
 > to sections 3, 4, 5 and 7. Sashreek reviewed and edited it.
+>
+> GPT-6 (OpenAI), through Codex, helped update the feature table for the
+> owner reservations and booked-date screens in Flow 11 on November 3, 2026.
+> Human review is pending.
+> Flow 6/7 follow-up: Lalith Valluru, 2026-11-03 (#149). OpenAI GPT-6
+> (OpenAI), through Codex, assisted with the entrant navigation/state notes
+> below. Follow-up human review remains pending.
+>
+> GPT-6 (OpenAI), through Codex, assisted me with the Flow 10 entrant
+> reservation screen/controller architecture. Human review is pending.
+
+> Flow 5 summary: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted with the automatic-results summary; human review pending.
+>
+> Documentation organization: Lalith Valluru, 2026-11-03 (#151). OpenAI GPT-6
+> (OpenAI), through Codex, assisted with shortening the Flow 12 addition to a
+> high-level summary; follow-up human review is pending.
 
 This page explains how the app is put together. It covers the class diagram and the reasons behind it, the backend on Firebase, and how the Android app splits into Model, View and Controller. Section 6 follows one entrant from tapping "Join" to holding a reservation, so you can see every layer working in one story. Section 7 is the practical part: where files live, what to name things, and how to add something to the frontend or the backend. If a term is new to you, like repository, Flow or transaction, `docs/glossary.md` explains it.
+
+Owner waiting-list data flows through `OwnerWaitingListController` and repository
+interfaces. An authenticated callable verifies lottery ownership before returning
+entrant contact details; private profile documents remain protected.
 
 ## Contents
 
@@ -120,6 +142,7 @@ A few conventions keep the data consistent:
 |---|---|---|
 | `drawLotteries` | Every 5 minutes, on a schedule | Finds open lotteries whose registration has closed. For each one, a transaction picks the winners at random, marks everyone else NOT_SELECTED, sets the lottery to DRAWN and writes the WIN and LOSE notifications. The transaction checks the status first, so a lottery is never drawn twice. |
 | `sendPush` | A notification or message document is created | Reads the recipient's `pushToken` and `notificationsOn`. If notifications are on, it sends the push through FCM. The in-app copy exists either way, which is what 01.10.01 needs. |
+| `owner_waiting_list_contacts` | Authenticated callable request | Checks active owner, lottery ownership and entry membership; returns only current name/email/phone projections for requested registrations (US 02.09.01). |
 | `updateRatingStats` | A rating is written | Updates `ratingCount` and `ratingSum` on the campsite. |
 | `cleanUpCampsite` | A campsite document is deleted | Deletes its `availability` and `ratings` subcollections and its photo in Storage, cancels its open lotteries and upcoming reservations, and notifies everyone affected with a CAMPSITE_REMOVED notification (03.01.01). |
 | `cleanUpProfile` | A profile is deleted (01.08.01) or an admin marks it removed (03.02.01) | Removes the person's waiting-list entries, cancels their upcoming reservations and deletes their photo. If they own campsites, it deletes those too, which runs `cleanUpCampsite` for each one. |
@@ -227,18 +250,50 @@ A document that belongs to another one can share its parent's repository. A camp
 
 ### Features
 
+Automatic lottery results reuse the ownership-checked lottery/entry listeners. The server records draw time and actual counts atomically with the results; the owner UI is read-only and never triggers a draw.
+
 | Screen | Controller | Model it calls | Stories |
 |---|---|---|---|
 | SearchScreen | SearchController | CampsiteSearch | 01.01.01 to 01.01.04, 01.12.01 |
 | CampsiteScreen | CampsiteController | CampsiteRepository | 01.01.05, 01.13.01, 02.01.01 to 02.03.01 |
-| LotteryScreen | LotteryController | LotteryRepository | 01.01.06 to 01.02.02, 02.04.01 to 02.05.01, 02.09.01, 02.10.01 |
+| EntrantLotteryDetailsScreen | LotteryController (entrant only) | LotteryRepository | 01.01.06 to 01.02.02 |
+| EntrantReservationsScreen | EntrantReservationsController | ReservationRepository | 01.06.01, 01.06.02 |
+| EntrantReservationDetailsScreen | EntrantReservationsController, CampsiteController | ReservationRepository, CampsiteRepository | 01.06.01, 01.06.02, 01.07.01 |
+| Owner lottery setup/edit screens (Flow 4, #121; integration pending) | Owner configuration controller supplied by Flow 4 | LotteryRepository | 02.04.01 to 02.04.07, 02.10.01 |
+| OwnerWaitingListScreen | OwnerWaitingListController | LotteryRepository, ProfileRepository, WaitingListContactRepository | 02.09.01 |
 | ReservationsScreen | ReservationController | ReservationRepository | 01.04.01 to 01.07.02, 02.06.01 to 02.08.01, 02.11.01 |
+| OwnerHomeScreen | OwnerReservationsController | ReservationRepository | 02.06.01, 02.07.01 to 02.07.03 |
+| OwnerReservationsScreen | OwnerReservationsController | ReservationRepository | 02.07.01 to 02.07.03 |
+| OwnerBookedDatesScreen | OwnerBookedDatesController | CampsiteRepository, ReservationRepository | 02.06.01 |
 | ProfileScreen | ProfileController | ProfileRepository | 01.07.03 to 01.11.01, 03.11.01 |
 | InboxScreen | NotificationController | NotificationRepository | 01.03.01, 01.03.02, 02.10.02 |
 | ConversationScreen | ConversationController | ConversationRepository | 02.12.01 |
 | AdminScreen | AdminController | AdminModeration | 03.01.01 to 03.12.01 |
 
 `CampsiteSearch` and `AdminModeration` are services from the class diagram, and they call the repositories themselves.
+
+The entrant Reservations tab uses the existing `ReservationRepository.myReservations()`
+feed. Its tab and pushed details route share one `EntrantReservationsController`, so
+status and cancellation results update in both places. `ReservationRepository.cancel()`
+performs the ownership/date checks and frees booked nights in one transaction.
+The details route loads optional campsite location separately; the reservation's
+stored campsite name and dates remain visible if that campsite is unpublished.
+
+Entrant search now separates draft `query` from `submittedQuery` in
+`SearchUiState`. Typing edits only the draft; Search or the keyboard's Search
+action submits it. Live catalogue updates continue to match the submitted
+query. Both queries survive the pushed details routes through the Home
+controller's existing ViewModel scope.
+
+`CampsiteScreen` opens the selected lottery at
+`entrant/home/details/{campsiteId}/lottery/{lotteryId}`. The pushed screen reuses
+the campsite route's `CampsiteController` and `LotteryController`; Back returns
+to that same campsite, then to the retained search. `LotteryUiState.observedAt`
+refreshes on resume and at the next registration boundary, so Join and
+Withdraw disable even when no Firestore document changes. Model checks and
+server transactions still enforce eligibility when the action runs. The draw
+remains server-owned. Owner lottery configuration is separate work; the
+existing entrant controller does not implement the owner stories.
 
 The starter code already has the profile feature: `ProfileScreen`, `ProfileController`, `ProfileRepository` and their tests. Copy its shape when you build a new feature.
 

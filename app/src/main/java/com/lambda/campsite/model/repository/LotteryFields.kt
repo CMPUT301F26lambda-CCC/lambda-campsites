@@ -3,6 +3,8 @@
  * this file in November 2026, following the pattern in CampsiteFields. It
  * helped with the Kotlin code, syntax and KDoc. Sashreek Addanki reviewed it.
  */
+// Flow 5: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex,
+// assisted with read-only draw metadata/results integration; human review pending.
 package com.lambda.campsite.model.repository
 
 import com.google.firebase.Timestamp
@@ -82,6 +84,10 @@ object LotteryFields {
             capacity = (fields[CAPACITY] as? Number)?.toInt(),
             status = status,
             entryCount = (fields[ENTRY_COUNT] as? Number)?.toInt() ?: defaults.entryCount,
+            drawnAt = fields["drawnAt"] as? Timestamp,
+            drawnWinnerCount = (fields["drawnWinnerCount"] as? Number)?.toInt(),
+            drawnEntryCount = (fields["drawnEntryCount"] as? Number)?.toInt(),
+            drawnCampsiteNames = (fields["drawnCampsiteNames"] as? List<*>)?.filterIsInstance<String>().orEmpty(),
         )
     }
 

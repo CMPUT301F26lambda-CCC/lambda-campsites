@@ -6,6 +6,14 @@
  * StatusBarIconStyle was added in November 2026 with GLM 5.3 Flash (Z.ai),
  * through OpenCode, so the status bar's clock and battery icons stay readable
  * over each screen's own header colours. Raghav Sethi asked for it.
+ *
+ * Last updated: 2026-11-03 (#149), Lalith Valluru.
+ * Outstanding issues: manual TalkBack and physical-device review remain pending.
+ * OpenAI GPT-6 (OpenAI), through Codex, assisted with retaining the active
+ * screen's icon style while navigation transitions dispose the previous screen.
+ * Follow-up human review remains pending.
+  * Shared surface scheme follow-up (#154), Lalith Valluru, 2026-11-03:
+ * OpenAI GPT-6 (OpenAI), through Codex, assisted with ui-guide color mapping.
  */
 package com.lambda.campsite.view.theme
 
@@ -23,16 +31,35 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import java.util.WeakHashMap
+
+private val statusBarStyles = WeakHashMap<View, MutableList<Pair<Any, Boolean>>>()
 
 private val LightColorScheme = lightColorScheme(
     primary = ForestGreen,
     onPrimary = Color.White,
-    primaryContainer = Mint,
+    primaryContainer = CampPrimaryContainer,
     onPrimaryContainer = DeepGreen,
     secondary = SageGreen,
     onSecondary = Color.White,
-    secondaryContainer = Mint,
-    onSecondaryContainer = DeepGreen,
+    secondaryContainer = CampPositive,
+    onSecondaryContainer = CampOnPositive,
+    background = Mint,
+    onBackground = CampOnSurface,
+    surface = Mint,
+    onSurface = CampOnSurface,
+    surfaceVariant = CampField,
+    onSurfaceVariant = CampSecondaryText,
+    surfaceContainerLowest = Color.White,
+    surfaceContainerLow = CampSurfaceLow,
+    surfaceContainer = CampSurfaceContainer,
+    surfaceContainerHigh = CampSurfaceHigh,
+    surfaceContainerHighest = CampField,
+    outline = CampOutlineStrong,
+    outlineVariant = CampOutline,
+    tertiary = CampEmber,
+    inverseSurface = CampInverseSurface,
+    inverseOnSurface = CampInverseText,
 )
 
 private val DarkColorScheme = darkColorScheme(
@@ -46,6 +73,13 @@ private val DarkColorScheme = darkColorScheme(
     onSecondaryContainer = Mint,
     background = NightGreen,
     surface = NightGreenSurface,
+    onSurface = Mint,
+    onSurfaceVariant = ForestGreenDark,
+    surfaceContainerLow = NightGreenSurface,
+    surfaceContainer = NightGreenSurface,
+    surfaceContainerHigh = NightGreenSurface,
+    surfaceContainerHighest = MintDark,
+    outlineVariant = SageGreen,
 )
 
 /**
@@ -88,10 +122,16 @@ internal fun StatusBarIconStyle(darkIcons: Boolean) {
         val window = view.context.findActivity()?.window
         if (window != null) {
             val controller = WindowCompat.getInsetsController(window, view)
+            val owner = Any()
+            val styles = statusBarStyles.getOrPut(view) { mutableListOf() }
+            styles.add(owner to darkIcons)
             controller.isAppearanceLightStatusBars = darkIcons
             onDispose {
-                // Screens without a dark bar get the system's look again.
-                controller.isAppearanceLightStatusBars = !view.isSystemDarkMode()
+                // An outgoing screen can dispose after the incoming screen's effect ran.
+                // Restore the remaining screen's choice instead of overwriting it with defaults.
+                styles.removeAll { it.first === owner }
+                controller.isAppearanceLightStatusBars = styles.lastOrNull()?.second ?: !view.isSystemDarkMode()
+                if (styles.isEmpty()) statusBarStyles.remove(view)
             }
         } else {
             // Compose previews don't run in an activity, so there is nothing to set.

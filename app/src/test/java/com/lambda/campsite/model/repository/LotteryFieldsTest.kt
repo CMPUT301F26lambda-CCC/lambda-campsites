@@ -3,6 +3,8 @@
  * these tests in November 2026. It helped with the test cases and the Kotlin
  * syntax. Sashreek Addanki reviewed them.
  */
+// Flow 5: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted
+// with server-only draw metadata tests; human review pending.
 package com.lambda.campsite.model.repository
 
 import com.google.firebase.Timestamp
@@ -16,6 +18,18 @@ import org.junit.Test
 
 /** Tests for [LotteryFields], how a lottery is stored in Firestore. */
 class LotteryFieldsTest {
+    @Test fun `server draw metadata is readable but never sent by owner saves`() {
+        val time = Timestamp(1_811_000_000, 0)
+        val fields = LotteryFields.toMap(lottery) + mapOf("drawnAt" to time, "drawnWinnerCount" to 2L,
+            "drawnEntryCount" to 5L, "drawnCampsiteNames" to listOf("Demo Campsite"))
+        val read = requireNotNull(LotteryFields.fromMap(lottery.id, fields))
+        assertEquals(time, read.drawnAt)
+        assertEquals(2, read.drawnWinnerCount)
+        assertEquals(5, read.drawnEntryCount)
+        assertEquals(listOf("Demo Campsite"), read.drawnCampsiteNames)
+        assertFalse(LotteryFields.toMap(read).containsKey("drawnAt"))
+        assertFalse(LotteryFields.toMap(read).containsKey("drawnWinnerCount"))
+    }
 
     private val lottery = Lottery(
         id = "lottery-1",
