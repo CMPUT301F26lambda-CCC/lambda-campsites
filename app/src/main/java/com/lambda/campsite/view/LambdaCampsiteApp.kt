@@ -28,14 +28,18 @@
 // Human review is pending.
 // Flow 10 feature owner: Sreeman Reddy. GPT-6 (OpenAI), through Codex,
 // assisted me with entrant reservation list and detail navigation.
+// Flow 16 feature owner: Sreeman Reddy. GPT-6 (OpenAI), through Codex,
+// assisted me with the Home scan button and full-screen scanner route.
 package com.lambda.campsite.view
 
 import android.net.Uri
 import android.os.Bundle
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -47,8 +51,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -61,15 +67,20 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.lambda.campsite.R
 import com.lambda.campsite.controller.CampsiteQrCodeController
+import com.lambda.campsite.controller.LotteryResultsController
 import com.lambda.campsite.controller.MapLocationController
+import com.lambda.campsite.controller.NewLotteryController
 import com.lambda.campsite.controller.OwnerCampsiteAddController
 import com.lambda.campsite.controller.OwnerCampsiteDetailsController
 import com.lambda.campsite.controller.OwnerCampsiteEditController
 import com.lambda.campsite.controller.OwnerCampsiteListController
+import com.lambda.campsite.controller.OwnerLotteryDetailsController
+import com.lambda.campsite.controller.OwnerLotteryListController
 import com.lambda.campsite.controller.OwnerBookedDatesController
 import com.lambda.campsite.controller.OwnerReservationsController
 import com.lambda.campsite.controller.OwnerReservationTab
 import com.lambda.campsite.controller.EntrantReservationsController
+import com.lambda.campsite.controller.QrScanController
 import com.lambda.campsite.controller.SearchController
 import com.lambda.campsite.controller.CampsiteController
 import com.lambda.campsite.controller.LotteryController
@@ -78,11 +89,15 @@ import com.lambda.campsite.controller.OwnerWaitingListController
 import com.lambda.campsite.view.screens.OwnerWaitingListScreen
 import com.lambda.campsite.model.Role
 import com.lambda.campsite.view.screens.CampsiteQrCodeScreen
+import com.lambda.campsite.view.screens.LotteryResultsScreen
 import com.lambda.campsite.view.screens.MapLocationScreen
+import com.lambda.campsite.view.screens.NewLotteryScreen
 import com.lambda.campsite.view.screens.OwnerCampsiteAddScreen
 import com.lambda.campsite.view.screens.OwnerCampsiteDetailsScreen
 import com.lambda.campsite.view.screens.OwnerCampsiteEditScreen
 import com.lambda.campsite.view.screens.OwnerCampsiteListScreen
+import com.lambda.campsite.view.screens.OwnerLotteryDetailsScreen
+import com.lambda.campsite.view.screens.OwnerLotteryListScreen
 import com.lambda.campsite.view.screens.OwnerBookedDatesScreen
 import com.lambda.campsite.view.screens.OwnerReservationsScreen
 import com.lambda.campsite.view.screens.OwnerHomeScreen
@@ -92,8 +107,8 @@ import com.lambda.campsite.view.screens.CampsiteScreen
 import com.lambda.campsite.view.screens.EntrantLotteryDetailsScreen
 import com.lambda.campsite.view.screens.EntrantReservationsScreen
 import com.lambda.campsite.view.screens.EntrantReservationDetailsScreen
+import com.lambda.campsite.view.screens.QrScannerScreen
 import com.lambda.campsite.view.screens.ProfileScreen
-import com.lambda.campsite.view.screens.OwnerLotteryResultsScreen
 import com.lambda.campsite.controller.ProfileError
 import com.lambda.campsite.view.screens.SettingScreen
 import com.lambda.campsite.view.screens.EditProfileScreen
@@ -105,9 +120,9 @@ import androidx.compose.material3.IconButton
 
 /** Entrant pushed routes retain Home selection and the selected campsite's parent state. */
 private const val ENTRANT_DETAILS_ROUTE = "entrant/home/details/{campsiteId}"
-private const val OWNER_RESULTS_ROUTE = "owner/lotteries/results/{lotteryId}"
 private const val ENTRANT_LOTTERY_ROUTE = "entrant/home/details/{campsiteId}/lottery/{lotteryId}"
 private const val ENTRANT_RESERVATION_DETAILS_ROUTE = "entrant/reservations/details/{reservationId}"
+private const val ENTRANT_SCAN_ROUTE = "entrant/home/scan"
 
 /** Owner campsite routes keep the Campsites tab selected. */
 private const val OWNER_ADD_ROUTE = "owner/campsites/add"
@@ -117,6 +132,14 @@ private const val OWNER_QR_ROUTE = "owner/campsites/qr/{campsiteId}"
 private const val OWNER_BOOKED_DATES_ROUTE = "owner/campsites/booked/{campsiteId}"
 private const val OWNER_HOME_BOOKED_DATES_ROUTE = "owner/home/booked"
 private const val OWNER_RESERVATIONS_ROUTE = "owner/home/reservations/{tab}"
+
+/** The owner lotteries tab's screens: the wizard, a lottery's details and its results (US 02.04, 02.05). */
+private const val OWNER_LOTTERY_NEW_ROUTE = "owner/lotteries/new"
+private const val OWNER_LOTTERY_DETAILS_ROUTE = "owner/lotteries/details/{lotteryId}"
+private const val OWNER_LOTTERY_RESULTS_ROUTE = "owner/lotteries/results/{lotteryId}"
+
+/** The joined waiting-list screen for one lottery (US 02.09.01), opened from lottery details. */
+private const val OWNER_LOTTERY_WAITING_LIST_ROUTE = "owner/lotteries/waiting-list/{lotteryId}"
 
 /** Opens the map picker with exact initial coordinates, and returnTo = [OWNER_PICKER_RETURN_ADD]/[OWNER_PICKER_RETURN_EDIT]. */
 private const val OWNER_MAP_PICKER_ROUTE =
@@ -138,8 +161,18 @@ private fun ownerEditRoute(campsiteId: String) = "owner/campsites/edit/$campsite
 /** Builds the QR code route for [campsiteId]. */
 private fun ownerQrRoute(campsiteId: String) = "owner/campsites/qr/$campsiteId"
 
+/** Builds the details route for [lotteryId]. */
+private fun ownerLotteryDetailsRoute(lotteryId: String) = "owner/lotteries/details/$lotteryId"
+
+/** Builds the results route for [lotteryId]. */
+private fun ownerLotteryResultsRoute(lotteryId: String) = "owner/lotteries/results/$lotteryId"
+
 /** Builds the owner's calendar route for [campsiteId]. */
 private fun ownerBookedDatesRoute(campsiteId: String) = "owner/campsites/booked/${Uri.encode(campsiteId)}"
+
+/** Builds the joined waiting-list route for [lotteryId] (US 02.09.01). */
+private fun ownerLotteryWaitingListRoute(lotteryId: String) =
+    "owner/lotteries/waiting-list/${Uri.encode(lotteryId)}"
 
 /** Builds the map picker route with the pin's [initialLat]/[initialLng]/[initialPinName] already on the map. */
 private fun ownerMapPickerRoute(
@@ -192,7 +225,7 @@ fun LambdaCampsiteApp(
             // screens without an app bar pad themselves with statusBarsPadding().
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             bottomBar = {
-                if (currentRoute != FIRST_LAUNCH_ROUTE) {
+                if (currentRoute != FIRST_LAUNCH_ROUTE && currentRoute != ENTRANT_SCAN_ROUTE) {
                     NavigationBar(containerColor = com.lambda.campsite.view.theme.CampSurfaceHigh) {
                         tabs.forEach { tab ->
                             NavigationBarItem(
@@ -220,6 +253,18 @@ fun LambdaCampsiteApp(
                             )
                         }
                     }
+                }
+            },
+            floatingActionButton = {
+                if (state.activeRole == Role.ENTRANT && currentRoute == AppTab.ENTRANT_HOME.route) {
+                    ExtendedFloatingActionButton(
+                        onClick = { navController.navigate(ENTRANT_SCAN_ROUTE) },
+                        icon = { Icon(painterResource(R.drawable.flow16_scan), null, Modifier.size(20.dp)) },
+                        text = { Text(stringResource(R.string.flow16_scan_title)) },
+                        containerColor = com.lambda.campsite.view.theme.ForestGreen,
+                        contentColor = Color.White,
+                        modifier = Modifier.padding(bottom = 24.dp),
+                    )
                 }
             },
         ) { innerPadding ->
@@ -261,24 +306,10 @@ fun LambdaCampsiteApp(
                                     onBookedDates = { navController.navigate(OWNER_HOME_BOOKED_DATES_ROUTE) })
                             }
                             AppTab.OWNER_CAMPSITES -> OwnerCampsitesList(navController)
-                            AppTab.OWNER_LOTTERIES -> {
-                                val waitingListController: OwnerWaitingListController = viewModel(
-                                    factory = OwnerWaitingListController.createFactory(),
-                                )
-                                OwnerWaitingListScreen(waitingListController,
-                                    onBack = { navController.navigateToTab(AppTab.OWNER_HOME) },
-                                    onResults = { id -> navController.navigate("owner/lotteries/results/${Uri.encode(id)}") })
-                            }
+                            AppTab.OWNER_LOTTERIES -> OwnerLotteriesList(navController)
                             else -> PlaceholderScreen(tab)
                         }
                     }
-                }
-
-                composable(OWNER_RESULTS_ROUTE,
-                    arguments = listOf(navArgument("lotteryId") { type = NavType.StringType })) { entry ->
-                    val id = requireNotNull(entry.arguments?.getString("lotteryId"))
-                    val results: OwnerWaitingListController = viewModel(factory = OwnerWaitingListController.createFactory(id, includeContacts = false))
-                    OwnerLotteryResultsScreen(results, onBack = { navController.popBackStack() })
                 }
 
                 composable(OWNER_RESERVATIONS_ROUTE,
@@ -306,6 +337,15 @@ fun LambdaCampsiteApp(
                     }
                     EntrantReservationDetailsScreen(reservationId, reservationsController,
                         campsiteController, onBack = { navController.popBackStack() })
+                }
+
+                composable(ENTRANT_SCAN_ROUTE) {
+                    val scanController: QrScanController = viewModel(factory = QrScanController.Factory)
+                    QrScannerScreen(scanController, onBack = { navController.popBackStack() },
+                        onCampsiteFound = { campsiteId ->
+                            navController.popBackStack()
+                            navController.navigate("entrant/home/details/${Uri.encode(campsiteId)}")
+                        })
                 }
 
                 composable(OWNER_HOME_BOOKED_DATES_ROUTE) {
@@ -489,6 +529,23 @@ fun LambdaCampsiteApp(
                     )
                 }
 
+                composable(OWNER_LOTTERY_NEW_ROUTE) {
+                    val newLotteryController: NewLotteryController =
+                        viewModel(factory = NewLotteryController.Factory)
+                    NewLotteryScreen(
+                        controller = newLotteryController,
+                        onClose = { navController.popBackStack() },
+                        onCreated = { lottery ->
+                            // The wizard's screen leaves the back stack, so the
+                            // next lottery starts on a blank form. Popping back
+                            // to the tab keeps Back returning to its list.
+                            navController.navigate(ownerLotteryDetailsRoute(lottery.id)) {
+                                popUpTo(AppTab.OWNER_LOTTERIES.route)
+                            }
+                        },
+                    )
+                }
+
                 composable(OWNER_BOOKED_DATES_ROUTE) { entry ->
                     val campsiteId = entry.arguments?.getString("campsiteId").orEmpty()
                     val bookedDatesController: OwnerBookedDatesController = viewModel(
@@ -512,6 +569,63 @@ fun LambdaCampsiteApp(
                                 popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
                             }
                         },
+                    )
+                }
+
+                composable(OWNER_LOTTERY_DETAILS_ROUTE) { entry ->
+                    val lotteryId = entry.arguments?.getString("lotteryId").orEmpty()
+                    val detailsController: OwnerLotteryDetailsController = viewModel(
+                        key = "lottery_details_${lotteryId}",
+                        factory = OwnerLotteryDetailsController.createFactory(lotteryId),
+                    )
+                    OwnerLotteryDetailsScreen(
+                        controller = detailsController,
+                        onBack = { navController.popBackStack() },
+                        onEditClick = {
+                            // Handled when editing a lottery lands (US 02.04.06)
+                        },
+                        onWaitingListClick = {
+                            // The joined waiting list's screen (US 02.09.01).
+                            navController.navigate(ownerLotteryWaitingListRoute(lotteryId))
+                        },
+                        onMessageWaitingListClick = {
+                            // Handled when messaging lands (US 02.10)
+                        },
+                        onSentMessagesClick = {
+                            // Handled when sent messages land (US 02.10.02)
+                        },
+                        onResultsClick = { navController.navigate(ownerLotteryResultsRoute(lotteryId)) },
+                    )
+                }
+
+                composable(OWNER_LOTTERY_RESULTS_ROUTE) { entry ->
+                    val lotteryId = entry.arguments?.getString("lotteryId").orEmpty()
+                    val resultsController: LotteryResultsController = viewModel(
+                        key = "lottery_results_${lotteryId}",
+                        factory = LotteryResultsController.createFactory(lotteryId),
+                    )
+                    LotteryResultsScreen(
+                        controller = resultsController,
+                        onBack = { navController.popBackStack() },
+                        onWinnersClick = {
+                            // Handled when the winner list lands (US 02.05.01)
+                        },
+                        onNotSelectedClick = {
+                            // Handled when the not-selected list lands (US 02.05.01)
+                        },
+                    )
+                }
+
+                composable(OWNER_LOTTERY_WAITING_LIST_ROUTE) { entry ->
+                    val lotteryId = entry.arguments?.getString("lotteryId").orEmpty()
+                    val waitingListController: OwnerWaitingListController = viewModel(
+                        key = "lottery_waiting_list_${lotteryId}",
+                        factory = OwnerWaitingListController.createFactory(lotteryId),
+                    )
+                    OwnerWaitingListScreen(
+                        controller = waitingListController,
+                        onBack = { navController.popBackStack() },
+                        onResults = { id -> navController.navigate(ownerLotteryResultsRoute(id)) },
                     )
                 }
 
@@ -566,6 +680,24 @@ private fun OwnerCampsitesList(navController: NavHostController) {
             navController.navigate(ownerDetailsRoute(campsite.id))
         },
         onRegisterClick = { navController.navigate(OWNER_ADD_ROUTE) },
+    )
+}
+
+/**
+ * The first screen of the owner lotteries tab: the owner's lotteries in their
+ * Active, Upcoming and Completed buckets, leading to the "New lottery" wizard
+ * (US 02.04.01) or a lottery's details (US 02.04.06).
+ */
+@Composable
+private fun OwnerLotteriesList(navController: NavHostController) {
+    val listController: OwnerLotteryListController =
+        viewModel(factory = OwnerLotteryListController.Factory)
+    OwnerLotteryListScreen(
+        controller = listController,
+        onLotteryClick = { lottery ->
+            navController.navigate(ownerLotteryDetailsRoute(lottery.id))
+        },
+        onNewLotteryClick = { navController.navigate(OWNER_LOTTERY_NEW_ROUTE) },
     )
 }
 
