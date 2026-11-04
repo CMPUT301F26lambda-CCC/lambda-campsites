@@ -87,6 +87,9 @@ private val DetailsDate = DateTimeFormatter.ofPattern("MMM d, yyyy")
  * @param onResultsClick invoked to see the draw's results, offered once the
  *   lottery has been drawn (US 02.05.01).
  * @param modifier optional layout modifier.
+ *
+ * #169 follow-up, 2026-11-04: GLM 5.3 Flash (Z.ai), through OpenCode, helped
+ * switch the registration dates to [Lottery.lastDayToJoin]; human review pending.
  */
 @Composable
 fun OwnerLotteryDetailsScreen(
@@ -152,14 +155,16 @@ fun OwnerLotteryDetailsScreen(
                         )
                     }
 
-                    Button(
-                        onClick = onEditClick,
-                        colors = ButtonDefaults.buttonColors(containerColor = CampGreenDark),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.size(6.dp))
-                        Text(stringResource(R.string.action_edit_lottery))
+                    if (lottery.status == LotteryStatus.OPEN) {
+                        Button(
+                            onClick = onEditClick,
+                            colors = ButtonDefaults.buttonColors(containerColor = CampGreenDark),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.size(6.dp))
+                            Text(stringResource(R.string.action_edit_lottery))
+                        }
                     }
 
                     SummaryCard(stringResource(R.string.heading_lottery_campsites)) {
@@ -176,8 +181,7 @@ fun OwnerLotteryDetailsScreen(
                         )
                         DetailLine(
                             stringResource(R.string.new_lottery_registration_closes),
-                            lottery.registrationCloses.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
-                                .format(DetailsDate),
+                            lottery.lastDayToJoin().format(DetailsDate),
                         )
                         DetailLine(
                             stringResource(R.string.lottery_stay_dates),
@@ -351,9 +355,16 @@ private fun ActionRow(
 
 /** The lottery's status line, like "Active · Registration open". */
 @Composable
-private fun lotteryStatusLine(lottery: Lottery): String = when (lottery.status) {
-    LotteryStatus.OPEN -> stringResource(R.string.lottery_status_open)
+private fun lotteryStatusLine(lottery: Lottery): String {
+    val now = com.google.firebase.Timestamp.now()
+    return when (lottery.statusAt(now)) {
+    LotteryStatus.OPEN -> if (now >= lottery.registrationCloses) {
+        stringResource(R.string.entrant_lottery_status_closed)
+    } else {
+        stringResource(R.string.lottery_status_open)
+    }
     LotteryStatus.UPCOMING -> stringResource(R.string.lottery_status_upcoming)
     LotteryStatus.DRAWN -> stringResource(R.string.lottery_status_drawn)
     LotteryStatus.ENDED -> stringResource(R.string.lottery_status_ended)
+    }
 }

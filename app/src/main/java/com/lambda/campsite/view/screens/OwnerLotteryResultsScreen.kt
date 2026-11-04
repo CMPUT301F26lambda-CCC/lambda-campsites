@@ -4,6 +4,9 @@
  * Outstanding issues: deployment of draw metadata and manual TalkBack review remain pending (#122).
  * AI use: OpenAI GPT-6 (OpenAI), through Codex, assisted with the Figma results layout
  * and existing ownership-checked controller integration; human review pending.
+ * #169 follow-up: Raghav Sethi, 2026-11-04. GLM 5.3 Flash (Z.ai), through OpenCode,
+ * helped fix the registration close date showing one day late and to read the day
+ * through [Lottery.lastDayToJoin]; human review pending.
  */
 package com.lambda.campsite.view.screens
 
@@ -92,7 +95,9 @@ fun OwnerLotteryResultsContent(state: OwnerWaitingListUiState, onRetry: () -> Un
                                     Text(if (lottery.drawnCampsiteNames.isNotEmpty()) lottery.drawnCampsiteNames.joinToString(" · ")
                                         else stringResource(R.string.flow5_campsite_ids, lottery.campsiteIds.joinToString(" · ")))
                                     val date = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withZone(ZoneId.systemDefault())
-                                    Text(stringResource(R.string.flow5_registration, date.format(lottery.registrationOpens.toDate().toInstant()), date.format(lottery.registrationCloses.toDate().toInstant())))
+                                    Text(stringResource(R.string.flow5_registration,
+                                        date.format(lottery.registrationOpens.toDate().toInstant()),
+                                        date.format(lottery.lastDayToJoin())))
                                     val day = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
                                     Text(stringResource(R.string.flow5_stay, lottery.stayStart.format(day), lottery.stayEnd.format(day)))
                                 }

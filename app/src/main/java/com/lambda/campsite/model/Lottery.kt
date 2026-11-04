@@ -6,6 +6,9 @@
  */
 // Flow 5: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex,
 // assisted with read-only draw metadata/results integration; human review pending.
+// #169 follow-up: Raghav Sethi, 2026-11-04. GLM 5.3 Flash (Z.ai), through OpenCode,
+// helped write [lastDayToJoin], the shared last-join-day read every screen shows;
+// human review pending.
 package com.lambda.campsite.model
 
 import com.google.firebase.Timestamp
@@ -52,7 +55,10 @@ enum class LotteryStatus {
  *   owned by [ownerId] (US 02.04.02).
  * @property registrationOpens when entrants can start joining (US 02.04.03).
  * @property registrationCloses when joining stops and the draw runs
- *   (US 02.04.03, 02.05.01).
+ *   (US 02.04.03, 02.05.01). It's stored as midnight after the last join
+ *   day, so that day stays open; screens show it through [lastDayToJoin],
+ *   never formats [registrationCloses] direct, so the same day shows
+ *   everywhere.
  * @property stayStart the first night a winner can book (US 02.04.04).
  * @property stayEnd the last day a winner can check out, like
  *   [Availability.seasonEnd] (US 02.04.04).
@@ -115,4 +121,14 @@ data class Lottery(
     /** The status to show at [now]: [LotteryStatus.UPCOMING] before registration opens, otherwise [status]. */
     fun statusAt(now: Timestamp): LotteryStatus =
         if (status == LotteryStatus.OPEN && now < registrationOpens) LotteryStatus.UPCOMING else status
+
+    /**
+     * The last calendar day an entrant can join, in [zone]. Every screen
+     * shows the registration period with this, never formatted from
+     * [registrationCloses] directly: it's stored as midnight after this
+     * day (the way [validateDates] expects), so a date read straight from
+     * it shows one day late (US 01.02.01, 02.04.03).
+     */
+    fun lastDayToJoin(zone: ZoneId = ZoneId.systemDefault()): LocalDate =
+        registrationCloses.toInstant().atZone(zone).toLocalDate().minusDays(1)
 }

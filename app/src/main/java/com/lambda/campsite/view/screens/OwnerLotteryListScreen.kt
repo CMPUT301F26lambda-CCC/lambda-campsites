@@ -5,6 +5,8 @@
  * semantics, empty and error states, strings extraction and KDoc, following
  * the OwnerCampsiteListScreen shape. Raghav Sethi reviewed, tested, and
  * committed it.
+ * #169 follow-up, 2026-11-04: GLM 5.3 Flash (Z.ai), through OpenCode, helped
+ * switch the registration close date to [Lottery.lastDayToJoin]; human review pending.
  */
 package com.lambda.campsite.view.screens
 
@@ -246,7 +248,7 @@ private fun LotteryRow(lottery: Lottery, statusText: String, onClick: () -> Unit
     val registrationText = stringResource(
         R.string.lottery_registration_format,
         lottery.registrationOpens.toInstant().atZone(ZoneId.systemDefault()).toLocalDate().format(LotteryDate),
-        lottery.registrationCloses.toInstant().atZone(ZoneId.systemDefault()).toLocalDate().format(LotteryDate),
+        lottery.lastDayToJoin().format(LotteryDate),
     )
     val campsiteText = if (lottery.campsiteIds.size == 1) {
         stringResource(R.string.lottery_count_one_campsite)

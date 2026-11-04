@@ -4,9 +4,11 @@
  * Outstanding issues: Manual TalkBack and physical-device review remain pending.
  * AI use: OpenAI GPT-6 (OpenAI), through Codex, assisted with Figma layout, registration states
  * and navigation callbacks. Human review pending.
-  * Layout follow-up (#154): Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI),
+ * Layout follow-up (#154): Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI),
  * through Codex, assisted with Figma layout/status/navigation-color integration
  * or its regression checks. Follow-up human review remains pending.
+ * #169 follow-up, 2026-11-04: Raghav Sethi. GLM 5.3 Flash (Z.ai), through OpenCode,
+ * helped switch the registration dates to [Lottery.lastDayToJoin]; human review pending.
  */
 package com.lambda.campsite.view.screens
 
@@ -165,7 +167,7 @@ internal fun EntrantLotteryInfo(state: LotteryUiState, lottery: Lottery, campsit
         HorizontalDivider(color = CampOutline)
         LotterySectionHeading(R.string.entrant_lottery_registration_heading)
         LotteryInfoRow(Icons.Outlined.Event, R.string.entrant_lottery_opens_label, registrationDate(lottery.registrationOpens))
-        LotteryInfoRow(Icons.Outlined.Event, R.string.entrant_lottery_deadline_label, registrationDate(lottery.registrationCloses))
+        LotteryInfoRow(Icons.Outlined.Event, R.string.entrant_lottery_deadline_label, lastJoinDate(lottery))
         LotterySectionHeading(R.string.entrant_lottery_booking_heading)
         val endFormat = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
         val startFormat = if (lottery.stayStart.year == lottery.stayEnd.year)
@@ -190,7 +192,7 @@ internal fun EntrantLotteryInfo(state: LotteryUiState, lottery: Lottery, campsit
             FilledTonalButton(onClick = { confirming = true }, enabled = state.canWithdraw(lottery.id),
                 colors = ButtonDefaults.filledTonalButtonColors(containerColor = CampPositive, contentColor = CampOnPositive),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text(stringResource(R.string.entrant_lottery_leave)) }
-            Text(if (state.canWithdraw(lottery.id)) stringResource(R.string.entrant_lottery_withdraw_before, registrationDate(lottery.registrationCloses))
+            Text(if (state.canWithdraw(lottery.id)) stringResource(R.string.entrant_lottery_withdraw_before, lastJoinDate(lottery))
                 else stringResource(R.string.entrant_lottery_withdraw_closed),
                 style = MaterialTheme.typography.bodyMedium)
         } else Text(stringResource(when (entry.status) {
@@ -232,10 +234,15 @@ private fun LotteryInfoRow(icon: ImageVector, label: Int, value: String) {
 private fun registrationDate(value: Timestamp): String = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
     .withLocale(Locale.getDefault()).withZone(ZoneId.systemDefault()).format(value.toDate().toInstant())
 
+/** The same final join day [Lottery.lastDayToJoin] stores through midnight after it. */
+private fun lastJoinDate(lottery: Lottery): String = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+    .withLocale(Locale.getDefault())
+    .format(lottery.lastDayToJoin())
+
 @Composable
 private fun joinBlockText(block: LotteryJoinBlock, lottery: Lottery): String = when (block) {
     LotteryJoinBlock.UPCOMING -> stringResource(R.string.entrant_lottery_upcoming_reason, registrationDate(lottery.registrationOpens))
-    LotteryJoinBlock.CLOSED -> stringResource(R.string.entrant_lottery_closed_reason, registrationDate(lottery.registrationCloses))
+    LotteryJoinBlock.CLOSED -> stringResource(R.string.entrant_lottery_closed_reason, lastJoinDate(lottery))
     LotteryJoinBlock.FULL -> stringResource(R.string.entrant_lottery_full)
     LotteryJoinBlock.DRAWN -> stringResource(R.string.entrant_lottery_drawn_reason)
     LotteryJoinBlock.ENDED -> stringResource(R.string.entrant_lottery_ended_reason)

@@ -2,6 +2,8 @@
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * these tests in November 2026. It helped with the test cases and the Kotlin
  * syntax. Sashreek Addanki reviewed them.
+ * #169 follow-up, 2026-11-04: Raghav Sethi. GLM 5.3 Flash (Z.ai), through OpenCode,
+ * helped write the [Lottery.lastDayToJoin] tests; human review pending.
  */
 package com.lambda.campsite.model
 
@@ -115,6 +117,26 @@ class LotteryTest {
         val drawn = lottery.copy(status = LotteryStatus.DRAWN)
 
         assertEquals(LotteryStatus.DRAWN, drawn.statusAt(time("2027-06-01T09:05")))
+    }
+
+    @Test
+    fun `the last join day is the calendar day before the stored close timestamp`() {
+        // The app saves registration as closing at midnight after the final
+        // join day, so May 31 is the last day joining stays open (US 01.02.01).
+        assertEquals(
+            date("2027-05-31"),
+            lottery.copy(registrationCloses = time("2027-06-01T00:00")).lastDayToJoin(EDMONTON),
+        )
+    }
+
+    @Test
+    fun `a close timestamp later in its day still reports the day before as last join day`() {
+        // Every screen reads the day through lastDayToJoin, not the timestamp
+        // directly, so the hour the close is set to can't shift the date shown.
+        assertEquals(
+            date("2027-05-31"),
+            lottery.lastDayToJoin(EDMONTON),
+        )
     }
 
     private fun date(text: String): LocalDate = LocalDate.parse(text)
