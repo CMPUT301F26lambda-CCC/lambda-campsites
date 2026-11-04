@@ -1,4 +1,21 @@
 /*
+Purpose:
+The purpose of this test file is to verify that the FirstLaunchScreen
+works as expected before users proceed into the Lambda Campsite application.
+
+It checks that users cannot select Get Started without entering a
+non-blank name and agreeing to the app policy. It also verifies that
+users can open the policy sheet, review the guidelines, agree to them
+or close the sheet without agreeing.
+
+The tests also check that the user's name is trimmed before it is
+passed to the parent component when Get Started is selected.
+
+Additionally, they verify that an error message is displayed when
+saving the user's profile fails and remains hidden when there is no
+saving error.
+*/
+/*
  * AI use: Claude Sonnet 5.5 (Anthropic), used through the Claude chat app,
  * helped write these tests in November 2026. It helped with the test cases,
  * the Compose UI testing syntax and finding why the tests would not run as
@@ -25,7 +42,19 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.platform.app.InstrumentationRegistry
 import com.lambda.campsite.R
-
+/**
+ * UI tests for [FirstLaunchScreen] covering name entry, policy agreement
+ * and the Get Started button.
+ *
+ * The tests verify that users can:
+ * - Proceed only after entering a non-blank name and agreeing to the policy.
+ * - Open and close the policy sheet.
+ * - Agree to the policy through the policy sheet.
+ * - Pass their trimmed name when selecting Get Started.
+ * - See an error message when profile saving fails.
+ *
+ * Also verifies that the save error message is hidden by default.
+ */
 class FirstLaunchScreenTest {
 
     @get:Rule

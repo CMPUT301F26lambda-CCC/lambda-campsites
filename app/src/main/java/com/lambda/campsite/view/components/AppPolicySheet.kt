@@ -1,19 +1,21 @@
-package com.lambda.campsite.view.components
-
-/**
-* Displays the app policy in a bottom sheet so users can review the
-* guidelines and information about using the Lambda Campsite application.
-*
-* The sheet provides users with the option to close it without agreeing
-* or select I Agree to accept the policy. The agreement callback allows
-* the parent screen to update the policy agreement checkbox.
-**/
 /*
- * AI use: ChatGPT (OpenAI), used through the ChatGPT website, helped with
- * revising the KDoc comments for this file in November 2026.
+Purpose:
+The purpose of this screen is to display the app policy in a bottom
+sheet so users can review the guidelines and information about using
+the Lambda Campsite application.
+Users have the option to close the policy without agreeing or select
+the I Agree button to accept the policy. Once the user agrees, the
+agreement callback is triggered, allowing the parent screen to update
+the policy agreement checkbox and record the user's agreement.
+*/
+/*
+ * AI use: GPT-6 (OpenAI), used through the ChatGPT website in November 2026,
+ * helped with revising and improving the KDoc and purpose comments
+ * for this file to make the documentation clearer and more detailed.
  * Harmanjoth Kaur reviewed and edited the documentation.
  */
 
+package com.lambda.campsite.view.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -48,12 +50,11 @@ import androidx.compose.ui.Alignment
  * to the app policy.
  */
 @Composable
-
-
 fun AppPolicySheet(
     name: String,
     CloseAppPolicy: () -> Unit = {},
-    AgreeAppPolicy: () -> Unit = {}
+    AgreeAppPolicy: () -> Unit = {},
+    showAgree: Boolean = true,
 ){
     Column(
         modifier = Modifier
@@ -128,15 +129,17 @@ fun AppPolicySheet(
                 Text(text = stringResource(R.string.close))
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            if (showAgree) {
+                Spacer(modifier = Modifier.width(12.dp))
 
-            Button(
-                onClick = { AgreeAppPolicy() },
-                modifier = Modifier
 
-                    .testTag("agree_policy_button")
-            ) {
-                Text(text = stringResource(R.string.agree))
+                Button(
+                    onClick = { AgreeAppPolicy() },
+                    modifier = Modifier
+                        .testTag("agree_policy_button")
+                ) {
+                    Text(text = stringResource(R.string.agree))
+                }
             }
         }
     }

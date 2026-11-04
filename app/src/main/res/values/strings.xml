@@ -263,4 +263,40 @@
     <string name="campsite_date_range">%1$s – %2$s</string>
     <string name="campsite_rule_bullet">• %1$s</string>
     <string name="entrant_lottery_withdraw_before">You can leave any time before %1$s.</string>
+    <!--For Profile Page-->
+    <string name="profile_edit">Edit Profile</string>
+    <string name="profile_personal_information">Personal Information</string>
+    <string name="profile_email">Email</string>
+    <string name="profile_phone">Phone</string>
+    <string name="profile_phone_not_provided">Not provided</string>
+    <string name="profile_settings">Settings</string>
+    <string name="profile_role_description">Choose a role to see the app from that perspective. You can only select roles assigned to your profile.</string>
+    <string name="profile_details">Details</string>
+    <string name="profile_change_photo">Change photo</string>
+    <string name="profile_name">Name*</string>
+    <string name="profile_save_changes">Save Changes</string>
+    <string name="profile_cancel">Cancel</string>
+    <!--For Edit Profile Page-->
+    <string name="profile_discard_title">Discard changes?</string>
+    <string name="profile_discard_message">Your changes won\'t be saved. Your profile stays as it was.</string>
+    <string name="profile_discard">Discard</string>
+    <string name="profile_keep_editing">Keep editing</string>
+    <string name="error_name_required">Enter your name</string>
+    <string name="error_email_invalid">Enter a valid email address</string>
+    <string name="error_phone_invalid">Enter a valid phone number</string>
+    <!--For Setting Page-->
+    <string name="settings_preferences">Preferences</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_notifications_desc">Lottery results, reservation updates and messages from owners</string>
+    <string name="settings_policy">App Policy and Guidelines</string>
+    <string name="settings_policy_desc">How lotteries work and the rules for campers</string>
+    <string name="settings_placeholder_label">PLACEHOLDER</string>
+    <string name="settings_placeholder_text">More settings to be added</string>
+    <string name="settings_account">Account</string>
+    <string name="settings_delete_profile">Delete profile</string>
+    <string name="settings_delete_profile_desc">Permanently remove your profile from this phone</string>
+    <string name="delete_dialog_title">Delete your profile?</string>
+    <string name="delete_dialog_message">This permanently deletes your name, contact details and profile picture, and removes you from any waiting lists you\'ve joined. This can\'t be undone.</string>
+    <string name="delete">Delete</string>
+    <string name="cancel">Cancel</string>
 </resources>

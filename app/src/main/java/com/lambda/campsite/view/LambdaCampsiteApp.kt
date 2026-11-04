@@ -94,6 +94,14 @@ import com.lambda.campsite.view.screens.EntrantReservationsScreen
 import com.lambda.campsite.view.screens.EntrantReservationDetailsScreen
 import com.lambda.campsite.view.screens.ProfileScreen
 import com.lambda.campsite.view.screens.OwnerLotteryResultsScreen
+import com.lambda.campsite.controller.ProfileError
+import com.lambda.campsite.view.screens.SettingScreen
+import com.lambda.campsite.view.screens.EditProfileScreen
+import com.lambda.campsite.view.screens.FirstLaunchScreen
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.IconButton
 
 /** Entrant pushed routes retain Home selection and the selected campsite's parent state. */
 private const val ENTRANT_DETAILS_ROUTE = "entrant/home/details/{campsiteId}"
@@ -171,6 +179,9 @@ fun LambdaCampsiteApp(
 ) {
     val state by profileController.state.collectAsStateWithLifecycle()
     val tabs = AppTab.forRole(state.activeRole)
+    val SETTINGS_ROUTE = "settings"
+    val EDIT_PROFILE_ROUTE = "edit_profile"
+    val FIRST_LAUNCH_ROUTE = "first_launch"
 
     key(state.activeRole) {
         val navController = rememberNavController()
@@ -180,32 +191,49 @@ fun LambdaCampsiteApp(
             // The root inset lets each screen's app bar draw up under the clock;
             // screens without an app bar pad themselves with statusBarsPadding().
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            topBar = {
+                if (state.activeRole != Role.ENTRANT && currentRoute != FIRST_LAUNCH_ROUTE) {
+                    TopAppBar(
+                        title = { Text(stringResource(R.string.app_name)) },
+                        actions = {
+                            IconButton(onClick = { navController.navigateToTab(AppTab.PROFILE) }) {
+                                Icon(
+                                    Icons.Filled.AccountCircle,
+                                    contentDescription = stringResource(R.string.open_profile),
+                                )
+                            }
+                        },
+                    )
+                }
+            },
             bottomBar = {
-                NavigationBar(containerColor = com.lambda.campsite.view.theme.CampSurfaceHigh) {
-                    tabs.forEach { tab ->
-                        NavigationBarItem(
-                            selected = isSelectedTab(tab, currentRoute),
-                            onClick = { navController.navigateToTab(tab) },
-                            // The label below names the tab, so the icon needs no description.
-                            icon = {
-                                val entrantIcon = if (state.activeRole == Role.ENTRANT) when (tab) {
-                                    AppTab.ENTRANT_HOME -> R.drawable.flow10_nav_home
-                                    AppTab.ENTRANT_RESERVATIONS -> R.drawable.flow11_home_active
-                                    AppTab.PROFILE -> R.drawable.flow10_person
-                                    else -> null
-                                } else null
-                                if (entrantIcon == null) Icon(tab.icon, contentDescription = null)
-                                else Icon(painterResource(entrantIcon), contentDescription = null)
-                            },
-                            label = { Text(stringResource(tab.labelRes)) },
-                            colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = com.lambda.campsite.view.theme.CampPositive,
-                                selectedIconColor = com.lambda.campsite.view.theme.ForestGreen,
-                                selectedTextColor = com.lambda.campsite.view.theme.ForestGreen,
-                                unselectedIconColor = com.lambda.campsite.view.theme.CampSecondaryText,
-                                unselectedTextColor = com.lambda.campsite.view.theme.CampSecondaryText,
-                            ),
-                        )
+                if (currentRoute != FIRST_LAUNCH_ROUTE) {
+                    NavigationBar(containerColor = com.lambda.campsite.view.theme.CampSurfaceHigh) {
+                        tabs.forEach { tab ->
+                            NavigationBarItem(
+                                selected = isSelectedTab(tab, currentRoute),
+                                onClick = { navController.navigateToTab(tab) },
+                                // The label below names the tab, so the icon needs no description.
+                                icon = {
+                                    val entrantIcon = if (state.activeRole == Role.ENTRANT) when (tab) {
+                                        AppTab.ENTRANT_HOME -> R.drawable.flow10_nav_home
+                                        AppTab.ENTRANT_RESERVATIONS -> R.drawable.flow11_home_active
+                                        AppTab.PROFILE -> R.drawable.flow10_person
+                                        else -> null
+                                    } else null
+                                    if (entrantIcon == null) Icon(tab.icon, contentDescription = null)
+                                    else Icon(painterResource(entrantIcon), contentDescription = null)
+                                },
+                                label = { Text(stringResource(tab.labelRes)) },
+                                colors = NavigationBarItemDefaults.colors(
+                                    indicatorColor = com.lambda.campsite.view.theme.CampPositive,
+                                    selectedIconColor = com.lambda.campsite.view.theme.ForestGreen,
+                                    selectedTextColor = com.lambda.campsite.view.theme.ForestGreen,
+                                    unselectedIconColor = com.lambda.campsite.view.theme.CampSecondaryText,
+                                    unselectedTextColor = com.lambda.campsite.view.theme.CampSecondaryText,
+                                ),
+                            )
+                        }
                     }
                 }
             },
@@ -226,7 +254,12 @@ fun LambdaCampsiteApp(
                                     navController.navigate("entrant/home/details/${Uri.encode(campsiteId)}")
                                 })
                             }
-                            AppTab.PROFILE -> ProfileScreen(profileController)
+                            AppTab.PROFILE -> ProfileScreen(
+                                controller = profileController,
+                                onEditProfile = { navController.navigate(EDIT_PROFILE_ROUTE) },
+                                onSettings = { navController.navigate(SETTINGS_ROUTE) },
+                                onBack = { navController.navigateToTab(tabs.first()) },
+                            )
                             AppTab.ENTRANT_RESERVATIONS -> {
                                 val reservationsController: EntrantReservationsController =
                                     viewModel(factory = EntrantReservationsController.Factory)
@@ -478,6 +511,56 @@ fun LambdaCampsiteApp(
                         factory = OwnerBookedDatesController.createFactory(campsiteId),
                     )
                     OwnerBookedDatesScreen(bookedDatesController, onBack = { navController.popBackStack() })
+                }
+
+                composable(SETTINGS_ROUTE) {
+                    SettingScreen(
+                        name = state.profile?.name.orEmpty(),
+                        notificationsOn = state.profile?.notificationsOn ?: true,
+                        onNotificationsChange = profileController::onSetNotificationsOn,
+                        onBack = { navController.popBackStack() },
+                        saveFailed = state.error == ProfileError.SAVE_FAILED,
+                        onDeleteProfile = {
+                            // TODO (backend): call profileController.onDeleteProfile() here
+                            // to delete the profile before navigating.
+                            navController.navigate(FIRST_LAUNCH_ROUTE) {
+                                popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+                            }
+                        },
+                    )
+                }
+
+                composable(EDIT_PROFILE_ROUTE) {
+                    val profile = state.profile
+                    if (profile != null) {
+                        EditProfileScreen(
+                            name = profile.name,
+                            email = profile.email,
+                            phone = profile.phone,
+                            saveFailed = state.error == ProfileError.SAVE_FAILED,
+                            onCancel = {
+                                profileController.onEditProfileClosed()
+                                navController.popBackStack()
+                            },
+                            onSave = { name, email, phone ->
+                                profileController.onSaveProfile(name, email, phone) {
+                                    navController.popBackStack()
+                                }
+                            },
+                        )
+                    }
+                }
+
+                composable(FIRST_LAUNCH_ROUTE) {
+                    FirstLaunchScreen(
+                        onGetStarted = { name ->
+                            profileController.onFinishFirstLaunch(name)
+                            navController.navigate(tabs.first().route) {
+                                popUpTo(FIRST_LAUNCH_ROUTE) { inclusive = true }
+                            }
+                        },
+                        saveFailed = state.error == ProfileError.SAVE_FAILED,
+                    )
                 }
             }
         }
