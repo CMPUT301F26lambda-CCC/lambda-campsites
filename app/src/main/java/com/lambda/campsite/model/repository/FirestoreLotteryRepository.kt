@@ -4,6 +4,9 @@
  * FirestoreCampsiteRepository. It helped with the Kotlin code, the Firestore
  * queries, syntax and KDoc. Sashreek Addanki reviewed it.
  */
+// Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 (OpenAI), through Codex,
+// assisted with edit guards, race handling and merge preservation. Human review pending.
+// Outstanding issues: manual TalkBack review and rules deployment remain pending.
 package com.lambda.campsite.model.repository
 
 import com.google.firebase.Timestamp
@@ -77,9 +80,10 @@ class FirestoreLotteryRepository(
     override fun newLotteryId(): String = lotteries.document().id
 
     /**
-     * Returns once the server accepts the save. Offline, the phone keeps the
-     * change and this waits until the connection comes back.
+     * Validates and writes atomically against the server's latest lottery. Offline,
+     * the transaction fails rather than queueing an edit against an outdated list.
      *
+     * @throws LotteryEditException when a join or draw has locked the proposed changes.
      * @throws com.google.firebase.firestore.FirebaseFirestoreException if the
      *   server refuses the write, for example when the lottery has been drawn
      *   or includes someone else's campsite.
@@ -87,8 +91,18 @@ class FirestoreLotteryRepository(
     override suspend fun save(lottery: Lottery) {
         // A write made before sign-in finishes would never be sent.
         auth.signedInUserId().first()
-        // merge() keeps the entry count, which toMap leaves out.
-        lotteries.document(lottery.id).set(LotteryFields.toMap(lottery), SetOptions.merge()).await()
+        // A join or draw invalidates this read and retries the transaction. Never silently
+        // substitute locked fields or overwrite server-managed entry/draw metadata.
+        val ref = lotteries.document(lottery.id)
+        firestore.runTransaction { transaction ->
+            val snapshot = transaction.get(ref)
+            if (snapshot.exists()) {
+                val stored = LotteryFields.fromMap(lottery.id, snapshot.data.orEmpty())
+                    ?: error("Stored lottery is invalid")
+                lottery.editRestriction(stored)?.let { throw LotteryEditException(it) }
+            }
+            transaction.set(ref, LotteryFields.toMap(lottery), SetOptions.merge())
+        }.await()
     }
 
     override fun waitingList(lotteryId: String): Flow<List<LotteryEntry>> =

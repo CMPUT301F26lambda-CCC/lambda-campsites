@@ -4,6 +4,8 @@
  * the wizard's step-by-step interactions, the calendar picker test, the
  * end-to-end create path and KDoc. Raghav Sethi reviewed, tested, and committed it.
  */
+// Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted
+// with edit-mode and singular-lock UI checks; human review pending.
 package com.lambda.campsite.view.screens
 
 import androidx.compose.ui.test.assertIsDisplayed
@@ -50,12 +52,14 @@ class NewLotteryScreenTest {
     private val createdIds = mutableListOf<String>()
 
     /** Draws the wizard whose owner owns [campsites]. */
-    private fun setContent(campsites: List<Campsite> = listOf(campsite)) {
+    private fun setContent(campsites: List<Campsite> = listOf(campsite), editing: Lottery? = null) {
         lotteries = ScreenFakeLotteries()
+        if (editing != null) kotlinx.coroutines.runBlocking { lotteries.save(editing) }
         controller = NewLotteryController(
             lotteryRepository = lotteries,
             campsiteRepository = ScreenFakeCampsites(initial = campsites),
             profileRepository = ScreenFakeProfile(),
+            lotteryIdToEdit = editing?.id,
         )
         composeRule.setContent {
             NewLotteryScreen(
@@ -204,5 +208,21 @@ class NewLotteryScreenTest {
         composeRule.watch()
 
         composeRule.onNodeWithText(stepHeader(1)).assertIsDisplayed()
+    }
+
+    @Test fun editingUsesSaveLabelsAndSingularJoinedExplanation() {
+        val zone = java.time.ZoneId.systemDefault()
+        fun stamp(day: LocalDate) = com.google.firebase.Timestamp(java.util.Date.from(day.atStartOfDay(zone).toInstant()))
+        val lottery = Lottery("edit-demo", "user-1", "Demo lottery", listOf("c1"),
+            stamp(LocalDate.of(2026, 10, 6)), stamp(LocalDate.of(2026, 10, 19)),
+            LocalDate.of(2027, 5, 15), LocalDate.of(2027, 9, 30), entryCount = 1)
+        setContent(editing = lottery)
+        composeRule.waitUntil(5000) { !controller.state.value.isLoadingLottery }
+        composeRule.onNodeWithText("Edit lottery").assertIsDisplayed()
+        composeRule.onNodeWithText("1 entrant has already joined the waiting list, so the campsites can't change.").assertIsDisplayed()
+        composeRule.runOnIdle { repeat(3) { controller.onNext() } }
+        composeRule.onNodeWithText("Save changes").assertIsDisplayed()
+        composeRule.onNodeWithText("Create lottery").assertDoesNotExist()
+        composeRule.onNodeWithText("Everything can be edited until the draw picks the winners.").assertDoesNotExist()
     }
 }

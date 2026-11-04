@@ -7,6 +7,8 @@
  * #169 follow-up, 2026-11-04: GLM 5.3 Flash (Z.ai), through OpenCode, helped
  * write the edit-lock tests for joined entrants (US 02.04.06); human review pending.
  */
+// Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted
+// with race/refusal and access-rule regression tests; human review pending.
 package com.lambda.campsite.controller
 
 import com.google.firebase.Timestamp
@@ -382,5 +384,58 @@ class NewLotteryControllerTest {
 
         assertEquals(NewLotteryError.NOT_DRAWABLE, controller.state.value.error)
         assertTrue(repository.saved.isEmpty())
+    }
+
+    @Test fun `a new entrant rejects changed campsites and refreshes locks without success`() {
+        val original = joinedLottery.copy(entryCount = 0)
+        val (controller, repository) = editController(original)
+        controller.onCampsiteToggled("c2")
+        controller.onRegistrationClosesChange(LocalDate.of(2026, 10, 20))
+        repository.changeElsewhere(original.copy(entryCount = 1))
+        var successes = 0
+        controller.onCreateLottery { successes++ }
+        assertEquals(0, successes)
+        assertTrue(repository.saved.isEmpty())
+        assertEquals(NewLotteryError.LOCKED_FIELDS_CHANGED, controller.state.value.error)
+        assertEquals(1, controller.state.value.joinedEntrants)
+        assertEquals(original.campsiteIds, controller.state.value.selectedCampsiteIds)
+        assertEquals(LocalDate.of(2026, 10, 18), controller.state.value.registrationCloses)
+        controller.onErrorShown()
+        controller.onCreateLottery { successes++ }
+        assertEquals(1, successes)
+        assertEquals(original.campsiteIds, repository.saved.single().campsiteIds)
+    }
+
+    @Test fun `a new entrant still allows an unlocked name edit without dropping changes`() {
+        val original = joinedLottery.copy(entryCount = 0)
+        val (controller, repository) = editController(original)
+        controller.onNameChange("Updated name")
+        repository.changeElsewhere(original.copy(entryCount = 1))
+        controller.onCreateLottery { }
+        assertEquals("Updated name", repository.saved.single().name)
+        assertEquals(original.registrationCloses, repository.saved.single().registrationCloses)
+    }
+
+    @Test fun `transaction refusal after the initial check refreshes the joined count without success`() {
+        val original = joinedLottery.copy(entryCount = 0)
+        val base = FakeLotteryRepository(myUserId = "user-1", initial = listOf(original))
+        val repository = object : com.lambda.campsite.model.repository.LotteryRepository by base {
+            override suspend fun save(lottery: Lottery) {
+                base.changeElsewhere(original.copy(entryCount = 1))
+                throw com.lambda.campsite.model.repository.LotteryEditException(
+                    com.lambda.campsite.model.LotteryEditRestriction.LOCKED_FIELDS_CHANGED)
+            }
+        }
+        val controller = NewLotteryController(repository,
+            FakeCampsiteRepository(myUserId = "user-1", initial = listOf(aspen, cedar)),
+            FakeProfileRepository(Profile("user-1", "Owner", "owner@example.com")), original.id)
+        controller.onCampsiteToggled("c2")
+        var successes = 0
+        controller.onCreateLottery { successes++ }
+        assertEquals(0, successes)
+        assertEquals(1, controller.state.value.joinedEntrants)
+        assertEquals(NewLotteryError.LOCKED_FIELDS_CHANGED, controller.state.value.error)
+        assertEquals(original.campsiteIds, controller.state.value.selectedCampsiteIds)
+        assertFalse(controller.state.value.isSaving)
     }
 }

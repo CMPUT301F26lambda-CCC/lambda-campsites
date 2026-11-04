@@ -23,6 +23,7 @@
   Entrant Profile, FirstLaunchScreen, Filter Screen and SettingScreen in November
   2026. Harmanjoth Kaur reviewed and committed them.
 -->
+<!-- Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted with edit labels and plurals; human review pending. -->
 <resources>
     <string name="app_name">Lambda Campsite</string>
 
@@ -210,14 +211,23 @@
     <string name="new_lottery_not_set">Not set</string>
     <string name="new_lottery_review_settings_limited">%1$d winners · Waiting-list capacity %2$d</string>
     <string name="new_lottery_review_settings_unlimited">%1$d winners · Unlimited waiting list</string>
-    <string name="new_lottery_create_hint">Everything can be edited until the draw picks the winners.</string>
+    <string name="new_lottery_create_hint">Campsites and registration dates lock once entrants join. Other settings can be edited until the lottery is drawn.</string>
 
     <!-- #169 follow-up: fields shown as locked while editing a lottery whose
          waiting list already took entrants (US 02.04.06). -->
     <string name="new_lottery_locked_icon">Locked</string>
-    <string name="new_lottery_locked_campsites">%1$d entrants have already joined the waiting list, so the campsites can\'t change.</string>
-    <string name="new_lottery_locked_registration">%1$d entrants have already joined during this window, so the registration dates can\'t change.</string>
-    <string name="new_lottery_locked_capacity">%1$d entrants are already on the waiting list, so the capacity can\'t go below that. Raising it is still allowed.</string>
+    <plurals name="new_lottery_locked_campsites">
+        <item quantity="one">%1$d entrant has already joined the waiting list, so the campsites can\'t change.</item>
+        <item quantity="other">%1$d entrants have already joined the waiting list, so the campsites can\'t change.</item>
+    </plurals>
+    <plurals name="new_lottery_locked_registration">
+        <item quantity="one">%1$d entrant has already joined during this window, so the registration dates can\'t change.</item>
+        <item quantity="other">%1$d entrants have already joined during this window, so the registration dates can\'t change.</item>
+    </plurals>
+    <plurals name="new_lottery_locked_capacity">
+        <item quantity="one">%1$d entrant is already on the waiting list, so the capacity can\'t go below that. Raising it is still allowed.</item>
+        <item quantity="other">%1$d entrants are already on the waiting list, so the capacity can\'t go below that. Raising it is still allowed.</item>
+    </plurals>
     <string name="action_continue">Continue</string>
     <string name="create_lottery_button">Create lottery</string>
     <string name="action_back">Back</string>
@@ -474,6 +484,10 @@
     <string name="owner_waiting_list_copy_phone">Copy phone number</string>
     <string name="owner_waiting_list_email_copied">Email address copied</string>
     <string name="owner_waiting_list_phone_copied">Phone number copied</string>
+    <string name="edit_lottery_title">Edit lottery</string>
+    <string name="edit_lottery_save">Save changes</string>
+    <string name="edit_lottery_locked_hint">Campsites and registration dates are locked because entrants have joined. Review your other changes before saving.</string>
+    <string name="error_lottery_locked_fields_changed">Entrants joined while you were editing. Campsites and registration dates have been refreshed and locked. Review the updated form before saving again.</string>
     <!--For the FilterScreen -->
     <string name="flow15_filters">Filters</string>
     <string name="flow15_location">Location</string>

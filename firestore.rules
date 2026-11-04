@@ -1,3 +1,5 @@
+// Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted
+// with joined-entrant edit locks and capacity validation; human review pending.
 // Purpose: the Firestore security rules, the server-side check on every read
 // and write the app makes. The app can be modified, so anything that must
 // hold, like who owns a campsite or which nights are free, is enforced here.
@@ -385,6 +387,12 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'campsiteIds',
             'registrationOpens', 'registrationCloses', 'stayStart', 'stayEnd', 'numberOfWinners', 'capacity'])
         && ownsCampsites(request.resource.data.campsiteIds)
+        && (resource.data.get('entryCount', 0) == 0
+            || (request.resource.data.campsiteIds == resource.data.campsiteIds
+                && request.resource.data.registrationOpens == resource.data.registrationOpens
+                && request.resource.data.registrationCloses == resource.data.registrationCloses))
+        && (request.resource.data.get('capacity', null) == null
+            || request.resource.data.capacity >= resource.data.get('entryCount', 0))
         && validLottery(request.resource.data);
 
       // Joining or leaving changes entryCount by one, in the same
