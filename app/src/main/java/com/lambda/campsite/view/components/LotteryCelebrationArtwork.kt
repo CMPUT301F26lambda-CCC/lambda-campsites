@@ -42,4 +42,3 @@ fun LotteryCelebrationArtwork(confirmed: Boolean = false) {
         }
     }
 }
-
