@@ -4,6 +4,7 @@
  * Outstanding issues: rating submission belongs to its own user story.
  * AI use: OpenAI GPT-6 (OpenAI), through Codex, assisted with layout and semantics;
  * human review pending.
+ * Flow 9 (#126): optional selection callback keeps View details separate from choosing a campsite.
  */
 package com.lambda.campsite.view.components
 
@@ -74,8 +75,8 @@ fun CampsiteRating(average: Double?, count: Int, compact: Boolean = false) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CampsiteSummaryCard(name: String, location: String, maxGuests: Int, rating: Double?, ratingCount: Int,
-    onDetails: () -> Unit, status: @Composable () -> Unit = {}) {
-    Card(onClick = onDetails, shape = RoundedCornerShape(16.dp),
+    onDetails: () -> Unit, status: @Composable () -> Unit = {}, onSelect: (() -> Unit)? = null) {
+    Card(onClick = onSelect ?: onDetails, shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = CampSurfaceHigh, contentColor = CampOnSurface)) {
         Column(Modifier.fillMaxWidth().padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)) {

@@ -1,3 +1,4 @@
+// Issue #150: GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
 /*
  * AI use: Gemini 3.8 Flash (Google DeepMind) helped write these tests in November 2026.
  * It helped with test cases for loading campsites, observing repository changes,
@@ -7,6 +8,11 @@ package com.lambda.campsite.controller
 
 import com.lambda.campsite.model.Campsite
 import com.lambda.campsite.model.repository.FakeCampsiteRepository
+import com.lambda.campsite.model.repository.CampsiteRepository
+import java.io.IOException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.emitAll
 import com.lambda.campsite.testutil.MainDispatcherRule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -65,5 +71,25 @@ class OwnerCampsiteListControllerTest {
 
         controller.onErrorShown()
         assertNull(controller.state.value.error)
+    }
+
+    @Test
+    fun `retry reconnects live list after initial failure`() {
+        val base = FakeCampsiteRepository(myUserId = "owner-1", initial = listOf(camp1))
+        var fail = true
+        val repository = object : CampsiteRepository by base {
+            override fun myCampsites(): Flow<List<Campsite>> = flow {
+                if (fail) throw IOException("Offline")
+                emitAll(base.myCampsites())
+            }
+        }
+        val controller = OwnerCampsiteListController(repository)
+        assertEquals(CampsiteListError.LOAD_FAILED, controller.state.value.error)
+        fail = false
+        controller.retry()
+        assertNull(controller.state.value.error)
+        assertEquals(listOf(camp1), controller.state.value.campsites)
+        base.changeElsewhere(camp2)
+        assertEquals(listOf(camp1, camp2), controller.state.value.campsites)
     }
 }

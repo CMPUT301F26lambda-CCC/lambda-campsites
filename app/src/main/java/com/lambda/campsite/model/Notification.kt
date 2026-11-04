@@ -4,6 +4,9 @@
  * Notification class in the team's class diagram. Aarush Bhat reviewed and
  * committed it.
  */
+// OpenAI GPT-6 (OpenAI), through Codex, assisted with the optional lotteryId contract; human review pending.
+// Flow 8 update: Lalith Valluru, 2026-11-03.
+// Outstanding issues: manual TalkBack and deployed push delivery checks remain.
 package com.lambda.campsite.model
 
 import com.google.firebase.Timestamp
@@ -36,6 +39,8 @@ enum class NotificationType {
  * @property sentAt when the server created it. Notifications are sorted by
  *   this, newest first.
  * @property read whether the recipient has opened it.
+ * @property lotteryId source lottery document ID for draw results (US 01.03.01/.02);
+ *   null on older notices or notices unrelated to a lottery. Never infer it from message text.
  */
 data class Notification(
     val id: String,
@@ -45,4 +50,5 @@ data class Notification(
     val body: String,
     val sentAt: Timestamp,
     val read: Boolean = false,
+    val lotteryId: String? = null,
 )

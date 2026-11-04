@@ -1,3 +1,4 @@
+// Issue #150: GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
 /*
 Purpose:
 This page is used to display the profile information for any user.
@@ -274,7 +275,7 @@ fun ProfileScreen(controller: ProfileController,
                     ) {
                         repeat(3) { index ->
                             val role = Role.entries[index]
-                            val isSelected = selectedRole == role
+                            val isSelected = state.activeRole == role
                             Box(
                                 modifier = Modifier
                                     .weight(1f)

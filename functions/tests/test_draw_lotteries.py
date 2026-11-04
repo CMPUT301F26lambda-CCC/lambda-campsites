@@ -1,3 +1,5 @@
+# OpenAI GPT-6 (OpenAI), through Codex, assisted with the source-lottery assertion (US 01.03.01/.02); human review pending.
+
 # Flow 5: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted
 # with draw metadata/edge-case coverage; human review pending.
 # Purpose: tests for the draw_lotteries Cloud Function (US 02.04.06,
@@ -44,6 +46,7 @@ def test_draws_the_right_number_of_winners(db):
     assert sorted(statuses.values()) == ["NOT_SELECTED", "NOT_SELECTED", "WON", "WON"]
     notifications = _notifications(db)
     assert len(notifications) == 4
+    assert all(n["lotteryId"] == lottery_ref.id for n in notifications)
     assert sum(1 for n in notifications if n["type"] == "WIN") == 2
     assert sum(1 for n in notifications if n["type"] == "LOSE") == 2
 
@@ -119,6 +122,10 @@ def test_draw_metadata_is_immutable_on_retry_and_keeps_public_campsite_names(db)
     main.draw_due_lotteries(db, now)
     original = lottery_ref.get().to_dict()
     assert original["drawnCampsiteNames"] == ["Demo Campsite"]
+    for notice in _notifications(db):
+        assert notice["lotteryId"] == lottery_ref.id
+        assert "Demo Campsite" in notice["body"]
+        assert now.isoformat() in notice["body"]
     main._draw_lottery(db, lottery_ref, now + timedelta(minutes=5))
     assert lottery_ref.get().to_dict() == original
     assert len(_notifications(db)) == 2

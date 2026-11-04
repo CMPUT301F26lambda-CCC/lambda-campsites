@@ -1,3 +1,4 @@
+// Issue #150: GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
 /*
  * AI use: Coded by Aarush Bhat with the assistance of Claude Sonnet 5
  * (Anthropic), through Claude Code, in November 2026, following the
@@ -50,6 +51,9 @@ class FirestoreImageRepository(
         images.document(id).set(ImageFields.toMap(Image(id = id, ownerId = uid))).await()
         return id
     }
+
+    override suspend fun downloadUrl(imageId: String): String? =
+        photos.child("$imageId.jpg").downloadUrl.await().toString()
 
     private fun Bitmap.shrunkToWidth(maxWidth: Int): Bitmap {
         if (width <= maxWidth) return this

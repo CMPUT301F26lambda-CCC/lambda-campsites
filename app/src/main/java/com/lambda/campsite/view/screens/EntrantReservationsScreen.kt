@@ -3,6 +3,8 @@
  * AI use: GPT-6 (OpenAI), through Codex, assisted me with this screen.
  * Human review is pending.
  */
+// Booking integration: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted
+// with the winner-offers entry point while preserving Flow 10 history. Review pending.
 package com.lambda.campsite.view.screens
 
 import androidx.compose.foundation.Image
@@ -79,11 +81,12 @@ fun EntrantReservationsScreen(
     controller: EntrantReservationsController,
     onReservationClick: (String) -> Unit,
     onBrowseCampsites: () -> Unit,
+    onWinnerOffers: (() -> Unit)? = null,
 ) {
     val state by controller.state.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { controller.onResume() }
     EntrantReservationsContent(state, controller::onTabSelected, onReservationClick,
-        onBrowseCampsites, controller::onRetry)
+        onBrowseCampsites, controller::onRetry, onWinnerOffers)
 }
 
 /** Figma Active/Past tabs, cards and empty state. The feed owns its loading state. */
@@ -95,6 +98,7 @@ fun EntrantReservationsContent(
     onReservationClick: (String) -> Unit,
     onBrowseCampsites: () -> Unit,
     onRetry: () -> Unit,
+    onWinnerOffers: (() -> Unit)? = null,
 ) {
     StatusBarIconStyle(darkIcons = false)
     Scaffold(containerColor = ForestGreen, topBar = {
@@ -106,6 +110,10 @@ fun EntrantReservationsContent(
         Surface(Modifier.fillMaxSize().padding(padding), shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
             color = Mint, contentColor = CampOnSurface) {
             Column(Modifier.fillMaxSize().padding(top = 20.dp)) {
+                if (onWinnerOffers != null) Button(onClick = onWinnerOffers,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 16.dp)) {
+                    Text(stringResource(R.string.flow9_wins_title))
+                }
                 EntrantReservationSegments(state.selectedTab, onTabSelected,
                     Modifier.fillMaxWidth().padding(horizontal = 24.dp))
                 val visible = state.visibleReservations

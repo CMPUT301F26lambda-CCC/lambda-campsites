@@ -3,6 +3,8 @@
  * Outstanding issues: None known for the Flow 12 changes.
  * Feature owner: Lalith Valluru. Purpose: Flow 12 / US 02.09.01 presentation tests.
  * AI use: OpenAI GPT-6 through Codex assisted with Compose assertions. Human review pending.
+ * Issue #151: GPT-6 (OpenAI), through Codex, assisted me with contact-sheet
+ * and accessible copy-action regression checks.
  */
 package com.lambda.campsite.view.screens
 
@@ -12,6 +14,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.test.espresso.Espresso
+import android.content.ClipboardManager
+import android.content.Context
+import androidx.test.platform.app.InstrumentationRegistry
 import com.google.firebase.Timestamp
 import com.lambda.campsite.controller.*
 import com.lambda.campsite.model.*
@@ -30,7 +36,7 @@ class OwnerWaitingListScreenTest {
     private fun state() = OwnerWaitingListUiState(lotteries = listOf(lottery, lottery.copy(id = "b", name = "November Lottery")),
         selectedLotteryId = "a", entries = listOf(entry), loadingLotteries = false)
 
-    @Test fun selectorSheetCloseAndBackHaveActions() {
+    @Test fun selectorSheetDismissAndBackHaveActions() {
         val state = mutableStateOf(state())
         var selected: String? = null
         var backs = 0
@@ -40,13 +46,12 @@ class OwnerWaitingListScreenTest {
         compose.onNodeWithText("1 entrant").assertIsDisplayed()
         compose.onNodeWithText("Entrant ID: sample-entrant-001").performClick()
         compose.onNodeWithText("Entrant details").assertIsDisplayed()
-        compose.onNodeWithText("Status: On the waiting list").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Close entrant details").performClick()
+        Espresso.pressBack()
         compose.onNodeWithText("Entrant details").assertDoesNotExist()
         compose.onNodeWithText(lottery.name).performClick()
         compose.onNodeWithText("November Lottery").performClick()
         compose.runOnIdle { assertEquals("b", selected) }
-        compose.onNodeWithContentDescription("Back to Owner Home").performClick()
+        compose.onNodeWithContentDescription("Back to lottery details").performClick()
         compose.runOnIdle { assertEquals(1, backs) }
     }
 
@@ -77,7 +82,7 @@ class OwnerWaitingListScreenTest {
         } }
         compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Entrant ID: $lastId"))
         compose.onNodeWithText("Entrant ID: $lastId").assertIsDisplayed().assertHasClickAction()
-        compose.onNodeWithContentDescription("Back to Owner Home").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Back to lottery details").assertIsDisplayed()
     }
 
     @Test fun contactSheetScrollsAtDoubleFontAndMissingValuesAreExplicit() {
@@ -91,10 +96,23 @@ class OwnerWaitingListScreenTest {
                     { state.value = state.value.copy(selectedEntrantId = null) }, {})
             }
         } }
-        compose.onNodeWithText("Email: long.email.for.demo@example.com").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Phone: Not provided").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Status: On the waiting list").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithContentDescription("Close entrant details").performScrollTo().assertIsDisplayed().performClick()
-        compose.onNodeWithText("Phone: Not provided").assertDoesNotExist()
+        compose.onNodeWithText("long.email.for.demo@example.com").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Not provided").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Copy email address").performScrollTo().assertIsDisplayed()
+        Espresso.pressBack()
+        compose.onNodeWithText("Not provided").assertDoesNotExist()
+    }
+
+    @Test fun contactCopyActionsCopyOnlyTheSelectedEntrantsValues() {
+        val contact = WaitingListContact(entry.entrantId, "Alex Demo", "alex@example.com", "780-555-0101")
+        compose.setContent { LambdaCampsiteTheme { OwnerWaitingListContent(
+            state().copy(selectedEntrantId = entry.entrantId, contacts = mapOf(entry.entrantId to contact)),
+            {}, {}, {}, {}, {}) } }
+        val clipboard = InstrumentationRegistry.getInstrumentation().targetContext
+            .getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        compose.onNodeWithContentDescription("Copy email address").performClick()
+        compose.runOnIdle { assertEquals(contact.email, clipboard.primaryClip?.getItemAt(0)?.text?.toString()) }
+        compose.onNodeWithContentDescription("Copy phone number").performClick()
+        compose.runOnIdle { assertEquals(contact.phone, clipboard.primaryClip?.getItemAt(0)?.text?.toString()) }
     }
 }
