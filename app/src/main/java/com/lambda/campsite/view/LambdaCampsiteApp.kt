@@ -25,6 +25,8 @@
 // also helped route the owner reservation lists
 // and booked-date calendar for Flow 11 (US 02.06.01 and 02.07.01 to 02.07.03).
 // Human review is pending.
+// Flow 10 feature owner: Sreeman Reddy. GPT-6 (OpenAI), through Codex,
+// assisted me with entrant reservation list and detail navigation.
 package com.lambda.campsite.view
 
 import android.net.Uri
@@ -45,6 +47,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -66,6 +69,7 @@ import com.lambda.campsite.controller.OwnerCampsiteListController
 import com.lambda.campsite.controller.OwnerBookedDatesController
 import com.lambda.campsite.controller.OwnerReservationsController
 import com.lambda.campsite.controller.OwnerReservationTab
+import com.lambda.campsite.controller.EntrantReservationsController
 import com.lambda.campsite.controller.SearchController
 import com.lambda.campsite.controller.CampsiteController
 import com.lambda.campsite.controller.LotteryController
@@ -86,6 +90,8 @@ import com.lambda.campsite.view.screens.PlaceholderScreen
 import com.lambda.campsite.view.screens.SearchScreen
 import com.lambda.campsite.view.screens.CampsiteScreen
 import com.lambda.campsite.view.screens.EntrantLotteryDetailsScreen
+import com.lambda.campsite.view.screens.EntrantReservationsScreen
+import com.lambda.campsite.view.screens.EntrantReservationDetailsScreen
 import com.lambda.campsite.view.screens.ProfileScreen
 import com.lambda.campsite.controller.ProfileError
 import com.lambda.campsite.view.screens.SettingScreen
@@ -100,6 +106,7 @@ import  androidx.compose.material.icons.Icons
 /** Entrant pushed routes retain Home selection and the selected campsite's parent state. */
 private const val ENTRANT_DETAILS_ROUTE = "entrant/home/details/{campsiteId}"
 private const val ENTRANT_LOTTERY_ROUTE = "entrant/home/details/{campsiteId}/lottery/{lotteryId}"
+private const val ENTRANT_RESERVATION_DETAILS_ROUTE = "entrant/reservations/details/{reservationId}"
 
 /** Owner campsite routes keep the Campsites tab selected. */
 private const val OWNER_ADD_ROUTE = "owner/campsites/add"
@@ -216,6 +223,31 @@ fun LambdaCampsiteApp(
                                 ),
                             )
                         }
+                NavigationBar(containerColor = com.lambda.campsite.view.theme.CampSurfaceHigh) {
+                    tabs.forEach { tab ->
+                        NavigationBarItem(
+                            selected = isSelectedTab(tab, currentRoute),
+                            onClick = { navController.navigateToTab(tab) },
+                            // The label below names the tab, so the icon needs no description.
+                            icon = {
+                                val entrantIcon = if (state.activeRole == Role.ENTRANT) when (tab) {
+                                    AppTab.ENTRANT_HOME -> R.drawable.flow10_nav_home
+                                    AppTab.ENTRANT_RESERVATIONS -> R.drawable.flow11_home_active
+                                    AppTab.PROFILE -> R.drawable.flow10_person
+                                    else -> null
+                                } else null
+                                if (entrantIcon == null) Icon(tab.icon, contentDescription = null)
+                                else Icon(painterResource(entrantIcon), contentDescription = null)
+                            },
+                            label = { Text(stringResource(tab.labelRes)) },
+                            colors = NavigationBarItemDefaults.colors(
+                                indicatorColor = com.lambda.campsite.view.theme.CampPositive,
+                                selectedIconColor = com.lambda.campsite.view.theme.ForestGreen,
+                                selectedTextColor = com.lambda.campsite.view.theme.ForestGreen,
+                                unselectedIconColor = com.lambda.campsite.view.theme.CampSecondaryText,
+                                unselectedTextColor = com.lambda.campsite.view.theme.CampSecondaryText,
+                            ),
+                        )
                     }
                 }
             },
@@ -245,6 +277,15 @@ fun LambdaCampsiteApp(
                                 },)
 
 
+                            AppTab.PROFILE -> ProfileScreen(profileController)
+                            AppTab.ENTRANT_RESERVATIONS -> {
+                                val reservationsController: EntrantReservationsController =
+                                    viewModel(factory = EntrantReservationsController.Factory)
+                                EntrantReservationsScreen(reservationsController,
+                                    onReservationClick = { id -> navController.navigate(
+                                        "entrant/reservations/details/${Uri.encode(id)}") },
+                                    onBrowseCampsites = { navController.navigateToTab(AppTab.ENTRANT_HOME) })
+                            }
                             AppTab.OWNER_HOME -> {
                                 val reservationsController: OwnerReservationsController =
                                     viewModel(factory = OwnerReservationsController.Factory)
@@ -275,6 +316,21 @@ fun LambdaCampsiteApp(
                         viewModelStoreOwner = homeEntry, factory = OwnerReservationsController.Factory)
                     OwnerReservationsScreen(reservationsController,
                         onBack = { navController.popBackStack() }, initialTab = tab)
+                }
+
+                composable(ENTRANT_RESERVATION_DETAILS_ROUTE,
+                    arguments = listOf(navArgument("reservationId") { type = NavType.StringType })) { entry ->
+                    val reservationId = requireNotNull(entry.arguments?.getString("reservationId"))
+                    val parent = navController.getBackStackEntry(AppTab.ENTRANT_RESERVATIONS.route)
+                    val reservationsController: EntrantReservationsController = viewModel(
+                        viewModelStoreOwner = parent, factory = EntrantReservationsController.Factory)
+                    val reservationsState by reservationsController.state.collectAsStateWithLifecycle()
+                    val campsiteId = reservationsState.reservation(reservationId)?.campsiteId
+                    val campsiteController: CampsiteController? = campsiteId?.let { id ->
+                        viewModel(key = "reservation-site-$id", factory = CampsiteController.createFactory(id))
+                    }
+                    EntrantReservationDetailsScreen(reservationId, reservationsController,
+                        campsiteController, onBack = { navController.popBackStack() })
                 }
 
                 composable(OWNER_HOME_BOOKED_DATES_ROUTE) {

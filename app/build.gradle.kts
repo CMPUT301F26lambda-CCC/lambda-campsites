@@ -1,5 +1,7 @@
-// Last updated: 2026-11-03 (Flow 12).
-// Outstanding issues: None known for the Flow 12 dependency configuration.
+// Purpose: builds the Android app: its plugins, SDK levels, the Google Maps
+// key and the libraries it uses.
+// Last updated: 2026-11-03 (#98).
+// Outstanding issues: None known.
 // AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped add the
 // navigation, lifecycle, icon and coroutines-test dependencies, the Dokka
 // setup, the Firebase setup and the emulator test runner in October 2026.
@@ -16,6 +18,11 @@
 // November 2026. Aarush Bhat reviewed and committed it.
 // Flow 12 feature owner: Lalith Valluru. OpenAI GPT-6 (OpenAI), through Codex,
 // assisted with the callable Functions dependency. Human review pending.
+// Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+// Sashreek Addanki read MAPS_API_KEY from local.properties into the manifest,
+// on November 3, 2026. Sashreek Addanki reviewed it.
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -23,6 +30,13 @@ plugins {
     // Reads app/google-services.json, which connects the app to our Firebase project.
     alias(libs.plugins.google.services)
 }
+
+// The Google Maps key, from MAPS_API_KEY in local.properties, which git ignores
+// (#98). Without it the app still builds, like on CI, but maps stay grey.
+val mapsApiKey: String = Properties().apply {
+    val localProperties = rootProject.file("local.properties")
+    if (localProperties.exists()) localProperties.inputStream().use { load(it) }
+}.getProperty("MAPS_API_KEY", "")
 
 android {
     namespace = "com.lambda.campsite"
@@ -39,6 +53,9 @@ android {
 
         // Points every androidTest at the Firebase emulators. See docs/testing.md.
         testInstrumentationRunner = "com.lambda.campsite.testutil.LambdaTestRunner"
+
+        // Fills ${MAPS_API_KEY} in AndroidManifest.xml.
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
 
     buildTypes {
