@@ -4,9 +4,12 @@
  * wizard's campsites, steps, date validation and saving, and the coroutines
  * rule, following the OwnerCampsiteListControllerTest pattern.
  * Raghav Sethi reviewed, ran, and committed them.
+ * #169 follow-up, 2026-11-04: GLM 5.3 Flash (Z.ai), through OpenCode, helped
+ * write the edit-lock tests for joined entrants (US 02.04.06); human review pending.
  */
 package com.lambda.campsite.controller
 
+import com.google.firebase.Timestamp
 import com.lambda.campsite.model.Campsite
 import com.lambda.campsite.model.Lottery
 import com.lambda.campsite.model.LotteryStatus
@@ -250,5 +253,134 @@ class NewLotteryControllerTest {
 
         assertTrue(controller.state.value.saveFailed)
         assertFalse(controller.state.value.isSaving)
+    }
+
+    // #169 follow-up: editing a lottery whose waiting list already took
+    // entrants locks the campsites and registration dates, and keeps the
+    // capacity above everyone already joined (US 02.04.06).
+
+    /**
+     * Builds a controller editing [savedLottery], whose repositories hold it.
+     * The stored close timestamp is midnight after the form's close day, the
+     * way [NewLotteryController] saves one.
+     */
+    private fun editController(
+        savedLottery: Lottery,
+        campsites: List<Campsite> = listOf(aspen, cedar),
+    ): Pair<NewLotteryController, FakeLotteryRepository> {
+        val lotteryRepository = FakeLotteryRepository(
+            myUserId = "user-1",
+            initial = listOf(savedLottery),
+        )
+        val controller = NewLotteryController(
+            lotteryRepository = lotteryRepository,
+            campsiteRepository = FakeCampsiteRepository(myUserId = "user-1", initial = campsites),
+            profileRepository = FakeProfileRepository(
+                Profile(deviceId = "user-1", name = "Owner", email = "owner@example.com"),
+            ),
+            lotteryIdToEdit = savedLottery.id,
+        )
+        return controller to lotteryRepository
+    }
+
+    /** A lottery on one campsite with three entrants already joined. */
+    private val joinedLottery = Lottery(
+        id = "lottery-9",
+        ownerId = "user-1",
+        name = "Aspen Hollow summer lottery",
+        campsiteIds = listOf("c1"),
+        registrationOpens = midnightAfter(LocalDate.of(2026, 10, 5)),
+        registrationCloses = midnightAfter(LocalDate.of(2026, 10, 18)),
+        stayStart = LocalDate.of(2027, 5, 15),
+        stayEnd = LocalDate.of(2027, 9, 30),
+        numberOfWinners = 20,
+        capacity = 150,
+        entryCount = 3,
+    )
+
+    /** The Firestore timestamp for midnight immediately after [date], in this device's timezone. */
+    private fun midnightAfter(date: LocalDate): Timestamp =
+        Timestamp(java.util.Date.from(date.plusDays(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()))
+
+    @Test
+    fun `editing pre-fills the form and the joined-entrant count`() {
+        val (controller, _) = editController(joinedLottery)
+
+        assertTrue(controller.state.value.isEditing)
+        assertTrue(controller.state.value.hasJoinedEntrants())
+        assertEquals(3, controller.state.value.joinedEntrants)
+        assertEquals(LocalDate.of(2026, 10, 18), controller.state.value.registrationCloses)
+        assertEquals(150, controller.state.value.capacity)
+    }
+
+    @Test
+    fun `campsites are locked once entrants have joined`() {
+        val (controller, _) = editController(joinedLottery)
+
+        controller.onCampsiteToggled("c1")
+        controller.onCampsiteToggled("c2")
+
+        assertEquals(listOf("c1"), controller.state.value.selectedCampsiteIds)
+    }
+
+    @Test
+    fun `registration dates are locked once entrants have joined`() {
+        val (controller, _) = editController(joinedLottery)
+
+        controller.onRegistrationOpensChange(LocalDate.of(2026, 9, 1))
+        controller.onRegistrationClosesChange(LocalDate.of(2026, 12, 1))
+
+        assertEquals(LocalDate.of(2026, 10, 6), controller.state.value.registrationOpens)
+        assertEquals(LocalDate.of(2026, 10, 18), controller.state.value.registrationCloses)
+    }
+
+    @Test
+    fun `the capacity can't go below the entrants already joined`() {
+        val (controller, _) = editController(joinedLottery)
+
+        controller.onCapacityChange(1)
+
+        assertEquals(3, controller.state.value.capacity)
+    }
+
+    @Test
+    fun `saving an edited lottery keeps the locked campsites and registration dates`() {
+        val (controller, repository) = editController(joinedLottery)
+
+        controller.onNameChange("Renamed lottery")
+        controller.onCapacityChange(200)
+        controller.onCreateLottery { }
+
+        val saved = repository.saved.single()
+        assertEquals("Renamed lottery", saved.name)
+        assertEquals(200, saved.capacity)
+        assertEquals("c1", saved.campsiteIds.single())
+        assertEquals(joinedLottery.registrationOpens, saved.registrationOpens)
+        assertEquals(joinedLottery.registrationCloses, saved.registrationCloses)
+    }
+
+    @Test
+    fun `saving is refused when entrants joined past the capacity while the form sat open`() {
+        val (controller, repository) = editController(joinedLottery)
+        // Entrants join from another phone while the wizard is open.
+        repository.changeElsewhere(joinedLottery.copy(entryCount = 300))
+
+        controller.onCreateLottery { }
+
+        assertEquals(NewLotteryError.CAPACITY_BELOW_JOINED, controller.state.value.error)
+        assertTrue(repository.saved.isEmpty())
+    }
+
+    @Test
+    fun `saving is refused when the draw ran while the edit sat open`() {
+        val (controller, repository) = editController(joinedLottery)
+        // Only Cloud Functions draw a lottery (docs/architecture.md), but an
+        // owner's edit can still be open when one runs.
+        repository.changeElsewhere(joinedLottery.copy(status = LotteryStatus.DRAWN))
+
+        controller.onCreateLottery { }
+
+        assertEquals(NewLotteryError.NOT_DRAWABLE, controller.state.value.error)
+        assertTrue(repository.saved.isEmpty())
     }
 }

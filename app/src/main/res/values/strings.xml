@@ -13,6 +13,9 @@
   Lalith Valluru, 2026-11-03 (#149): OpenAI GPT-6 (OpenAI), through Codex,
   assisted with entrant search/registration text and resource consolidation.
   Follow-up human review remains pending; no known outstanding text issues.
+  Raghav Sethi, 2026-11-04 (#169): GLM 5.3 Flash (Z.ai), through OpenCode, helped
+  write the locked-field reasons for editing a lottery whose waiting list
+  already took entrants (US 02.04.06); human review pending.
   Issue #151: GPT-6 (OpenAI), through Codex, assisted me with owner waiting-list resource names.
   Issue #150: GPT-6 (OpenAI), through Codex, assisted me with owner campsite strings.
 
@@ -208,6 +211,13 @@
     <string name="new_lottery_review_settings_limited">%1$d winners · Waiting-list capacity %2$d</string>
     <string name="new_lottery_review_settings_unlimited">%1$d winners · Unlimited waiting list</string>
     <string name="new_lottery_create_hint">Everything can be edited until the draw picks the winners.</string>
+
+    <!-- #169 follow-up: fields shown as locked while editing a lottery whose
+         waiting list already took entrants (US 02.04.06). -->
+    <string name="new_lottery_locked_icon">Locked</string>
+    <string name="new_lottery_locked_campsites">%1$d entrants have already joined the waiting list, so the campsites can\'t change.</string>
+    <string name="new_lottery_locked_registration">%1$d entrants have already joined during this window, so the registration dates can\'t change.</string>
+    <string name="new_lottery_locked_capacity">%1$d entrants are already on the waiting list, so the capacity can\'t go below that. Raising it is still allowed.</string>
     <string name="action_continue">Continue</string>
     <string name="create_lottery_button">Create lottery</string>
     <string name="action_back">Back</string>
@@ -222,6 +232,8 @@
     <string name="error_lottery_missing_dates">Choose every date before continuing.</string>
     <string name="error_lottery_invalid_dates">Registration has to close after it opens, the stay has to end after check-in, and registration closes by the first stay night.</string>
     <string name="error_lottery_missing_name">Enter a lottery name.</string>
+    <string name="error_lottery_capacity_below_joined">The waiting-list capacity can\'t go below the entrants already joined.</string>
+    <string name="error_lottery_not_drawable">The winners were drawn while you were editing, so the lottery can\'t be saved.</string>
     <string name="error_lottery_save_failed">Couldn\'t create the lottery. Check your connection and try again.</string>
 
     <!-- Lottery owner: details -->

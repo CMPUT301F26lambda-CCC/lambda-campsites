@@ -4,6 +4,10 @@
  * StateFlow setup, the four-step wizard state, date validation through
  * [Lottery.validateDates], error handling, syntax and KDoc. Raghav Sethi
  * reviewed, tested, and committed it.
+ * #169 follow-up, 2026-11-04: GLM 5.3 Flash (Z.ai), through OpenCode, helped
+ * add the edit locks from US 02.04.06: the campsites and registration dates
+ * lock once entrants joined, the capacity floor against the live wait list,
+ * and the fresh re-read of the stored lottery on save.
  */
 package com.lambda.campsite.controller
 
@@ -16,6 +20,7 @@ import com.lambda.campsite.LambdaApplication
 import com.google.firebase.Timestamp
 import com.lambda.campsite.model.Campsite
 import com.lambda.campsite.model.Lottery
+import com.lambda.campsite.model.LotteryStatus
 import com.lambda.campsite.model.repository.CampsiteRepository
 import com.lambda.campsite.model.repository.LotteryRepository
 import com.lambda.campsite.model.repository.ProfileRepository
@@ -34,6 +39,9 @@ import kotlinx.coroutines.launch
 private fun startOfDay(date: LocalDate): Timestamp =
     Timestamp(java.util.Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant()))
 
+/** Midnight immediately after [date], so the selected final day remains open. */
+private fun endOfDay(date: LocalDate): Timestamp = startOfDay(date.plusDays(1))
+
 /** Why the wizard refused to move on or to create the lottery. */
 enum class NewLotteryError {
     /** Step 1: no campsite is selected (US 02.04.02). */
@@ -50,6 +58,19 @@ enum class NewLotteryError {
 
     /** Step 3: the lottery name is empty (US 02.04.05). */
     MISSING_NAME,
+
+    /**
+     * The lottery is being edited and the waiting-list capacity can't go below
+     * the entrants already on it (US 02.04.06, 02.04.07).
+     */
+    CAPACITY_BELOW_JOINED,
+
+    /**
+     * The draw picked the winners while the edit was open, so the lottery
+     * can't be edited any more (US 02.04.06); only Cloud Functions change the
+     * status (see docs/architecture.md).
+     */
+    NOT_DRAWABLE,
 
     /** The lottery couldn't be saved, for example because the phone is offline. */
     SAVE_FAILED,
@@ -97,7 +118,28 @@ data class NewLotteryUiState(
     val isLoadingCampsites: Boolean = true,
     val isSaving: Boolean = false,
     val saveFailed: Boolean = false,
-)
+    /** True when this wizard is editing an existing, still-open lottery. */
+    val isEditing: Boolean = false,
+    /** True until the existing lottery has populated the edit form. */
+    val isLoadingLottery: Boolean = false,
+    /**
+     * How many entrants were already on the edited lottery's waiting list when it
+     * loaded, `0` for a new lottery. While it isn't zero, registration is under
+     * way: the campsites and registration dates are locked, and the waiting-list
+     * capacity can't go below this count (US 02.04.06). Saving checks the stored
+     * lottery again, since it can keep growing while the form is open.
+     */
+    val joinedEntrants: Int = 0,
+) {
+
+    /**
+     * Returns `true` when the edited lottery's waiting list already took entrants,
+     * so the campsites and the registration dates can't change: entrants joined
+     * those exact campsites and dates, and moving registration would change who
+     * is eligible (US 02.04.06).
+     */
+    fun hasJoinedEntrants(): Boolean = isEditing && joinedEntrants > 0
+}
 
 /**
  * Controller for the four-step "New lottery" wizard (US 02.04.01 to 02.04.07).
@@ -116,6 +158,7 @@ class NewLotteryController(
     private val lotteryRepository: LotteryRepository,
     campsiteRepository: CampsiteRepository,
     private val profileRepository: ProfileRepository,
+    private val lotteryIdToEdit: String? = null,
 ) : ViewModel() {
 
     /** A lottery covers at most five campsites (see docs/architecture.md, section 3). */
@@ -126,6 +169,8 @@ class NewLotteryController(
     /** The current UI state. The screen reads it with `collectAsStateWithLifecycle()`. */
     val state: StateFlow<NewLotteryUiState> = _state.asStateFlow()
 
+    private var editingLottery: Lottery? = null
+
     init {
         viewModelScope.launch {
             campsiteRepository.myCampsites()
@@ -134,16 +179,43 @@ class NewLotteryController(
                     _state.update { it.copy(campsites = campsites, isLoadingCampsites = false) }
                 }
         }
+        lotteryIdToEdit?.let { lotteryId ->
+            _state.update { it.copy(isEditing = true, isLoadingLottery = true) }
+            viewModelScope.launch {
+                lotteryRepository.lottery(lotteryId).firstOrNull()?.let { lottery ->
+                    editingLottery = lottery
+                    _state.update {
+                        it.copy(
+                            selectedCampsiteIds = lottery.campsiteIds,
+                            registrationOpens = lottery.registrationOpens.toInstant().atZone(ZoneId.systemDefault()).toLocalDate(),
+                            // Stored as the start of the following day: present the day the owner chose.
+                            registrationCloses = lottery.registrationCloses.toInstant().atZone(ZoneId.systemDefault()).toLocalDate().minusDays(1),
+                            stayStart = lottery.stayStart,
+                            stayEnd = lottery.stayEnd,
+                            name = lottery.name,
+                            numberOfWinners = lottery.numberOfWinners,
+                            limitWaitingList = lottery.capacity != null,
+                            capacity = lottery.capacity ?: it.capacity,
+                            joinedEntrants = lottery.entryCount,
+                            isLoadingLottery = false,
+                        )
+                    }
+                } ?: _state.update { it.copy(isLoadingLottery = false, saveFailed = true) }
+            }
+        }
     }
 
     /**
      * Selects or unselects the campsite with this [campsiteId] (US 02.04.02).
      * Refused once five campsites are already selected, since Firestore's
-     * rules stop a lottery from covering more.
+     * rules stop a lottery from covering more. On an edit whose waiting list
+     * already took entrants, the campsites are locked (US 02.04.06), so the
+     * change is refused; the screen shows them locked with the reason.
      */
     fun onCampsiteToggled(campsiteId: String) {
         _state.update { current ->
             when {
+                current.hasJoinedEntrants() -> current
                 campsiteId in current.selectedCampsiteIds ->
                     current.copy(selectedCampsiteIds = current.selectedCampsiteIds - campsiteId, error = null)
                 current.selectedCampsiteIds.size >= maxCampsites ->
@@ -188,13 +260,21 @@ class NewLotteryController(
         if (step < _state.value.step) _state.update { it.copy(step = step, error = null) }
     }
 
-    /** Sets when registration opens (US 02.04.03). */
+    /**
+     * Sets when registration opens (US 02.04.03). Ignored while the edited
+     * lottery's registration dates are locked (US 02.04.06).
+     */
     fun onRegistrationOpensChange(date: LocalDate?) {
+        if (_state.value.hasJoinedEntrants()) return
         _state.update { it.copy(registrationOpens = date) }
     }
 
-    /** Sets when registration closes (US 02.04.03). */
+    /**
+     * Sets when registration closes (US 02.04.03). Ignored while the edited
+     * lottery's registration dates are locked (US 02.04.06).
+     */
     fun onRegistrationClosesChange(date: LocalDate?) {
+        if (_state.value.hasJoinedEntrants()) return
         _state.update { it.copy(registrationCloses = date) }
     }
 
@@ -228,9 +308,14 @@ class NewLotteryController(
         _state.update { it.copy(limitWaitingList = limited) }
     }
 
-    /** Sets the waiting-list capacity, used while the limit is on (US 02.04.07). */
+    /**
+     * Sets the waiting-list capacity, used while the limit is on (US 02.04.07).
+     * On an edit, it can't go below the entrants already joined (US 02.04.06);
+     * raising it for a bigger list stays allowed.
+     */
     fun onCapacityChange(capacity: Int) {
-        _state.update { it.copy(capacity = capacity.coerceIn(1, 10000)) }
+        val minimum = maxOf(1, _state.value.joinedEntrants)
+        _state.update { it.copy(capacity = capacity.coerceIn(minimum, 10000)) }
     }
 
     /**
@@ -238,6 +323,12 @@ class NewLotteryController(
      * the dates one last time on the [Lottery] model, since the timezone can
      * make a date set that looked fine on the form impossible. Refuses to run
      * while a save is in flight, so a quick double tap creates one lottery.
+     *
+     * On an edit (US 02.04.06), the stored lottery is read back first and
+     * decides what's locked: its campsites and registration dates win over the
+     * form once anyone has joined, and the waiting-list capacity has to still
+     * cover everyone already on it, because entrants can join while the wizard
+     * sits open.
      *
      * @param onSuccess called with the saved lottery once Firestore accepts it.
      */
@@ -259,38 +350,56 @@ class NewLotteryController(
             return
         }
 
-        val lottery = Lottery(
-            id = lotteryRepository.newLotteryId(),
-            // Filled in when the owner's profile is loaded below.
-            ownerId = "",
-            name = current.name.trim(),
-            campsiteIds = current.selectedCampsiteIds,
-            registrationOpens = startOfDay(current.registrationOpens!!),
-            registrationCloses = startOfDay(current.registrationCloses!!),
-            stayStart = current.stayStart!!,
-            stayEnd = current.stayEnd!!,
-            numberOfWinners = current.numberOfWinners,
-            capacity = if (current.limitWaitingList) current.capacity else null,
-        )
-        if (!lottery.validateDates()) {
-            _state.update { it.copy(error = NewLotteryError.INVALID_DATES) }
-            return
-        }
-
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true, saveFailed = false) }
             try {
-                val profile = profileRepository.currentProfile().firstOrNull()
-                if (profile == null) {
+                val ownerId = editingLottery?.ownerId ?: profileRepository.currentProfile().firstOrNull()?.deviceId
+                if (ownerId == null) {
                     // The profile a lottery needs, like this device's, should
                     // always exist. If it doesn't, the save would be refused.
                     _state.update { it.copy(isSaving = false, saveFailed = true) }
                     return@launch
                 }
-                val owned = lottery.copy(ownerId = profile.deviceId)
-                lotteryRepository.save(owned)
+
+                // US 02.04.06: entrants can join while the wizard sits open, so
+                // the stored waiting list, not the one loaded into the form,
+                // decides what's locked and what the capacity has to cover.
+                val stored = editingLottery
+                    ?.let { lotteryRepository.lottery(it.id).firstOrNull() }
+                    ?: editingLottery
+                val joined = stored?.entryCount ?: 0
+
+                if (stored != null && stored.status != LotteryStatus.OPEN) {
+                    _state.update { it.copy(isSaving = false, error = NewLotteryError.NOT_DRAWABLE) }
+                    return@launch
+                }
+
+                if (current.limitWaitingList && current.capacity < joined) {
+                    _state.update { it.copy(isSaving = false, error = NewLotteryError.CAPACITY_BELOW_JOINED) }
+                    return@launch
+                }
+
+                val lottery = Lottery(
+                    id = editingLottery?.id ?: lotteryRepository.newLotteryId(),
+                    ownerId = ownerId,
+                    name = current.name.trim(),
+                    // With entrants joined, these keep the stored values: they
+                    // joined for those exact campsites and dates (US 02.04.06).
+                    campsiteIds = if (joined > 0) stored!!.campsiteIds else current.selectedCampsiteIds,
+                    registrationOpens = if (joined > 0) stored!!.registrationOpens else startOfDay(current.registrationOpens!!),
+                    registrationCloses = if (joined > 0) stored!!.registrationCloses else endOfDay(current.registrationCloses!!),
+                    stayStart = current.stayStart!!,
+                    stayEnd = current.stayEnd!!,
+                    numberOfWinners = current.numberOfWinners,
+                    capacity = if (current.limitWaitingList) current.capacity else null,
+                )
+                if (!lottery.validateDates()) {
+                    _state.update { it.copy(isSaving = false, error = NewLotteryError.INVALID_DATES) }
+                    return@launch
+                }
+                lotteryRepository.save(lottery)
                 _state.update { it.copy(isSaving = false, saveFailed = false, error = null) }
-                onSuccess(owned)
+                onSuccess(lottery)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -320,6 +429,20 @@ class NewLotteryController(
                     lotteryRepository = application.container.lotteryRepository,
                     campsiteRepository = application.container.campsiteRepository,
                     profileRepository = application.container.profileRepository,
+                )
+            }
+        }
+
+        /** Creates a wizard pre-filled from [lotteryId] for owner editing. */
+        fun createFactory(lotteryId: String): ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]
+                    as LambdaApplication
+                NewLotteryController(
+                    lotteryRepository = application.container.lotteryRepository,
+                    campsiteRepository = application.container.campsiteRepository,
+                    profileRepository = application.container.profileRepository,
+                    lotteryIdToEdit = lotteryId,
                 )
             }
         }

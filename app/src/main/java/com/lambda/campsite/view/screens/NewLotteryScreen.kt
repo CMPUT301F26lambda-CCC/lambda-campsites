@@ -4,6 +4,10 @@
  * integration, the four wizard steps, date-picker dialogs, TalkBack
  * accessibility, saving feedback, strings extraction and KDoc, following the
  * OwnerCampsiteEditScreen shape. Raghav Sethi reviewed, tested, and committed it.
+ * #169 follow-up, 2026-11-04: GLM 5.3 Flash (Z.ai), through OpenCode, helped add
+ * the locked-field display for an edit whose waiting list already took entrants
+ * (US 02.04.06): the campsites, the registration dates and the capacity cap;
+ * human review pending.
  */
 package com.lambda.campsite.view.screens
 
@@ -26,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -92,7 +97,11 @@ private enum class WizardDateField {
  *
  * It connects to [NewLotteryController] and shows one step at a time: the
  * owner's campsites, the registration and booking periods, the lottery's name
- * and waiting-list settings, then a review with Edit buttons.
+ * and waiting-list settings, then a review with Edit buttons. While editing an
+ * existing lottery whose waiting list already took entrants
+ * ([NewLotteryUiState.hasJoinedEntrants]), the campsites and registration dates
+ * are shown as locked with the reason, and the capacity can't go below the
+ * entrants already on the list (US 02.04.06).
  *
  * @param controller the [NewLotteryController] managing the wizard's values.
  * @param onClose invoked when the owner closes the wizard without saving.
@@ -148,7 +157,7 @@ fun NewLotteryScreen(
                             controller.onCreateLottery { lottery -> onCreated(lottery) }
                         }
                     },
-                    enabled = !state.isSaving,
+                    enabled = !state.isSaving && !state.isLoadingLottery,
                     colors = ButtonDefaults.buttonColors(containerColor = CampGreenDark),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -157,7 +166,8 @@ fun NewLotteryScreen(
                     } else {
                         Text(
                             stringResource(
-                                if (state.step < WizardSteps.size) R.string.action_continue else R.string.create_lottery_button,
+                                if (state.step < WizardSteps.size) R.string.action_continue
+                                else R.string.create_lottery_button,
                             ),
                         )
                     }
@@ -176,7 +186,12 @@ fun NewLotteryScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             when (state.step) {
-                1 -> CampsitesStep(controller, state.selectedCampsiteIds, state.campsites)
+                1 -> CampsitesStep(
+                    controller = controller,
+                    selectedCampsiteIds = state.selectedCampsiteIds,
+                    campsites = state.campsites,
+                    joinedEntrants = state.joinedEntrants,
+                )
                 2 -> DatesStep(controller, state)
                 3 -> SettingsStep(controller, state)
                 else -> ReviewStep(controller, state)
@@ -224,17 +239,25 @@ private fun WizardStepHeader(step: Int) {
     }
 }
 
+/**
+ * The campsites a lottery covers, locked when its waiting list already took
+ * entrants (US 02.04.06): they joined those exact campsites.
+ */
 @Composable
 private fun CampsitesStep(
     controller: NewLotteryController,
     selectedCampsiteIds: List<String>,
     campsites: List<Campsite>,
+    joinedEntrants: Int,
 ) {
+    val locked = joinedEntrants > 0
     FormSectionTitle(stringResource(R.string.new_lottery_select_campsites))
     campsites.forEach { campsite ->
+        val isSelected = campsite.id in selectedCampsiteIds
         CampsitePickRow(
             campsite = campsite,
-            selected = campsite.id in selectedCampsiteIds,
+            selected = isSelected,
+            locked = locked,
             onClick = { controller.onCampsiteToggled(campsite.id) },
         )
     }
@@ -248,15 +271,26 @@ private fun CampsitesStep(
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+    if (locked) LockNote(stringResource(R.string.new_lottery_locked_campsites, joinedEntrants))
 }
 
-/** One owner campsite with the checkbox that picks it for the lottery (US 02.04.02). */
+/**
+ * One owner campsite with the checkbox that picks it for the lottery
+ * (US 02.04.02). While [locked], the card can't be tapped and shows a lock,
+ * so TalkBack reads what a visual owner sees (US 02.04.06).
+ */
 @Composable
-private fun CampsitePickRow(campsite: Campsite, selected: Boolean, onClick: () -> Unit) {
+private fun CampsitePickRow(campsite: Campsite, selected: Boolean, locked: Boolean, onClick: () -> Unit) {
     OutlinedCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .then(
+                if (locked) {
+                    Modifier
+                } else {
+                    Modifier.clickable(onClick = onClick)
+                },
+            ),
         shape = RoundedCornerShape(8.dp),
     ) {
         Row(
@@ -264,13 +298,27 @@ private fun CampsitePickRow(campsite: Campsite, selected: Boolean, onClick: () -
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Checkbox(checked = selected, onCheckedChange = { onClick() })
+            Checkbox(
+                checked = selected,
+                onCheckedChange = if (locked) {
+                    null
+                } else {
+                    { _ -> onClick() }
+                },
+            )
             Column(Modifier.weight(1f)) {
                 Text(campsite.name, style = MaterialTheme.typography.bodyMedium)
                 Text(
                     text = campsite.location,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (locked) {
+                Icon(
+                    Icons.Default.Lock,
+                    contentDescription = stringResource(R.string.new_lottery_locked_icon),
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }
@@ -281,28 +329,36 @@ private fun CampsitePickRow(campsite: Campsite, selected: Boolean, onClick: () -
 @Composable
 private fun DatesStep(controller: NewLotteryController, state: NewLotteryUiState) {
     var openPickerFor by remember { mutableStateOf<WizardDateField?>(null) }
+    val datesLocked = state.hasJoinedEntrants()
 
     FormSectionTitle(stringResource(R.string.new_lottery_registration_period))
     WizardDateField(
         label = stringResource(R.string.new_lottery_registration_opens),
         value = state.registrationOpens,
+        locked = datesLocked,
         onClick = { openPickerFor = WizardDateField.REGISTRATION_OPENS },
     )
     WizardDateField(
         label = stringResource(R.string.new_lottery_registration_closes),
         value = state.registrationCloses,
+        locked = datesLocked,
         onClick = { openPickerFor = WizardDateField.REGISTRATION_CLOSES },
     )
+    if (datesLocked) {
+        LockNote(stringResource(R.string.new_lottery_locked_registration, state.joinedEntrants))
+    }
 
     FormSectionTitle(stringResource(R.string.new_lottery_booking_period))
     WizardDateField(
         label = stringResource(R.string.new_lottery_check_in),
         value = state.stayStart,
+        locked = false,
         onClick = { openPickerFor = WizardDateField.STAY_START },
     )
     WizardDateField(
         label = stringResource(R.string.new_lottery_check_out),
         value = state.stayEnd,
+        locked = false,
         onClick = { openPickerFor = WizardDateField.STAY_END },
     )
     Text(
@@ -342,13 +398,24 @@ private fun DatesStep(controller: NewLotteryController, state: NewLotteryUiState
     }
 }
 
-/** A read-only date field that opens a calendar picker when tapped (US 02.04.03, 02.04.04). */
+/**
+ * A read-only date field that opens a calendar picker when tapped
+ * (US 02.04.03, 02.04.04). While [locked], the card can't be tapped and the
+ * lock replaces the calendar icon (US 02.04.06); a locked field never calls
+ * [onClick] or opens its picker.
+ */
 @Composable
-private fun WizardDateField(label: String, value: LocalDate?, onClick: () -> Unit) {
+private fun WizardDateField(label: String, value: LocalDate?, locked: Boolean, onClick: () -> Unit) {
     OutlinedCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .then(
+                if (locked) {
+                    Modifier
+                } else {
+                    Modifier.clickable(onClick = onClick)
+                },
+            ),
         shape = RoundedCornerShape(8.dp),
     ) {
         Row(
@@ -362,7 +429,15 @@ private fun WizardDateField(label: String, value: LocalDate?, onClick: () -> Uni
                     style = MaterialTheme.typography.bodyLarge,
                 )
             }
-            Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(20.dp))
+            if (locked) {
+                Icon(
+                    Icons.Default.Lock,
+                    contentDescription = stringResource(R.string.new_lottery_locked_icon),
+                    modifier = Modifier.size(20.dp),
+                )
+            } else {
+                Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(20.dp))
+            }
         }
     }
 }
@@ -404,24 +479,35 @@ private fun SettingsStep(controller: NewLotteryController, state: NewLotteryUiSt
         StepperCard(
             label = stringResource(R.string.new_lottery_waiting_list_capacity),
             value = state.capacity,
+            decreaseEnabled = state.capacity > state.joinedEntrants,
             onDecrease = { controller.onCapacityChange(state.capacity - 1) },
             onIncrease = { controller.onCapacityChange(state.capacity + 1) },
         )
-        Text(
-            text = stringResource(R.string.new_lottery_unlimited_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        if (state.hasJoinedEntrants()) {
+            // US 02.04.06: the capacity stays above the entrants already joined.
+            LockNote(stringResource(R.string.new_lottery_locked_capacity, state.joinedEntrants))
+        } else {
+            Text(
+                text = stringResource(R.string.new_lottery_unlimited_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
-/** A "+ / -" number stepper, like the campsite form's max occupancy card. */
+/**
+ * A "+ / -" number stepper, like the campsite form's max occupancy card. While
+ * [decreaseEnabled] is `false`, going down is refused and shown locked
+ * (US 02.04.06).
+ */
 @Composable
 private fun StepperCard(
     label: String,
     value: Int,
     onDecrease: () -> Unit,
     onIncrease: () -> Unit,
+    decreaseEnabled: Boolean = true,
 ) {
     OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
@@ -435,8 +521,16 @@ private fun StepperCard(
                 Text(label, style = MaterialTheme.typography.labelMedium)
                 Text(value.toString(), style = MaterialTheme.typography.titleMedium)
             }
-            FilledTonalIconButton(onClick = onDecrease) {
-                Icon(Icons.Default.Remove, contentDescription = stringResource(R.string.action_decrease))
+            if (decreaseEnabled) {
+                FilledTonalIconButton(onClick = onDecrease) {
+                    Icon(Icons.Default.Remove, contentDescription = stringResource(R.string.action_decrease))
+                }
+            } else {
+                Icon(
+                    Icons.Default.Lock,
+                    contentDescription = stringResource(R.string.new_lottery_locked_icon),
+                    modifier = Modifier.size(40.dp),
+                )
             }
             Spacer(Modifier.width(4.dp))
             FilledTonalIconButton(onClick = onIncrease) {
@@ -539,6 +633,8 @@ internal fun newLotteryErrorRes(error: NewLotteryError): Int = when (error) {
     NewLotteryError.MISSING_DATES -> R.string.error_lottery_missing_dates
     NewLotteryError.INVALID_DATES -> R.string.error_lottery_invalid_dates
     NewLotteryError.MISSING_NAME -> R.string.error_lottery_missing_name
+    NewLotteryError.CAPACITY_BELOW_JOINED -> R.string.error_lottery_capacity_below_joined
+    NewLotteryError.NOT_DRAWABLE -> R.string.error_lottery_not_drawable
     NewLotteryError.SAVE_FAILED -> R.string.error_lottery_save_failed
 }
 
@@ -548,4 +644,18 @@ internal fun wizardStepNameRes(step: Int): Int = when (step) {
     2 -> R.string.new_lottery_step_dates
     3 -> R.string.new_lottery_step_settings
     else -> R.string.new_lottery_step_review
+}
+
+/**
+ * Why a field can't change while the wizard edits a lottery whose waiting list
+ * already took entrants (US 02.04.06). A short, plain reason with the number
+ * of people who joined, placed under the locked field.
+ */
+@Composable
+private fun LockNote(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
