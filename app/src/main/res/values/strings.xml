@@ -2,7 +2,6 @@
   AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write the
   tab, role, profile and error strings in October 2026. Sashreek Addanki reviewed
   and committed them.
-
   Campsite owner strings were added in November 2026 with Gemini 3.8 Flash (Google DeepMind).
   Raghav Sethi reviewed and committed them.
   Lottery owner strings were added in November 2026 with GLM 5.3 Flash (Z.ai), through
@@ -19,6 +18,10 @@
   already took entrants (US 02.04.06); human review pending.
   Issue #151: GPT-6 (OpenAI), through Codex, assisted me with owner waiting-list resource names.
   Issue #150: GPT-6 (OpenAI), through Codex, assisted me with owner campsite strings.
+
+  AI use:Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
+  Entrant Profile, FirstLaunchScreen, Filter Screen and SettingScreen in November
+  2026. Harmanjoth Kaur reviewed and committed them.
 -->
 <!-- Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted with edit labels and plurals; human review pending. -->
 <resources>
@@ -485,4 +488,30 @@
     <string name="edit_lottery_save">Save changes</string>
     <string name="edit_lottery_locked_hint">Campsites and registration dates are locked because entrants have joined. Review your other changes before saving.</string>
     <string name="error_lottery_locked_fields_changed">Entrants joined while you were editing. Campsites and registration dates have been refreshed and locked. Review the updated form before saving again.</string>
+    <!--For the FilterScreen -->
+    <string name="flow15_filters">Filters</string>
+    <string name="flow15_location">Location</string>
+    <string name="flow15_dates">Dates</string>
+    <string name="flow15_guests">Guests</string>
+    <string name="flow15_check_in">Check-in</string>
+    <string name="flow15_check_out">Check-out</string>
+    <string name="flow15_select_date">Select date</string>
+    <string name="flow15_date_range">%1$s – %2$s</string>
+    <string name="flow15_number_of_guests">Number of guests</string>
+    <string name="flow15_any_guests">Any</string>
+    <string name="flow15_fewer_guests">Fewer guests</string>
+    <string name="flow15_more_guests">More guests</string>
+    <string name="flow15_open_filters">Open filters, %1$s</string>
+    <string name="flow15_apply">Apply filter</string>
+    <string name="flow15_clear">Clear</string>
+    <string name="flow15_confirm">OK</string>
+    <string name="flow15_cancel">Cancel</string>
+    <plurals name="flow15_guest_count">
+    <item quantity="one">%d guest</item>
+    <item quantity="other">%d guests</item>
+    </plurals>
+    <string name="flow15_from_date">From %1$s</string>
+    <string name="flow15_until_date">Until %1$s</string>
+    <string name="flow15_no_filter_results">No campsites match your filters. Try another location, different dates or fewer guests.</string>
+    <string name="flow15_clear_filters">Clear filters</string>
 </resources>
