@@ -438,6 +438,7 @@ fun LambdaCampsiteApp(
                         notificationsOn = state.profile?.notificationsOn ?: true,
                         onNotificationsChange = profileController::onSetNotificationsOn,
                         onBack = { navController.popBackStack() },
+                        saveFailed = state.error == ProfileError.SAVE_FAILED,
                         onDeleteProfile = {
                             // TODO (backend): call profileController.onDeleteProfile() here
                             // to delete the profile before navigating.
