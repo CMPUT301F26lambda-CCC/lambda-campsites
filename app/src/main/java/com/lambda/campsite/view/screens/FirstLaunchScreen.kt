@@ -1,18 +1,26 @@
-/**
- * Displays the first-launch screen for the Lambda Campsite application.
- *
- * Users must enter their name before they can open and review the app policy.
- * After reviewing the policy, they must check the agreement checkbox.
- * The Get Started button is enabled only when the user has entered a
- * non-blank name and checked the agreement checkbox.
- *
- * When the user selects Get Started, the entered name is passed to the
- * ProfileController, which handles creating and saving the user's profile.
- *
- * After the profile is successfully saved, the application displays
- * LambdaCampsiteApp. The user is taken to the first tab associated
- * with their active role.
- **/
+/*
+Purpose:
+The purpose of this screen is to display the first-launch screen
+for the Lambda Campsite application.
+Users must enter their name and check the option confirming that
+they agree with the app guidelines. They also have the opportunity
+to view and review the guidelines by clicking on the policy link
+before agreeing to them.
+Once the user has entered their name and agreed to the guidelines,
+they can click on the Get Started button. After clicking it, their
+profile information is saved to Firestore. This allows the application
+to recognize their profile when they use the app again, so they do
+not need to create a new profile every time they open the app.
+If saving the profile fails, an error message is displayed so the
+user can try again.
+After the profile is successfully saved, the user is taken to the
+first tab associated with their active role.
+Design Choice:
+The user's name is requested before displaying the app policy so that
+it can be included in the policy through AppPolicySheet. This makes
+the agreement feel more personal and direct, rather than presenting
+users with a generic policy.
+*/
 /*
  * AI use: GPT-6 (OpenAI), used through the ChatGPT website, helped resolve
  * errors while connecting this screen with ProfileController and the
@@ -61,14 +69,22 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.Color
 
 /**
- * Displays the first-launch screen and handles user interactions.
+ * Displays the first-launch screen for the Lambda Campsite application.
  *
- * The user must enter a non-blank name and agree to the app policy
- * before proceeding. The entered name is passed to [onGetStarted]
- * when the Get Started button is selected.
+ * Allows users to enter their name, view the app guidelines through the
+ * policy link, and agree to the guidelines before proceeding.
  *
- * @param onGetStarted callback invoked with the user's trimmed name
- * when they select Get Started.
+ * The Get Started button is enabled only when the user has entered a
+ * non-blank name and agreed to the app policy. When selected, the button
+ * invokes [onGetStarted] with the user's trimmed name so the parent
+ * component can create and save the user's profile.
+ *
+ * @param onGetStarted callback invoked with the user's trimmed name when
+ *                      they select Get Started. The parent component uses
+ *                      this name to handle profile creation and saving.
+ * @param saveFailed indicates whether saving the user's profile failed.
+ *                   When true, an error message is displayed so the user
+ *                   can try again.
  */
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -121,11 +137,9 @@ fun FirstLaunchScreen(onGetStarted: (String) -> Unit,
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color.White,
                     textAlign = TextAlign.Center
-
                 )
             }
         }
-
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -140,7 +154,6 @@ fun FirstLaunchScreen(onGetStarted: (String) -> Unit,
                 .verticalScroll(rememberScrollState())
 
         ) {
-
             Row(
                 modifier = Modifier.padding(top = 20.dp)
                     .padding(start=15.dp)
@@ -151,7 +164,6 @@ fun FirstLaunchScreen(onGetStarted: (String) -> Unit,
                     style = MaterialTheme.typography.titleLarge
                 )
             }
-
             Row(
                 modifier = Modifier.padding(15.dp),
             ) {
@@ -160,7 +172,6 @@ fun FirstLaunchScreen(onGetStarted: (String) -> Unit,
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
-
             Row {
                 OutlinedTextField(
                     value = name,
@@ -171,7 +182,6 @@ fun FirstLaunchScreen(onGetStarted: (String) -> Unit,
                     modifier = Modifier.fillMaxWidth().padding(10.dp).testTag("name_field")
                 )
             }
-
             Row(
                 modifier = Modifier.padding(15.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -231,14 +241,12 @@ fun FirstLaunchScreen(onGetStarted: (String) -> Unit,
                 onDismissRequest = {
                     showPolicySheet = false
                 },
-
                 containerColor =  Mint,
                 dragHandle = {
                     BottomSheetDefaults.DragHandle(
                         color = DeepGreen
                     )
                 }
-
             ) {
                 AppPolicySheet(
                     name = name,

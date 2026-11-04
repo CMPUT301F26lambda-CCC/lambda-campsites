@@ -3,6 +3,7 @@
 Sashreek and Sreeman · original architecture updated November 1, 2026
 
 Flow 11 update: Sreeman Reddy · last updated 2026-11-03.
+Flow 10 frontend update: Sreeman Reddy · last updated 2026-11-03.
 > AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped
 > write this document and its diagrams in October 2026, working from
 > decisions the team made. It also checked the free-tier figures in
@@ -19,8 +20,13 @@ Flow 11 update: Sreeman Reddy · last updated 2026-11-03.
 > Flow 6/7 follow-up: Lalith Valluru, 2026-11-03 (#149). OpenAI GPT-6
 > (OpenAI), through Codex, assisted with the entrant navigation/state notes
 > below. Follow-up human review remains pending.
+>
+> GPT-6 (OpenAI), through Codex, assisted me with the Flow 10 entrant
+> reservation screen/controller architecture. Human review is pending.
 
 > Flow 9 summary: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted with the booking summary; human review pending.
+
+> Flow 5 summary: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted with the automatic-results summary; human review pending.
 >
 > Documentation organization: Lalith Valluru, 2026-11-03 (#151). OpenAI GPT-6
 > (OpenAI), through Codex, assisted with shortening the Flow 12 addition to a
@@ -248,11 +254,15 @@ A document that belongs to another one can share its parent's repository. A camp
 
 Winner booking (Flow 9) uses `WinnerBookingController` and the existing lottery, campsite and reservation repositories. Live calendars constrain selection; the booking transaction consumes one win and the confirmation reads the saved reservation.
 
+Automatic lottery results reuse the ownership-checked lottery/entry listeners. The server records draw time and actual counts atomically with the results; the owner UI is read-only and never triggers a draw.
+
 | Screen | Controller | Model it calls | Stories |
 |---|---|---|---|
 | SearchScreen | SearchController | CampsiteSearch | 01.01.01 to 01.01.04, 01.12.01 |
 | CampsiteScreen | CampsiteController | CampsiteRepository | 01.01.05, 01.13.01, 02.01.01 to 02.03.01 |
 | EntrantLotteryDetailsScreen | LotteryController (entrant only) | LotteryRepository | 01.01.06 to 01.02.02 |
+| EntrantReservationsScreen | EntrantReservationsController | ReservationRepository | 01.06.01, 01.06.02 |
+| EntrantReservationDetailsScreen | EntrantReservationsController, CampsiteController | ReservationRepository, CampsiteRepository | 01.06.01, 01.06.02, 01.07.01 |
 | Owner lottery setup/edit screens (Flow 4, #121; integration pending) | Owner configuration controller supplied by Flow 4 | LotteryRepository | 02.04.01 to 02.04.07, 02.10.01 |
 | OwnerWaitingListScreen | OwnerWaitingListController | LotteryRepository, ProfileRepository, WaitingListContactRepository | 02.09.01 |
 | ReservationsScreen | ReservationController | ReservationRepository | 01.04.01 to 01.07.02, 02.06.01 to 02.08.01, 02.11.01 |
@@ -265,6 +275,13 @@ Winner booking (Flow 9) uses `WinnerBookingController` and the existing lottery,
 | AdminScreen | AdminController | AdminModeration | 03.01.01 to 03.12.01 |
 
 `CampsiteSearch` and `AdminModeration` are services from the class diagram, and they call the repositories themselves.
+
+The entrant Reservations tab uses the existing `ReservationRepository.myReservations()`
+feed. Its tab and pushed details route share one `EntrantReservationsController`, so
+status and cancellation results update in both places. `ReservationRepository.cancel()`
+performs the ownership/date checks and frees booked nights in one transaction.
+The details route loads optional campsite location separately; the reservation's
+stored campsite name and dates remain visible if that campsite is unpublished.
 
 Entrant search now separates draft `query` from `submittedQuery` in
 `SearchUiState`. Typing edits only the draft; Search or the keyboard's Search

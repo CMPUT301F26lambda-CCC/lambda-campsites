@@ -1,3 +1,5 @@
+# Flow 5: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted
+# with draw metadata/edge-case coverage; human review pending.
 # Purpose: tests for the draw_lotteries Cloud Function (US 02.04.06,
 # 02.05.01). They call draw_due_lotteries against the Firestore emulator
 # with a `now` of their own, so they don't have to wait for the schedule.
@@ -81,6 +83,45 @@ def test_a_lottery_whose_registration_hasnt_closed_isnt_drawn(db):
 
     assert lottery_ref.get().get("status") == "OPEN"
     assert _notifications(db) == []
+
+
+def test_empty_draw_saves_zero_counts_and_server_time(db):
+    now = datetime.now(timezone.utc)
+    lottery_ref = _create_lottery(db, number_of_winners=3, registration_closes=now)
+    main.draw_due_lotteries(db, now)
+    saved = lottery_ref.get().to_dict()
+    assert saved["status"] == "DRAWN"
+    assert saved["drawnWinnerCount"] == 0
+    assert saved["drawnEntryCount"] == 0
+    assert saved["drawnAt"] is not None
+    assert _notifications(db) == []
+
+
+def test_only_registered_waiting_entries_are_drawn_and_withdrawals_stay_excluded(db):
+    now = datetime.now(timezone.utc)
+    lottery_ref = _create_lottery(db, number_of_winners=5, registration_closes=now)
+    _create_entries(lottery_ref, ["eligible", "withdrawn", "already-booked"])
+    lottery_ref.collection("entries").document("withdrawn").delete()
+    lottery_ref.collection("entries").document("already-booked").update({"status": "BOOKED"})
+    main.draw_due_lotteries(db, now)
+    assert _entry_statuses(lottery_ref) == {"eligible": "WON", "already-booked": "BOOKED"}
+    saved = lottery_ref.get().to_dict()
+    assert saved["drawnWinnerCount"] == 1
+    assert saved["drawnEntryCount"] == 1
+    assert [notice["recipientId"] for notice in _notifications(db)] == ["eligible"]
+
+
+def test_draw_metadata_is_immutable_on_retry_and_keeps_public_campsite_names(db):
+    now = datetime.now(timezone.utc)
+    db.collection("campsites").document("campsite-1").set({"name": "Demo Campsite"})
+    lottery_ref = _create_lottery(db, number_of_winners=1, registration_closes=now)
+    _create_entries(lottery_ref, ["alice", "bob"])
+    main.draw_due_lotteries(db, now)
+    original = lottery_ref.get().to_dict()
+    assert original["drawnCampsiteNames"] == ["Demo Campsite"]
+    main._draw_lottery(db, lottery_ref, now + timedelta(minutes=5))
+    assert lottery_ref.get().to_dict() == original
+    assert len(_notifications(db)) == 2
 
 
 def test_a_lottery_that_cant_be_drawn_doesnt_stop_the_others(db):

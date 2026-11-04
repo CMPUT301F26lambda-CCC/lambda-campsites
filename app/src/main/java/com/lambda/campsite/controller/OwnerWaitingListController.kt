@@ -6,6 +6,8 @@
  * listener cancellation, selection and KDoc. Human review pending.
  * Owner-only contact projections are fetched through an authenticated callable.
  */
+// Flow 5: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex,
+// assisted with read-only draw metadata/results integration; human review pending.
 package com.lambda.campsite.controller
 
 import androidx.lifecycle.ViewModel
@@ -197,11 +199,12 @@ class OwnerWaitingListController(
 
     companion object {
         /** Creates this controller using the existing application repositories. */
-        fun createFactory(initialLotteryId: String? = null): ViewModelProvider.Factory = viewModelFactory {
+        fun createFactory(initialLotteryId: String? = null, includeContacts: Boolean = true): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as LambdaApplication
                 OwnerWaitingListController(app.container.lotteryRepository, app.container.profileRepository,
-                    initialLotteryId, app.container.waitingListContactRepository)
+                    initialLotteryId, if (includeContacts) app.container.waitingListContactRepository
+                        else WaitingListContactRepository { _, _ -> emptyMap() })
             }
         }
     }

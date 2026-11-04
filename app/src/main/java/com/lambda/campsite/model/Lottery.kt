@@ -4,6 +4,8 @@
  * LotteryStatus enumeration in the team's class diagram. It helped with the
  * Kotlin code, syntax and KDoc. Sashreek Addanki reviewed it.
  */
+// Flow 5: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex,
+// assisted with read-only draw metadata/results integration; human review pending.
 package com.lambda.campsite.model
 
 import com.google.firebase.Timestamp
@@ -75,6 +77,14 @@ data class Lottery(
     val capacity: Int? = null,
     val status: LotteryStatus = LotteryStatus.OPEN,
     val entryCount: Int = 0,
+    /** Server-only draw metadata; null for lotteries drawn by older deployments. */
+    val drawnAt: Timestamp? = null,
+    /** Actual number picked, which can be smaller than the configured winner count. */
+    val drawnWinnerCount: Int? = null,
+    /** Eligible entries included in the completed draw, excluding withdrawals. */
+    val drawnEntryCount: Int? = null,
+    /** Public campsite-name snapshot captured by the server during the draw. */
+    val drawnCampsiteNames: List<String> = emptyList(),
 ) {
 
     /**
