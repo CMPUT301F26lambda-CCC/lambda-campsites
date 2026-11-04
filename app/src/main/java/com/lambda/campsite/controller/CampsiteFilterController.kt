@@ -13,12 +13,10 @@
 *      that are free on the night before, counting back up to 7 days before
 *      the check-out date (never before today).
 *   3. If the user enters both dates, it displays the campsites that are
-*      free for the exact stay first. A campsite that isn't free for the
-*      exact stay is shown afterwards if leaving one day earlier is free.
+*      free for every requested night. A shorter stay is never an exact match.
 * - Guests: it only shows the campsites whose capacity is equal to or higher
 *   than the number of guests.
-* This design is made so that the results aren't
-* limited to exact matches only.
+* With two dates, every result matches the complete requested stay.
 * Outstanding issues: none known.
 */
 /*
@@ -28,6 +26,9 @@
  * It also helped with kotlin code and syntax, refining KDoc comments.
  * Harmanjoth Kaur reviewed the suggestion,implemented them and committed them.
 */
+// Follow-up #174: Lalith Valluru, 2026-11-04. OpenAI GPT-6 (OpenAI), through Codex,
+// assisted with exact-stay matching and isolated calendar retry state. Human review pending.
+// Outstanding issues: manual TalkBack review remains.
 package com.lambda.campsite.controller
 
 import androidx.lifecycle.ViewModel
@@ -45,9 +46,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -60,7 +58,7 @@ import kotlinx.coroutines.launch
  * @property results the search results that match every applied filter (US 01.01.03),
  *   best date match first (see [CampsiteFilterController]).
  * @property isLoading waiting for the campsites' calendars after a date filter is applied.
- * @property loadFailed the calendars couldn't load; show a retry action.
+ * @property loadFailed retained fatal-error flag; isolated calendar failures use failedCalendarCount.
  */
 
 data class CampsiteFilterUiState(
@@ -71,6 +69,10 @@ data class CampsiteFilterUiState(
     val results: List<Campsite> = emptyList(),
     val isLoading: Boolean = false,
     val loadFailed: Boolean = false,
+    /** Calendars excluded because their latest read failed; other matches remain usable. */
+    val failedCalendarCount: Int = 0,
+    /** Calendars still awaiting their first value, distinct from unavailable campsites. */
+    val pendingCalendarCount: Int = 0,
 ) {
     /** `true` when a check-in day, a check-out day or both are set. */
     val hasDates: Boolean get() = checkIn != null || checkOut != null
@@ -98,9 +100,7 @@ data class CampsiteFilterUiState(
  * - If a filter is left blank or `null`, it does not filter out any campsites.
  *
  * How date filtering works:
- * - Check-in and check-out: Shows campsites available for the selected dates
- *   first, followed by campsites available if check-out is one day earlier.
- *   The check-in date stays the same.
+ * - Check-in and check-out: Includes only campsites free for the complete stay.
  * - Only check-in: Checks availability starting from the selected check-in
  *   date, from 1 night up to [MAX_NIGHTS] (7 nights).
  * - Only check-out: Checks availability backwards from the selected check-out
@@ -109,8 +109,8 @@ data class CampsiteFilterUiState(
  *
  *
  * While the calendars are loading, [CampsiteFilterUiState.isLoading] is `true`.
- * If loading fails, [CampsiteFilterUiState.loadFailed] is `true`, and [onRetry]
- * can be used to try loading the calendars again.
+ * Individual failed calendars are excluded and reported through failedCalendarCount;
+ * other calendars remain live. [onRetry] retries only failed listeners.
  *
  * [MAX_NIGHTS] sets the maximum number of nights checked when only one date is
  * selected. It is currently set to 7 nights.
@@ -125,7 +125,10 @@ class CampsiteFilterController(
 ) : ViewModel() {
     private var searchResults = emptyList<Campsite>()
     private var calendars = emptyMap<String, Availability?>()
-    private var calendarListener: Job? = null
+    private val calendarListeners = mutableMapOf<String, Job>()
+    private val failedIds = mutableSetOf<String>()
+    private val pendingIds = mutableSetOf<String>()
+    private var calendarVersion = 0L
     private var watchedIds = emptyList<String>()
     private val mutableState = MutableStateFlow(CampsiteFilterUiState())
 
@@ -149,33 +152,70 @@ class CampsiteFilterController(
         mutableState.update {
             it.copy(location = location.trim(), checkIn = checkIn, checkOut = checkOut, guests = guests).withResults()
         }
-        if (hadDates || state.value.hasDates) watchCalendars()
+        if (hadDates != state.value.hasDates ||
+            (state.value.hasDates && searchResults.map { it.id } != watchedIds)) watchCalendars()
+        else publishCalendarState()
     }
     fun onClearFilters() = onApplyFilters("", null, null, null)
 
-    fun onRetry() = watchCalendars()
+    /** Restarts only failed reads, keeping confirmed matches and healthy live listeners. */
+    fun onRetry() {
+        if (!state.value.hasDates) return
+        failedIds.toList().forEach { watchCalendar(it, calendarVersion) }
+    }
+
     private fun watchCalendars() {
-        calendarListener?.cancel()
-        calendarListener = null
+        calendarVersion++
+        calendarListeners.values.forEach { it.cancel() }
+        calendarListeners.clear()
+        failedIds.clear()
+        pendingIds.clear()
         watchedIds = searchResults.map { it.id }
+        calendars = calendars.filterKeys { it in watchedIds }
         if (!state.value.hasDates || watchedIds.isEmpty()) {
             calendars = emptyMap()
-            mutableState.update { it.copy(isLoading = false, loadFailed = false).withResults() }
+            publishCalendarState()
             return
         }
-        mutableState.update { it.copy(isLoading = true, loadFailed = false) }
-        val calendarFlows = watchedIds.map { id -> repository.availability(id).map { id to it } }
-        calendarListener = viewModelScope.launch {
-            combine(calendarFlows) { pairs -> pairs.toMap() }.catch { failure ->
+        pendingIds.addAll(watchedIds.filterNot { it in calendars })
+        watchedIds.forEach { watchCalendar(it, calendarVersion) }
+        publishCalendarState()
+    }
+
+    private fun watchCalendar(id: String, version: Long) {
+        calendarListeners.remove(id)?.cancel()
+        failedIds.remove(id)
+        if (id !in calendars) pendingIds.add(id)
+        publishCalendarState()
+        calendarListeners[id] = viewModelScope.launch {
+            try {
+                repository.availability(id).collect { calendar ->
+                    if (version != calendarVersion) return@collect
+                    calendars = calendars + (id to calendar)
+                    failedIds.remove(id)
+                    pendingIds.remove(id)
+                    publishCalendarState()
+                }
+            } catch (failure: Exception) {
                 if (failure is CancellationException) throw failure
-                watchedIds = emptyList()
-                mutableState.update { it.copy(isLoading = false, loadFailed = true) }
-            }.collect { loaded ->
-                calendars = loaded
-                mutableState.update { it.copy(isLoading = false, loadFailed = false).withResults() }
+                if (version == calendarVersion) {
+                    calendars = calendars - id
+                    failedIds.add(id)
+                    pendingIds.remove(id)
+                    publishCalendarState()
+                }
             }
         }
     }
+
+    private fun publishCalendarState() {
+        mutableState.update { current ->
+            val next = current.copy(loadFailed = false,
+                failedCalendarCount = failedIds.size, pendingCalendarCount = pendingIds.size).withResults()
+            next.copy(isLoading = next.hasDates && pendingIds.isNotEmpty() && next.results.isEmpty())
+        }
+    }
+
     private fun CampsiteFilterUiState.withResults(): CampsiteFilterUiState {
         val ranked = searchResults.mapNotNull { campsite -> rank(campsite, this)?.let { campsite to it } }
         return copy(results = ranked.sortedBy { it.second }.map { it.first })
@@ -200,7 +240,6 @@ class CampsiteFilterController(
 
     private fun bothDatesRank(calendar: Availability?, checkIn: LocalDate, checkOut: LocalDate): Int? = when {
         isFree(calendar, checkIn, checkOut) -> 0
-        isFree(calendar, checkIn, checkOut.minusDays(1)) -> 1
         else -> null
     }
 
