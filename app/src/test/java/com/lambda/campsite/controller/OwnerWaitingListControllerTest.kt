@@ -3,6 +3,7 @@
  * Outstanding issues: None known for the Flow 12 changes.
  * Feature owner: Lalith Valluru. Purpose: Flow 12 / US 02.09.01 read-only owner tests.
  * AI use: OpenAI GPT-6 through Codex assisted with cases and fixtures. Human review pending.
+ * Issue #151: GPT-6 (OpenAI), through Codex, assisted me with contact-cache regressions.
  */
 package com.lambda.campsite.controller
 
@@ -209,5 +210,54 @@ class OwnerWaitingListControllerTest {
         assertEquals("b", control.state.value.selectedLotteryId)
         assertTrue(control.state.value.contacts.isEmpty())
         assertFalse(control.state.value.loadingContacts)
+    }
+
+    @Test fun `live joins request only new contacts and departures erase cached details`() {
+        val repo = Reads().apply { choices.value = Result.success(listOf(sampleLottery("a"))); rows("a", entry("first")) }
+        val requests = mutableListOf<List<String>>()
+        val contacts = WaitingListContactRepository { _, ids ->
+            requests += ids
+            ids.associateWith { WaitingListContact(it, "Name $it", "$it@example.com", null) }
+        }
+        val control = OwnerWaitingListController(repo, FakeProfileRepository(owner), contactRepository = contacts)
+        assertEquals(listOf(listOf("first")), requests)
+        repo.rows("a", entry("first"), entry("second"))
+        assertEquals(listOf(listOf("first"), listOf("second")), requests)
+        assertEquals(setOf("first", "second"), control.state.value.contacts.keys)
+        repo.rows("a", entry("second"))
+        assertEquals(listOf(listOf("first"), listOf("second")), requests)
+        assertEquals(setOf("second"), control.state.value.contacts.keys)
+    }
+
+    @Test fun `failed new contact request preserves cached contact and retry fetches only missing ID`() {
+        val repo = Reads().apply { choices.value = Result.success(listOf(sampleLottery("a"))); rows("a", entry("first")) }
+        val requests = mutableListOf<List<String>>()
+        var failNew = true
+        val contacts = WaitingListContactRepository { _, ids ->
+            requests += ids
+            if ("second" in ids && failNew) throw IOException("Unavailable")
+            ids.associateWith { WaitingListContact(it, "Name $it", null, null) }
+        }
+        val control = OwnerWaitingListController(repo, FakeProfileRepository(owner), contactRepository = contacts)
+        repo.rows("a", entry("first"), entry("second"))
+        assertEquals("Name first", control.state.value.contacts["first"]?.name)
+        assertTrue(control.state.value.contactsFailed)
+        failNew = false
+        control.onRetry()
+        assertEquals(listOf(listOf("first"), listOf("second"), listOf("second")), requests)
+        assertEquals(setOf("first", "second"), control.state.value.contacts.keys)
+    }
+
+    @Test fun `role loss erases cached contacts before any later recovery`() {
+        val repo = Reads().apply { choices.value = Result.success(listOf(sampleLottery("a"))); rows("a", entry("first")) }
+        val profiles = FakeProfileRepository(owner)
+        val contacts = WaitingListContactRepository { _, ids ->
+            ids.associateWith { WaitingListContact(it, "Private", "private@example.com", null) }
+        }
+        val control = OwnerWaitingListController(repo, profiles, contactRepository = contacts)
+        assertEquals("Private", control.state.value.contacts["first"]?.name)
+        profiles.changeElsewhere(owner.copy(ownerBanned = true))
+        assertTrue(control.state.value.contacts.isEmpty())
+        assertTrue(control.state.value.entries.isEmpty())
     }
 }
