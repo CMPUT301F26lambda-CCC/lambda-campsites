@@ -12,6 +12,9 @@
 # The firebase-messaging entry was added by Aarush Bhat with the assistance
 # of Claude Sonnet 5 (Anthropic), through Claude Code, in November 2026.
 # Aarush Bhat reviewed and committed it.
+# Flow 16: GPT-6 (OpenAI), through Codex, assisted me with the CameraX
+# dependency entries for the entrant QR scanner. Human review is pending.
+# Issue #151: GPT-6 (OpenAI), through Codex, assisted me with the Functions catalog entry.
 [versions]
 agp = "9.4.1"
 coreKtx = "1.19.1"
@@ -30,6 +33,7 @@ firebaseBom = "34.19.0"
 googleServices = "4.5.0"
 zxing = "3.5.3"
 coil = "3.3.0"
+cameraX = "1.6.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -61,6 +65,10 @@ zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" 
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
 firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
+firebase-functions = { group = "com.google.firebase", name = "firebase-functions" }
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "cameraX" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "cameraX" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "cameraX" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

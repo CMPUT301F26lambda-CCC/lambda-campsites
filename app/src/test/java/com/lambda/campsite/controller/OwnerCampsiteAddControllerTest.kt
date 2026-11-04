@@ -1,3 +1,4 @@
+// Issue #150: GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
 /*
  * AI use: Gemini 3.8 Flash (Google DeepMind) helped write these tests in November 2026.
  * It helped with test cases for required field validation, updating form fields,
@@ -246,5 +247,22 @@ class OwnerCampsiteAddControllerTest {
 
         controller.onRemoveTag("forest")
         assertEquals(listOf("lake"), controller.state.value.form.tags)
+    }
+
+    @Test
+    fun `registration persists optional price and rules and rejects invalid price`() {
+        val repository = FakeCampsiteRepository()
+        val controller = OwnerCampsiteAddController(repository, FakeProfileRepository(profile))
+        fillValidDraft(controller)
+        controller.onPriceChange("-10")
+        controller.onSave { }
+        assertTrue(repository.saved.isEmpty())
+        assertEquals(CampsiteFormError.INVALID_PRICE, controller.state.value.form.formError)
+
+        controller.onPriceChange("35.50")
+        controller.onRulesChange("No fires during bans")
+        controller.onSave { }
+        assertEquals(35.50, repository.saved.single().pricePerNight!!, 0.0)
+        assertEquals("No fires during bans", repository.saved.single().rules)
     }
 }

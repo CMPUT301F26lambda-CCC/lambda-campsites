@@ -1,3 +1,4 @@
+// Issue #150: GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
 /*
 Purpose:
 This page is used to display the profile information for any user.
@@ -123,8 +124,6 @@ fun ProfileScreen(controller: ProfileController,
 ) {
     val state by controller.state.collectAsStateWithLifecycle()
     val profile = state.profile
-    var selectedRole by remember {mutableStateOf(Role.ENTRANT)
-    }
     // Checking whether the profile has loaded before accessing its properties.
     // If the profile is null, show a loading or error message instead of displaying
     // profile information that is not yet available
@@ -270,16 +269,14 @@ fun ProfileScreen(controller: ProfileController,
                     ) {
                         repeat(3) { index ->
                             val role = Role.entries[index]
-                            val isSelected = selectedRole == role
+                            val isSelected = state.activeRole == role
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxHeight()
                                     .background(if (isSelected) SelectedMint else Color.Transparent)
                                     .clickable {
-                                        if (role != Role.ADMIN || profile.hasRole(Role.ADMIN)) {
-                                            selectedRole = role
-                                        }
+                                        if (profile.hasRole(role)) controller.onSwitchRole(role)
                                     },
                                 contentAlignment = Alignment.Center
                             ) {

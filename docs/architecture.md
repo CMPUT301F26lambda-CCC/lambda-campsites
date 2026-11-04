@@ -4,6 +4,8 @@ Sashreek and Sreeman · original architecture updated November 1, 2026
 
 Flow 11 update: Sreeman Reddy · last updated 2026-11-03.
 Flow 10 frontend update: Sreeman Reddy · last updated 2026-11-03.
+Flow 16 scanner update: Sreeman Reddy · last updated 2026-11-03.
+Issue #151 waiting-list follow-up: Sreeman Reddy · last updated 2026-11-03.
 > AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped
 > write this document and its diagrams in October 2026, working from
 > decisions the team made. It also checked the free-tier figures in
@@ -23,6 +25,16 @@ Flow 10 frontend update: Sreeman Reddy · last updated 2026-11-03.
 >
 > GPT-6 (OpenAI), through Codex, assisted me with the Flow 10 entrant
 > reservation screen/controller architecture. Human review is pending.
+>
+> GPT-6 (OpenAI), through Codex, assisted me with the Flow 16 scanner
+> architecture. Human review is pending.
+>
+> GPT-6 (OpenAI), through Codex, assisted me with the issue #151 waiting-list
+> architecture update and editable diagram source. Human review is pending.
+
+> Flow 8 summary: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted with the notification summary; human review pending.
+
+> Flow 9 summary: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted with the booking summary; human review pending.
 
 > Flow 5 summary: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted with the automatic-results summary; human review pending.
 >
@@ -31,10 +43,6 @@ Flow 10 frontend update: Sreeman Reddy · last updated 2026-11-03.
 > high-level summary; follow-up human review is pending.
 
 This page explains how the app is put together. It covers the class diagram and the reasons behind it, the backend on Firebase, and how the Android app splits into Model, View and Controller. Section 6 follows one entrant from tapping "Join" to holding a reservation, so you can see every layer working in one story. Section 7 is the practical part: where files live, what to name things, and how to add something to the frontend or the backend. If a term is new to you, like repository, Flow or transaction, `docs/glossary.md` explains it.
-
-Owner waiting-list data flows through `OwnerWaitingListController` and repository
-interfaces. An authenticated callable verifies lottery ownership before returning
-entrant contact details; private profile documents remain protected.
 
 ## Contents
 
@@ -70,6 +78,10 @@ The app runs on the phone and talks to Firebase. Firebase holds the data and run
 We read all 60 user stories, underlined the nouns and circled the verbs. Nouns became classes or attributes, verbs became responsibilities, and screen words like "button" or "dialog" were dropped. That gave 20 CRC cards (see the CRC Cards page), and the cards became the class diagram below.
 
 ![Class diagram](images/class-diagram.png)
+
+The [editable class-diagram source](images/class-diagram.mmd) includes the
+waiting-list contact projection and its repository boundary. The image above
+remains the team's original overview.
 
 ### The classes
 
@@ -142,7 +154,7 @@ A few conventions keep the data consistent:
 |---|---|---|
 | `drawLotteries` | Every 5 minutes, on a schedule | Finds open lotteries whose registration has closed. For each one, a transaction picks the winners at random, marks everyone else NOT_SELECTED, sets the lottery to DRAWN and writes the WIN and LOSE notifications. The transaction checks the status first, so a lottery is never drawn twice. |
 | `sendPush` | A notification or message document is created | Reads the recipient's `pushToken` and `notificationsOn`. If notifications are on, it sends the push through FCM. The in-app copy exists either way, which is what 01.10.01 needs. |
-| `owner_waiting_list_contacts` | Authenticated callable request | Checks active owner, lottery ownership and entry membership; returns only current name/email/phone projections for requested registrations (US 02.09.01). |
+| `owner_waiting_list_contacts` | Authenticated callable request | Checks active owner, lottery ownership and current entry membership on every call; returns only name/email/phone projections for requested registrations (US 02.09.01). It uses the standard deployed Firestore client; emulator tests configure the emulator separately. |
 | `updateRatingStats` | A rating is written | Updates `ratingCount` and `ratingSum` on the campsite. |
 | `cleanUpCampsite` | A campsite document is deleted | Deletes its `availability` and `ratings` subcollections and its photo in Storage, cancels its open lotteries and upcoming reservations, and notifies everyone affected with a CAMPSITE_REMOVED notification (03.01.01). |
 | `cleanUpProfile` | A profile is deleted (01.08.01) or an admin marks it removed (03.02.01) | Removes the person's waiting-list entries, cancels their upcoming reservations and deletes their photo. If they own campsites, it deletes those too, which runs `cleanUpCampsite` for each one. |
@@ -233,6 +245,13 @@ A repository returns live data as a `Flow`, like `currentProfile()`, which retur
 
 Each repository is an interface. The app uses a Firestore version, and unit tests use a fake, so we can test a controller without Firebase. Until a Firestore version exists, the app can use an in-memory one with sample data.
 
+For the owner's waiting list, `LotteryRepository` supplies the live entries and
+`WaitingListContactRepository` calls the owner-authorized Cloud Function. The
+controller requests contacts only for entrant IDs missing from its current
+lottery cache. It drops departing entrants immediately, and clears the cache
+when the lottery changes or ownership is lost. The screen receives only the
+minimal `WaitingListContact` projection; it never reads entrant profiles.
+
 `FirestoreProfileRepository` is the one to copy for a new Firestore repository. It waits for the signed-in user with `signedInUserId()` from `model/repository/AuthFlows.kt`, listens to the document with `liveSnapshots()` from `model/repository/FirestoreFlows.kt`, and returns a `Flow`. Use `liveSnapshots()` rather than Firestore's own `snapshots()`, because when the security rules refuse a read, `snapshots()` cancels the `Flow` without an error and the screen waits forever. How the object is stored, with its field names, enums stored by name and defaults for missing fields, lives in a separate object, `ProfileFields`, so unit tests can check it without Firebase.
 
 For lists, copy `FirestoreCampsiteRepository`. It runs queries through the `Query` version of `liveSnapshots()`. Every query has to fit the security rules, because rules don't filter results: Firestore refuses a whole query if it could return a document the user isn't allowed to read. That's why `publishedCampsites()` asks for `published == true`. Its `save` uses `SetOptions.merge()`, which keeps the fields the app doesn't write, like the rating totals a Cloud Function keeps.
@@ -250,16 +269,21 @@ A document that belongs to another one can share its parent's repository. A camp
 
 ### Features
 
+Lottery notices (Flow 8) use the current user's notification listener. Win notices open the winner booking flow or confirm a persisted decline; lose notices show campsite and registration information.
+
+Winner booking (Flow 9) uses `WinnerBookingController` and the existing lottery, campsite and reservation repositories. Live calendars constrain selection; the booking transaction consumes one win and the confirmation reads the saved reservation.
+
 Automatic lottery results reuse the ownership-checked lottery/entry listeners. The server records draw time and actual counts atomically with the results; the owner UI is read-only and never triggers a draw.
 
 | Screen | Controller | Model it calls | Stories |
 |---|---|---|---|
-| SearchScreen | SearchController | CampsiteSearch | 01.01.01 to 01.01.04, 01.12.01 |
+| SearchScreen | SearchController | CampsiteSearch | 01.01.01 to 01.01.04 |
+| QrScannerScreen | QrScanController | QRCode, CampsiteRepository | 01.12.01 |
 | CampsiteScreen | CampsiteController | CampsiteRepository | 01.01.05, 01.13.01, 02.01.01 to 02.03.01 |
 | EntrantLotteryDetailsScreen | LotteryController (entrant only) | LotteryRepository | 01.01.06 to 01.02.02 |
 | EntrantReservationsScreen | EntrantReservationsController | ReservationRepository | 01.06.01, 01.06.02 |
 | EntrantReservationDetailsScreen | EntrantReservationsController, CampsiteController | ReservationRepository, CampsiteRepository | 01.06.01, 01.06.02, 01.07.01 |
-| Owner lottery setup/edit screens (Flow 4, #121; integration pending) | Owner configuration controller supplied by Flow 4 | LotteryRepository | 02.04.01 to 02.04.07, 02.10.01 |
+| Owner lottery setup/edit screens (Flow 4, #121) | Owner configuration controller supplied by Flow 4 | LotteryRepository | 02.04.01 to 02.04.07, 02.10.01 |
 | OwnerWaitingListScreen | OwnerWaitingListController | LotteryRepository, ProfileRepository, WaitingListContactRepository | 02.09.01 |
 | ReservationsScreen | ReservationController | ReservationRepository | 01.04.01 to 01.07.02, 02.06.01 to 02.08.01, 02.11.01 |
 | OwnerHomeScreen | OwnerReservationsController | ReservationRepository | 02.06.01, 02.07.01 to 02.07.03 |
@@ -271,6 +295,13 @@ Automatic lottery results reuse the ownership-checked lottery/entry listeners. T
 | AdminScreen | AdminController | AdminModeration | 03.01.01 to 03.12.01 |
 
 `CampsiteSearch` and `AdminModeration` are services from the class diagram, and they call the repositories themselves.
+
+The entrant Home route owns the Scan QR code action. `QrScannerScreen` requests
+camera permission and presents a CameraX preview; `QrFrameDecoder` reads QR
+payloads from the camera's luminance frames. `QrScanController` accepts the
+existing `QRCode` payload format, checks that the campsite still exists and is
+published through `CampsiteRepository`, then opens the existing entrant
+`CampsiteScreen` route. The details screen retains ownership of lottery actions.
 
 The entrant Reservations tab uses the existing `ReservationRepository.myReservations()`
 feed. Its tab and pushed details route share one `EntrantReservationsController`, so

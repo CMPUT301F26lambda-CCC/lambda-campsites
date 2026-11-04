@@ -7,6 +7,9 @@
  * Sashreek Addanki change it in November 2026, so a notification with a type
  * the app doesn't know reads as null. Sashreek Addanki reviewed the change.
  */
+// OpenAI GPT-6 (OpenAI), through Codex, assisted with lotteryId mapping and legacy defaults; human review pending.
+// Flow 8 update: Lalith Valluru, 2026-11-03.
+// Outstanding issues: manual TalkBack and deployed push delivery checks remain.
 package com.lambda.campsite.model.repository
 
 import com.google.firebase.Timestamp
@@ -30,6 +33,7 @@ object NotificationFields {
     const val BODY = "body"
     const val SENT_AT = "sentAt"
     const val READ = "read"
+    const val LOTTERY_ID = "lotteryId"
 
     /** The document fields for [notification]. */
     fun toMap(notification: Notification): Map<String, Any?> = mapOf(
@@ -39,6 +43,7 @@ object NotificationFields {
         BODY to notification.body,
         SENT_AT to notification.sentAt,
         READ to notification.read,
+        LOTTERY_ID to notification.lotteryId,
     )
 
     /** The one field the app ever writes on its own: whether it's been read. */
@@ -68,6 +73,7 @@ object NotificationFields {
             body = fields[BODY] as? String ?: defaults.body,
             sentAt = fields[SENT_AT] as? Timestamp ?: defaults.sentAt,
             read = fields[READ] as? Boolean ?: defaults.read,
+            lotteryId = (fields[LOTTERY_ID] as? String)?.takeIf { it.isNotBlank() },
         )
     }
 
