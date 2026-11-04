@@ -16,7 +16,11 @@
     <string name="flow5_results">Results</string>
     <string name="flow5_winners">Winners</string>
     <string name="flow5_not_selected">Not selected</string>
-    <string name="flow5_count">%1$d entrants</string>
+    <plurals name="flow5_entrants">
+        <item quantity="one">%1$d entrant</item>
+        <item quantity="other">%1$d entrants</item>
+    </plurals>
+    <string name="flow5_removed_entries">Counts reflect the completed draw. Some entrant records are no longer available.</string>
     <string name="flow5_no_entrants">No eligible entrants were registered. This draw completed with zero winners.</string>
     <string name="flow5_no_group">No entrants in this group.</string>
     <string name="flow5_entrant">Entrant ID: %1$s</string>

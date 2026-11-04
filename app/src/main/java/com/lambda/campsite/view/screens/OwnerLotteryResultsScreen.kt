@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -100,10 +101,13 @@ fun OwnerLotteryResultsContent(state: OwnerWaitingListUiState, onRetry: () -> Un
                         if (lottery.status == LotteryStatus.DRAWN) {
                             val winners = drawWinners(state.entries)
                             val others = state.entries.filter { it.status == EntryStatus.NOT_SELECTED }
+                            val winnerCount = lottery.drawnWinnerCount ?: winners.size
+                            val entrantCount = lottery.drawnEntryCount ?: (winners.size + others.size)
                             item { Text(stringResource(R.string.flow5_results), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() }) }
-                            if (state.entries.isEmpty()) item { Text(stringResource(R.string.flow5_no_entrants), Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
-                            item { ResultGroup(R.string.flow5_winners, winners.size, true, group == "winners") { group = if (group == "winners") null else "winners" } }
-                            item { ResultGroup(R.string.flow5_not_selected, others.size, false, group == "others") { group = if (group == "others") null else "others" } }
+                            if (entrantCount == 0) item { Text(stringResource(R.string.flow5_no_entrants), Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
+                            if (entrantCount != winners.size + others.size) item { Text(stringResource(R.string.flow5_removed_entries)) }
+                            item { ResultGroup(R.string.flow5_winners, winnerCount, true, group == "winners") { group = if (group == "winners") null else "winners" } }
+                            item { ResultGroup(R.string.flow5_not_selected, (entrantCount - winnerCount).coerceAtLeast(0), false, group == "others") { group = if (group == "others") null else "others" } }
                             if (group != null) {
                                 val entries = if (group == "winners") winners else others
                                 if (entries.isEmpty()) item { Text(stringResource(R.string.flow5_no_group)) }
@@ -137,7 +141,7 @@ private fun ResultGroup(label: Int, count: Int, winner: Boolean, expanded: Boole
         }
         Column(Modifier.weight(1f)) {
             Text(stringResource(label), style = MaterialTheme.typography.titleMedium)
-            Text(stringResource(R.string.flow5_count, count), color = CampSecondaryText)
+            Text(pluralStringResource(R.plurals.flow5_entrants, count, count), color = CampSecondaryText)
         }
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
     }
