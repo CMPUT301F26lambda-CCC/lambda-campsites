@@ -4,6 +4,14 @@
  * Outstanding issues: filters, scanner and notifications remain in their separate flows.
  * AI use: OpenAI GPT-6 (OpenAI), through Codex, assisted with Compose layout and semantics;
  * human review pending.
+ *
+ * Harmanjoth Kaur, 2026-11-04. Added the campsite filters to this screen
+ * The filter outstanding issue is now done
+ * When the filter is applied the search list, it only
+ * shows the controller's filtered results
+ * instead of the plain search results
+ * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code in November 2026,
+ * helped Harmanjoth Kaur in connecting the filtes with the search screen.
  */
 package com.lambda.campsite.view.screens
 
@@ -37,13 +45,23 @@ import com.lambda.campsite.controller.*
 import com.lambda.campsite.model.Campsite
 import com.lambda.campsite.view.components.*
 import com.lambda.campsite.view.theme.*
+import java.time.LocalDate
+import androidx.compose.runtime.saveable.rememberSaveable
 
 /** Entrant Home, with its real profile greeting and lifecycle-owned live lottery badges. */
 @Composable
-fun SearchScreen(controller: SearchController, onCampsiteClick: (String) -> Unit, profileName: String? = null) {
+fun SearchScreen(controller: SearchController, onCampsiteClick: (String) -> Unit, profileName: String? = null,
+                 filterController: CampsiteFilterController = viewModel(factory = CampsiteFilterController.Factory)) {
     val state by controller.state.collectAsStateWithLifecycle()
-    SearchContent(state, controller::onQueryChanged, controller::onRetry, onCampsiteClick,
+    val filters by filterController.state.collectAsStateWithLifecycle()
+    // The filters work on whatever the entrant searched for (Flow 15).
+    LaunchedEffect(state.results) { filterController.onSearchResultsChanged(state.results) }
+    // Once a filter is applied, the list shows the filtered results instead of the plain search.
+    val shown = if (!filters.hasFilters) state else state.copy(results = filters.results,
+        isLoading = state.isLoading || filters.isLoading, loadFailed = state.loadFailed || filters.loadFailed)
+    SearchContent(shown, controller::onQueryChanged, { controller.onRetry(); filterController.onRetry() }, onCampsiteClick,
         onSubmitSearch = controller::onSubmitSearch, onClearSearch = { controller.onSearch("") }, profileName = profileName,
+        filters = filters, onApplyFilters = filterController::onApplyFilters, onClearFilters = filterController::onClearFilters,
         status = { camp ->
             val lottery: LotteryController = viewModel(key = "search-lottery-${camp.id}",
                 factory = LotteryController.createFactory(camp.id))
@@ -61,13 +79,23 @@ fun SearchScreen(controller: SearchController, onCampsiteClick: (String) -> Unit
  * @param onClearSearch clears both draft and submitted query.
  * @param profileName actual profile name, or null for a neutral greeting.
  * @param status optional live status supplied by the screen, never invented by a card.
+ * @param filters the applied location, dates and guests, shown on the filter chips and
+ * used to start the Filters sheet (US 01.01.02).
+ * @param onApplyFilters applies the location, check-in, check-out and guests chosen in
+ * the Filters sheet when the entrant presses Apply filter.
+ * @param onClearFilters clears every filter, so the plain search results show again.
+ *
  */
 @Composable
 fun SearchContent(state: SearchUiState, onSearch: (String) -> Unit, onRetry: () -> Unit,
     onCampsiteClick: (String) -> Unit, onSubmitSearch: () -> Unit = { onSearch(state.query) },
     onClearSearch: () -> Unit = { onSearch("") }, profileName: String? = null,
-    status: @Composable (Campsite) -> Unit = {}) {
+      status: @Composable (Campsite) -> Unit = {},
+      filters: CampsiteFilterUiState = CampsiteFilterUiState(),
+      onApplyFilters: (String, LocalDate?, LocalDate?, Int?) -> Unit = { _, _, _, _ -> },
+      onClearFilters: () -> Unit = {}) {
     val keyboard = LocalSoftwareKeyboardController.current
+    var showFilters by rememberSaveable { mutableStateOf(false) }
     val submit = { onSubmitSearch(); keyboard?.hide(); Unit }
     StatusBarIconStyle(darkIcons = false)
     Scaffold(containerColor = ForestGreen, topBar = { EntrantSearchHeader(profileName) }) { padding ->
@@ -97,6 +125,11 @@ fun SearchContent(state: SearchUiState, onSearch: (String) -> Unit, onRetry: () 
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         keyboardActions = KeyboardActions(onSearch = { submit() }),
                         modifier = Modifier.fillMaxWidth(), singleLine = true)
+                }
+                item {
+                    CampsiteFilterChips(
+                        filters.location, filters.checkIn, filters.checkOut, filters.guests,
+                        onClick = { keyboard?.hide(); showFilters = true })
                 }
                 when {
                     state.isLoading -> item { CircularProgressIndicator(); Text(stringResource(R.string.entrant_campsite_loading)) }
@@ -131,9 +164,20 @@ fun SearchContent(state: SearchUiState, onSearch: (String) -> Unit, onRetry: () 
                                 onDetails = { onCampsiteClick(camp.id) }, status = { status(camp) })
                         }
                     }
+
                 }
             }
         }
+    }
+        if (showFilters) {
+            CampsiteFilterSheet(filters.location, filters.checkIn, filters.checkOut, filters.guests,
+                onApply = { location, checkIn, checkOut, guests ->
+                    onApplyFilters(location, checkIn, checkOut, guests)
+                    showFilters = false
+                },
+                onClear = onClearFilters,
+                onDismiss = { showFilters = false })
+
     }
 }
 
