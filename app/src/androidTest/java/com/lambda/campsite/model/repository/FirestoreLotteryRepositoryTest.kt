@@ -3,6 +3,8 @@
  * these tests in November 2026. It helped with the test cases, the coroutines
  * code and the Kotlin syntax. Sashreek Addanki reviewed them.
  */
+// Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted
+// with race/refusal and access-rule regression tests; human review pending.
 package com.lambda.campsite.model.repository
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -103,9 +105,10 @@ class FirestoreLotteryRepositoryTest {
 
     @Test
     fun savingKeepsTheEntryCount() {
-        setUpOnServer(lottery(id = "mine"), entryCount = 4)
+        val original = lottery(id = "mine")
+        setUpOnServer(original, entryCount = 4)
 
-        val edited = lottery(id = "mine").copy(name = "Moose Lake, summer 2027")
+        val edited = original.copy(name = "Moose Lake, summer 2027")
         runBlocking { withTimeout(TIMEOUT_MS) { repository.save(edited) } }
 
         assertEquals(edited.copy(entryCount = 4), lotteryOnServer("mine"))
@@ -115,9 +118,10 @@ class FirestoreLotteryRepositoryTest {
     fun savingADrawnLotteryThrows() {
         setUpOnServer(lottery(id = "mine").copy(status = LotteryStatus.DRAWN))
 
-        val error = firestoreErrorFrom { repository.save(lottery(id = "mine").copy(name = "Renamed")) }
-
-        assertEquals(FirebaseFirestoreException.Code.PERMISSION_DENIED, error?.code)
+        val error = try { repositorySave(lottery(id = "mine").copy(name = "Renamed")); null }
+            catch (failure: Exception) { failure }
+        val refusal = generateSequence(error as Throwable?) { it.cause }.filterIsInstance<LotteryEditException>().firstOrNull()
+        assertEquals(com.lambda.campsite.model.LotteryEditRestriction.NOT_OPEN, refusal?.restriction)
     }
 
     @Test
@@ -256,6 +260,24 @@ class FirestoreLotteryRepositoryTest {
 
         assertEquals(WaitingListException.Reason.NOT_JOINED, error.reason)
     }
+
+
+    @Test fun transactionRejectsStaleProposalAfterSomeoneJoinsWithoutWritingName() {
+        val original = lottery(id = "edited")
+        repositorySave(original)
+        val stale = original.copy(name = "Must not save", registrationCloses = Timestamp(original.registrationCloses.seconds + 3600, 0))
+        FirestoreEmulator.setIgnoringRules("lotteries/edited", LotteryFields.toMap(original) + ("entryCount" to 1))
+        val error = try { repositorySave(stale); null } catch (failure: Exception) { failure }
+        val refusal = generateSequence(error as Throwable?) { it.cause }.filterIsInstance<LotteryEditException>().firstOrNull()
+        assertEquals(com.lambda.campsite.model.LotteryEditRestriction.LOCKED_FIELDS_CHANGED, refusal?.restriction)
+        assertEquals(original.name, lotteryOnServer("edited")?.name)
+        assertEquals(1, lotteryOnServer("edited")?.entryCount)
+        repositorySave(original.copy(name = "Allowed name", capacity = 1))
+        assertEquals("Allowed name", lotteryOnServer("edited")?.name)
+        assertEquals(1, lotteryOnServer("edited")?.entryCount)
+    }
+
+    private fun repositorySave(value: Lottery) = runBlocking { withTimeout(TIMEOUT_MS) { repository.save(value) } }
 
     private fun lottery(
         id: String,
