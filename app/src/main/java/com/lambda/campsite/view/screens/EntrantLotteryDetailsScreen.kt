@@ -4,9 +4,11 @@
  * Outstanding issues: Manual TalkBack and physical-device review remain pending.
  * AI use: OpenAI GPT-6 (OpenAI), through Codex, assisted with Figma layout, registration states
  * and navigation callbacks. Human review pending.
-  * Layout follow-up (#154): Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI),
+ * Layout follow-up (#154): Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI),
  * through Codex, assisted with Figma layout/status/navigation-color integration
  * or its regression checks. Follow-up human review remains pending.
+ * #169 follow-up, 2026-11-04: Raghav Sethi. GLM 5.3 Flash (Z.ai), through OpenCode,
+ * helped switch the registration dates to [Lottery.lastDayToJoin]; human review pending.
  */
 package com.lambda.campsite.view.screens
 
@@ -232,10 +234,10 @@ private fun LotteryInfoRow(icon: ImageVector, label: Int, value: String) {
 private fun registrationDate(value: Timestamp): String = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
     .withLocale(Locale.getDefault()).withZone(ZoneId.systemDefault()).format(value.toDate().toInstant())
 
-/** Registration closes at midnight after the final calendar day shown to entrants. */
+/** The same final join day [Lottery.lastDayToJoin] stores through midnight after it. */
 private fun lastJoinDate(lottery: Lottery): String = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
     .withLocale(Locale.getDefault())
-    .format(lottery.registrationCloses.toInstant().atZone(ZoneId.systemDefault()).toLocalDate().minusDays(1))
+    .format(lottery.lastDayToJoin())
 
 @Composable
 private fun joinBlockText(block: LotteryJoinBlock, lottery: Lottery): String = when (block) {

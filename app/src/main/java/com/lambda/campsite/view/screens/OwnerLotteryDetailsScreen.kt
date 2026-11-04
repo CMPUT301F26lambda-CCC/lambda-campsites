@@ -87,6 +87,9 @@ private val DetailsDate = DateTimeFormatter.ofPattern("MMM d, yyyy")
  * @param onResultsClick invoked to see the draw's results, offered once the
  *   lottery has been drawn (US 02.05.01).
  * @param modifier optional layout modifier.
+ *
+ * #169 follow-up, 2026-11-04: GLM 5.3 Flash (Z.ai), through OpenCode, helped
+ * switch the registration dates to [Lottery.lastDayToJoin]; human review pending.
  */
 @Composable
 fun OwnerLotteryDetailsScreen(
@@ -178,7 +181,7 @@ fun OwnerLotteryDetailsScreen(
                         )
                         DetailLine(
                             stringResource(R.string.new_lottery_registration_closes),
-                            lastJoinDay(lottery).format(DetailsDate),
+                            lottery.lastDayToJoin().format(DetailsDate),
                         )
                         DetailLine(
                             stringResource(R.string.lottery_stay_dates),
@@ -365,7 +368,3 @@ private fun lotteryStatusLine(lottery: Lottery): String {
     LotteryStatus.ENDED -> stringResource(R.string.lottery_status_ended)
     }
 }
-
-/** The stored close timestamp is midnight after the owner's final join day. */
-private fun lastJoinDay(lottery: Lottery) =
-    lottery.registrationCloses.toInstant().atZone(ZoneId.systemDefault()).toLocalDate().minusDays(1)
