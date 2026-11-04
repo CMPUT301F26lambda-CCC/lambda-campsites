@@ -92,6 +92,9 @@ import com.lambda.campsite.view.screens.SettingScreen
 import com.lambda.campsite.view.screens.EditProfileScreen
 import com.lambda.campsite.view.screens.FirstLaunchScreen
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.IconButton
+import  androidx.compose.material.icons.Icons
 
 
 /** Entrant pushed routes retain Home selection and the selected campsite's parent state. */
@@ -194,39 +197,25 @@ fun LambdaCampsiteApp(
                     )
                 }
             },
-
             bottomBar = {
                 if (currentRoute != FIRST_LAUNCH_ROUTE) {
-                    NavigationBar {
+                    NavigationBar(containerColor = com.lambda.campsite.view.theme.CampSurfaceHigh) {
                         tabs.forEach { tab ->
                             NavigationBarItem(
-                                selected = currentRoute == tab.route,
+                                selected = isSelectedTab(tab, currentRoute),
                                 onClick = { navController.navigateToTab(tab) },
                                 // The label below names the tab, so the icon needs no description.
                                 icon = { Icon(tab.icon, contentDescription = null) },
                                 label = { Text(stringResource(tab.labelRes)) },
+                                colors = NavigationBarItemDefaults.colors(
+                                    indicatorColor = com.lambda.campsite.view.theme.CampPositive,
+                                    selectedIconColor = com.lambda.campsite.view.theme.ForestGreen,
+                                    selectedTextColor = com.lambda.campsite.view.theme.ForestGreen,
+                                    unselectedIconColor = com.lambda.campsite.view.theme.CampSecondaryText,
+                                    unselectedTextColor = com.lambda.campsite.view.theme.CampSecondaryText,
+                                ),
                             )
                         }
-                    }
-                }
-
-                val waitingListOpen = currentRoute == AppTab.OWNER_LOTTERIES.route
-                NavigationBar(containerColor =  com.lambda.campsite.view.theme.CampSurfaceHigh){
-                    tabs.forEach { tab ->
-                        NavigationBarItem(
-                            selected = isSelectedTab(tab, currentRoute),
-                            onClick = { navController.navigateToTab(tab) },
-                            // The label below names the tab, so the icon needs no description.
-                            icon = { Icon(tab.icon, contentDescription = null) },
-                            label = { Text(stringResource(tab.labelRes)) },
-                            colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = com.lambda.campsite.view.theme.CampPositive,
-                                selectedIconColor = com.lambda.campsite.view.theme.ForestGreen,
-                                selectedTextColor = com.lambda.campsite.view.theme.ForestGreen,
-                                unselectedIconColor = com.lambda.campsite.view.theme.CampSecondaryText,
-                                unselectedTextColor = com.lambda.campsite.view.theme.CampSecondaryText,
-                            ),
-                        )
                     }
                 }
             },
@@ -255,7 +244,7 @@ fun LambdaCampsiteApp(
                                     navController.navigate(SETTINGS_ROUTE)
                                 },)
 
-                            AppTab.PROFILE -> ProfileScreen(profileController)
+
                             AppTab.OWNER_HOME -> {
                                 val reservationsController: OwnerReservationsController =
                                     viewModel(factory = OwnerReservationsController.Factory)
