@@ -3,6 +3,8 @@
  * these tests in November 2026. It helped with the test cases and the Kotlin
  * syntax. Sashreek Addanki reviewed them.
  */
+// Flow 5: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted
+// with server-only draw metadata tests; human review pending.
 package com.lambda.campsite.model.repository
 
 import com.google.firebase.Timestamp
