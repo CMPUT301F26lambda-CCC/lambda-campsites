@@ -162,24 +162,21 @@ fun ProfileScreen(controller: ProfileController,
                 verticalArrangement = Arrangement.SpaceEvenly,
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Start,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier.size(40.dp),
-                    ) {
+                    IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = Mint,
                         )
                     }
-                    Spacer(Modifier.width(8.dp))
                     Text(
                         text = stringResource(R.string.tab_profile),
-                        style = MaterialTheme.typography.headlineLarge,
+                        style = MaterialTheme.typography.titleLarge,
                         color = Mint,
                     )
                 }

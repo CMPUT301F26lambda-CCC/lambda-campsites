@@ -258,6 +258,7 @@ fun LambdaCampsiteApp(
                                 controller = profileController,
                                 onEditProfile = { navController.navigate(EDIT_PROFILE_ROUTE) },
                                 onSettings = { navController.navigate(SETTINGS_ROUTE) },
+                                onBack = { navController.navigateToTab(tabs.first()) },
                             )
                             AppTab.ENTRANT_RESERVATIONS -> {
                                 val reservationsController: EntrantReservationsController =

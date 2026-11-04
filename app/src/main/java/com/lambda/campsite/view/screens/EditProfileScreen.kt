@@ -89,6 +89,7 @@ fun EditProfileScreen(
                 .fillMaxWidth()
                 .weight(0.40f)
                 .background(ForestGreen)
+                .statusBarsPadding()
                 .padding(horizontal = 2.dp, vertical = 2.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(2.dp),
