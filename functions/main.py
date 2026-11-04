@@ -1,3 +1,6 @@
+# Feature owner: Lalith Valluru. Last updated: 2026-11-03 (Flow 8).
+# OpenAI GPT-6 (OpenAI), through Codex, assisted with source lottery IDs in draw notices; human review pending.
+
 # Flow 5: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted
 # with draw metadata/edge-case coverage; human review pending.
 # Last updated: 2026-11-03 (Flow 12).
@@ -183,7 +186,8 @@ def _draw_in_transaction(transaction, db, lottery_ref, now):
         won = entry.id in winner_ids
         transaction.update(entry.reference, {"status": "WON" if won else "NOT_SELECTED"})
         notification = db.collection("notifications").document()
-        transaction.set(notification, _lottery_notification(entry.get("entrantId"), lottery["name"], won))
+        transaction.set(notification, _lottery_notification(entry.get("entrantId"), lottery["name"], won,
+            lottery_ref.id, campsite_names or lottery.get("campsiteIds", []), lottery["registrationOpens"], lottery["registrationCloses"]))
 
     transaction.update(lottery_ref, {
         "status": "DRAWN", "drawnAt": firestore.SERVER_TIMESTAMP,
@@ -192,8 +196,8 @@ def _draw_in_transaction(transaction, db, lottery_ref, now):
     })
 
 
-def _lottery_notification(recipient_id, lottery_name, won):
-    """A WIN or LOSE notification document, the way NotificationFields.kt stores one."""
+def _lottery_notification(recipient_id, lottery_name, won, lottery_id, campsite_names, registration_opens, registration_closes):
+    """A WIN or LOSE notice with a stable source lottery ID for booking handoff."""
     if won:
         title = "You won the lottery"
         body = f"You won the lottery for {lottery_name}."
@@ -202,8 +206,11 @@ def _lottery_notification(recipient_id, lottery_name, won):
         title = "You weren't selected"
         body = f"You weren't selected in the lottery for {lottery_name}."
         notification_type = "LOSE"
+    # Keep public campsite labels and the registration period readable even after a lottery is removed.
+    body += f" Campsites: {', '.join(campsite_names)}. Registration: {registration_opens.isoformat()} to {registration_closes.isoformat()}."
     return {
         "recipientId": recipient_id,
+        "lotteryId": lottery_id,
         "type": notification_type,
         "title": title,
         "body": body,
