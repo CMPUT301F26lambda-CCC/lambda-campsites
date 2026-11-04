@@ -31,7 +31,7 @@ explicit copy-action requirement.
 
 - All 254 debug unit tests passed on current `main`, including the targeted controller regressions.
 - All five Flow 12 Compose tests passed on the Android 17 emulator; debug Android-test Kotlin compiled.
-- The Python callable passed syntax compilation. Its pytest suite was not run locally because pytest and the Firebase CLI emulator are not installed in this workspace.
+- All 30 Cloud Functions pytest cases passed against the Firestore emulator, including a decorated callable request with application-default credentials explicitly unavailable. The test fixture supplies an anonymous Admin SDK client only for that emulator case.
 - Team review and passing CI are required before merge, per `docs/CONTRIBUTING.md`.
 - Shared-project verification of the deployed callable needs the team's Firebase
   environment and an owner device; the emulator tests cover the access rules locally.
