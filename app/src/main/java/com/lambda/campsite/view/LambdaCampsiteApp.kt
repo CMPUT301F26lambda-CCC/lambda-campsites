@@ -33,6 +33,9 @@
 // assisted me with entrant reservation list and detail navigation.
 // Flow 16 feature owner: Sreeman Reddy. GPT-6 (OpenAI), through Codex,
 // assisted me with the Home scan button and full-screen scanner route.
+// Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 (OpenAI), through Codex,
+// assisted with edit guards, race handling and merge preservation. Human review pending.
+// Outstanding issues: manual TalkBack review and rules deployment remain pending.
 package com.lambda.campsite.view
 
 import android.net.Uri
@@ -256,6 +259,22 @@ fun LambdaCampsiteApp(
             // The root inset lets each screen's app bar draw up under the clock;
             // screens without an app bar pad themselves with statusBarsPadding().
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            topBar = {
+                if (state.activeRole == Role.ADMIN && currentRoute in AppTab.forRole(Role.ADMIN).map { it.route }) {
+                    TopAppBar(
+                        title = { Text(stringResource(R.string.app_name)) },
+                        actions = {
+                            IconButton(onClick = { navController.navigateToTab(AppTab.PROFILE) }) {
+                                Icon(
+                                    Icons.Filled.AccountCircle,
+                                    contentDescription = stringResource(R.string.open_profile),
+                                )
+                            }
+                        },
+                    )
+                }
+            },
             bottomBar = {
                 if (currentRoute != FIRST_LAUNCH_ROUTE && currentRoute != ENTRANT_SCAN_ROUTE && currentRoute != OWNER_MAP_PICKER_ROUTE) {
                     NavigationBar(containerColor = com.lambda.campsite.view.theme.CampSurfaceHigh) {
