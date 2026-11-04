@@ -10,6 +10,8 @@
  * through Codex, assisted with replacing duplicated colors by the shared scheme.
  * Layout is unchanged; follow-up human review remains pending.
  */
+// Flow 5: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex,
+// assisted with read-only draw metadata/results integration; human review pending.
 package com.lambda.campsite.view.screens
 
 import androidx.compose.foundation.BorderStroke
@@ -55,10 +57,10 @@ import java.util.Locale
  * @param onBack returns to the owner's previous navigation destination.
  */
 @Composable
-fun OwnerWaitingListScreen(controller: OwnerWaitingListController, onBack: () -> Unit) {
+fun OwnerWaitingListScreen(controller: OwnerWaitingListController, onBack: () -> Unit, onResults: ((String) -> Unit)? = null) {
     val state by controller.state.collectAsStateWithLifecycle()
     OwnerWaitingListContent(state, controller::onSelectLottery, controller::onRetry,
-        controller::onOpenEntrant, controller::onDismissEntrant, onBack)
+        controller::onOpenEntrant, controller::onDismissEntrant, onBack, onResults)
 }
 
 /**
@@ -79,6 +81,7 @@ fun OwnerWaitingListContent(
     onOpenEntrant: (String) -> Unit,
     onDismissEntrant: () -> Unit,
     onBack: () -> Unit,
+    onResults: ((String) -> Unit)? = null,
 ) {
     StatusBarIconStyle(darkIcons = false)
     var choosing by remember { mutableStateOf(false) }
@@ -130,6 +133,11 @@ fun OwnerWaitingListContent(
                     }
                     else if (state.loadingEntries) item { LoadingWaitingList(R.string.flow12_loading_entries) }
                     else if (state.selectedLottery != null) {
+                        if (onResults != null) item {
+                            TextButton(onClick = { state.selectedLotteryId?.let(onResults) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                                Text(stringResource(R.string.flow5_view_results))
+                            }
+                        }
                         item { Text(pluralStringResource(R.plurals.flow12_count, state.entries.size, state.entries.size),
                             style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
