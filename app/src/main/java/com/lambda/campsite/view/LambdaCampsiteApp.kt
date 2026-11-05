@@ -36,6 +36,10 @@
 // Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 (OpenAI), through Codex,
 // assisted with edit guards, race handling and merge preservation. Human review pending.
 // Outstanding issues: manual TalkBack review and rules deployment remain pending.
+/*
+* Flow 14: Harmanjoth Kaur, November 2026. Claude Opus 5.5 (Anthropic), through
+* Claude Code, helped add the Settings, Edit Profile and First Launch routes
+ */
 package com.lambda.campsite.view
 
 import android.net.Uri

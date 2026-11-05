@@ -39,7 +39,7 @@ since each role has a different navigation bar and set of screens.
  * helped with retrieving the user's assigned roles from Firestore through
  * ProfileController and ProfileRepository, building the role selection slider
  * UI, and improving the KDoc for ProfileScreen. Harmanjoth Kaur reviewed the suggestions
- * and made the final changes myself.
+ * and made the final changes.
  *
  * The role slider was connected to the controller in November 2026 with GLM
  * 5.3 Flash (Z.ai), through OpenCode, at Raghav Sethi's request: the slider
