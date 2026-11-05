@@ -47,6 +47,9 @@ since each role has a different navigation bar and set of screens.
  * owner role) and follows the app's active role. Raghav Sethi tested it.
  */
 
+// Follow-up #176: Lalith Valluru, 2026-11-04. OpenAI GPT-6 (OpenAI), through Codex,
+// assisted with Admin option visibility and role-row dividers; human review pending.
+// Outstanding issues: manual TalkBack review remains.
 package com.lambda.campsite.view.screens
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.foundation.layout.Arrangement
@@ -109,7 +112,7 @@ import com.lambda.campsite.view.theme.SelectedMint
  * connects to [EditProfileScreen] for updating personal information and
  * [SettingsScreen] for managing account settings.
  *
- * The Admin option is only selectable for profiles assigned the Admin role.
+ * The Admin option is only shown for profiles assigned the Admin role.
  *
  * @param controller the profile controller that provides the profile state
  *                   and is shared with the navigation bar.
@@ -273,8 +276,8 @@ fun ProfileScreen(controller: ProfileController,
                             .padding(1.dp)
                             .clip(RoundedCornerShape(50))
                     ) {
-                        repeat(3) { index ->
-                            val role = Role.entries[index]
+                        val roles = Role.entries.filter { it != Role.ADMIN || profile.hasRole(Role.ADMIN) }
+                        roles.forEachIndexed { index, role ->
                             val isSelected = state.activeRole == role
                             Box(
                                 modifier = Modifier
@@ -283,8 +286,6 @@ fun ProfileScreen(controller: ProfileController,
                                     .background(if (isSelected) SelectedMint else Color.Transparent)
                                     .clickable {
                                         when {
-                                            // Admin is only selectable by profiles that hold it.
-                                            role == Role.ADMIN && !profile.hasRole(Role.ADMIN) -> Unit
                                             profile.hasRole(role) -> controller.onSwitchRole(role)
                                             // Owner is the only role the app can grant:
                                             // "List your campsite" adds it and switches (US 03.11.01).
@@ -312,7 +313,7 @@ fun ProfileScreen(controller: ProfileController,
                                         style = MaterialTheme.typography.labelLarge,
                                     )
                                 }
-                                if (index < 2) {
+                                if (index < roles.lastIndex) {
                                     VerticalDivider(
                                         modifier = Modifier
                                             .fillMaxHeight()
