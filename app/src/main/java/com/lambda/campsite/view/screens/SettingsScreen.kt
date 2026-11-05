@@ -20,7 +20,7 @@ deletion is completed, the user will be redirected to LaunchScreen.kt.
  * creating reusable composable functions (SectionLabel and SettingsRow)
  * to reduce code duplication and maintain consistent UI formatting
  * and improving the KDoc.
- * Harmanjoth Kaur reviewed the suggestions and made the final changes myself.
+ * Harmanjoth Kaur reviewed the suggestions and made the final changes.
 */
 
 package com.lambda.campsite.view.screens

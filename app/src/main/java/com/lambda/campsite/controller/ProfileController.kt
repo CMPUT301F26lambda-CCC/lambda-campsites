@@ -18,6 +18,12 @@
  * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
  * Sashreek Addanki add onPushTokenAvailable, on November 1, 2026. Sashreek
  * Addanki reviewed it.
+ *
+ * Flow 14: Harmanjoth Kaur added onFinishFirstLaunch, onSaveProfile, onEditProfileClosed and
+ *  onSetNotificationsOn (November 2026).
+ * AI use: GPT-6 (OpenAI), used through the ChatGPT website in November 2026 connect
+ * onSetNotificationsOn to the Settings screen's notifications toggle, resolve an error with the
+ * toggle and KDoc. Harmanjoth Kaur reviewed it, ran and committed it.
  */
 package com.lambda.campsite.controller
 
