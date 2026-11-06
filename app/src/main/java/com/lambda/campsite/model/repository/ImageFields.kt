@@ -1,4 +1,9 @@
 /*
+ * Purpose: how an Image is stored in and read back from its Firestore
+ * document, images/{id}.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Coded by Aarush Bhat with the assistance of Claude Sonnet 5
  * (Anthropic), through Claude Code, in November 2026, following the
  * pattern in NotificationFields. Aarush Bhat reviewed and committed it.

@@ -1,4 +1,10 @@
 /*
+ * Purpose: how a Notification is stored in and read back from its
+ * Firestore document, notifications/{id}.
+ *
+ * Outstanding issues: manual TalkBack and deployed push delivery checks
+ * remain.
+ *
  * AI use: Coded by Aarush Bhat with the assistance of Claude Sonnet 5
  * (Anthropic), through Claude Code, in November 2026, following the
  * pattern in CampsiteFields. Aarush Bhat reviewed and committed it.

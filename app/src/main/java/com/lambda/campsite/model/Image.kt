@@ -1,4 +1,9 @@
 /*
+ * Purpose: a photo uploaded to the app, and the interface letting any
+ * domain class, like a campsite, hold one.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Coded by Aarush Bhat with the assistance of Claude Sonnet 5
  * (Anthropic), through Claude Code, in November 2026, following the
  * pattern in Notification. Aarush Bhat reviewed and committed it.

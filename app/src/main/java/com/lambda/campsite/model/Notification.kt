@@ -1,4 +1,11 @@
 /*
+ * Purpose: a message in an entrant's or owner's inbox (US 01.03.01,
+ * 01.03.02, 01.05.01), created only by a Cloud Function, never by the app
+ * itself.
+ *
+ * Outstanding issues: manual TalkBack and deployed push delivery checks
+ * remain.
+ *
  * AI use: Coded by Aarush Bhat with the assistance of Claude Sonnet 5
  * (Anthropic), through Claude Code, in November 2026, following the
  * Notification class in the team's class diagram. Aarush Bhat reviewed and
