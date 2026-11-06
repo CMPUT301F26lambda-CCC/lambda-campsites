@@ -4,6 +4,13 @@
  * drag-to-move offset updates, syntax and KDoc. Raghav Sethi reviewed, tested,
  * and committed it.
  */
+
+ /**
+ * Purpose: Manages the campsite location selected through search or the map pin.
+ * Feature owner: Raghav Sethi
+ * Outstanding issues: None
+ */
+ 
 package com.lambda.campsite.controller
 
 import androidx.lifecycle.ViewModel

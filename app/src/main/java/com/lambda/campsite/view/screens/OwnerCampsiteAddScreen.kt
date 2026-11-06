@@ -2,6 +2,13 @@
  * Purpose: Connects the owner campsite registration form to its controller.
  * Outstanding issues: None known.
  */
+
+/**
+ * Purpose: Displays the form for registering a new campsite.
+ * Feature owner: Raghav Sethi
+ * Outstanding issues: None
+ */
+
 // AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with campsite registration.
 package com.lambda.campsite.view.screens
 

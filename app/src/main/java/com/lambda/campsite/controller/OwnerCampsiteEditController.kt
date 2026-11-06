@@ -9,6 +9,13 @@
  * the existing campsite ID so QR codes stay valid (US 02.01.03), syntax and KDoc.
  * Raghav Sethi reviewed, tested, and committed it.
  */
+
+/**
+ * Purpose: Loads and saves changes to an existing campsite while preserving its ID.
+ * Feature owner: Raghav Sethi
+ * Outstanding issues: None
+ */
+
 package com.lambda.campsite.controller
 
 import android.graphics.Bitmap

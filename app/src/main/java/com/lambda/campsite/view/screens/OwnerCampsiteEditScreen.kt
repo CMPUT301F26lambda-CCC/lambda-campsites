@@ -2,6 +2,13 @@
  * Purpose: Connects the owner campsite edit form to its controller.
  * Outstanding issues: None known.
  */
+
+/**
+ * Purpose: Displays the form for editing an existing campsite's information.
+ * Feature owner: Raghav Sethi
+ * Outstanding issues: None
+ */
+
 // AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with campsite editing.
 package com.lambda.campsite.view.screens
 

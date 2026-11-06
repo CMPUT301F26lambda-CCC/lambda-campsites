@@ -12,6 +12,13 @@
  * The status bar icon styling was added in November 2026 with GLM 5.3 Flash
  * (Z.ai), through OpenCode, at Raghav Sethi's request.
  */
+
+/**
+ * Purpose: Displays the owner's campsite list, including empty states and registration access.
+ * Feature owner: Raghav Sethi
+ * Outstanding issues: None
+ */
+
 package com.lambda.campsite.view.screens
 
 import androidx.compose.foundation.background

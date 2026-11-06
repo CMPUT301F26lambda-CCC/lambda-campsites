@@ -9,6 +9,12 @@
  * lock once entrants joined, the capacity floor against the live wait list,
  * and the fresh re-read of the stored lottery on save.
  */
+
+ /**
+ * Purpose: Manages the lottery creation and editing wizard, including validation and saving.
+ * Feature owner: Raghav Sethi
+ * Outstanding issues: None
+ */
 // Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 (OpenAI), through Codex,
 // assisted with edit guards, race handling and merge preservation. Human review pending.
 // Outstanding issues: manual TalkBack review and rules deployment remain pending.

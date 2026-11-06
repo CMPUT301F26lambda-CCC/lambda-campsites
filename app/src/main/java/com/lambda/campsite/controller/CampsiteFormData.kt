@@ -10,6 +10,13 @@
  * It unifies form state, field mutations, and validation rules between Add and Edit controllers.
  * Raghav Sethi reviewed, tested, and committed it.
  */
+
+ /**
+ * Purpose: Manages campsite form input, validation, and saving for registration and editing.
+ * Feature owner: Raghav Sethi
+ * Outstanding issues: None
+ */
+ 
 package com.lambda.campsite.controller
 
 import com.lambda.campsite.model.Campsite

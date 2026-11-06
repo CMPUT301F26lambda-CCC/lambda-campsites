@@ -9,6 +9,12 @@
  * (US 02.04.06): the campsites, the registration dates and the capacity cap;
  * human review pending.
  */
+/**
+ * Purpose: Displays the step-by-step form for creating or editing a campsite lottery.
+ * Feature owner: Raghav Sethi
+ * Outstanding issues: None
+ */
+
 // Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 (OpenAI), through Codex,
 // assisted with edit guards, race handling and merge preservation. Human review pending.
 // Outstanding issues: manual TalkBack review and rules deployment remain pending.

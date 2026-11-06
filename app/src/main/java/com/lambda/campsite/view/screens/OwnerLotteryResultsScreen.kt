@@ -8,6 +8,13 @@
  * helped fix the registration close date showing one day late and to read the day
  * through [Lottery.lastDayToJoin]; human review pending.
  */
+
+/**
+ * Purpose: Displays lottery results, including winners and entrants who were not selected.
+ * Feature owner: Raghav Sethi
+ * Outstanding issues: None
+ */
+
 package com.lambda.campsite.view.screens
 
 import androidx.compose.foundation.clickable
