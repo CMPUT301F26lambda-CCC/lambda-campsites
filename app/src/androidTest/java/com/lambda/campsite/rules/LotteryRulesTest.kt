@@ -1,4 +1,8 @@
 /*
+ * Purpose: tests the security rules for lotteries/{id}.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * these tests in November 2026, following the lottery rules in
  * firestore.rules. It helped with the test cases and the Kotlin syntax.

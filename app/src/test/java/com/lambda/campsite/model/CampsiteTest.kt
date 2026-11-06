@@ -1,4 +1,8 @@
 /*
+ * Purpose: unit tests for Campsite.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * these tests in October 2026. It helped with the test cases and the Kotlin
  * syntax. Sashreek Addanki reviewed them, ran them and committed them.

@@ -1,4 +1,9 @@
 /*
+ * Purpose: tests the security rules for waiting-list entries and the
+ * entryCount change that goes with them.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * these tests in November 2026, following the waiting-list rules in
  * firestore.rules. It helped with the test cases and the Kotlin syntax.

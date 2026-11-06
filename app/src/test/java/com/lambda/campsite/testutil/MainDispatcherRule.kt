@@ -1,4 +1,9 @@
 /*
+ * Purpose: gives controller unit tests a main dispatcher, since ViewModels
+ * need one.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026, following the main dispatcher rule from the
  * Android testing docs. It helped with the coroutines test code, syntax and
