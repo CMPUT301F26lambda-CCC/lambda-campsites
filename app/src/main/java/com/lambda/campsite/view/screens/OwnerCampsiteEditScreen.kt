@@ -10,6 +10,13 @@
  * The status bar icon styling was added in November 2026 with GLM 5.3 Flash
  * (Z.ai), through OpenCode, at Raghav Sethi's request.
  */
+
+/**
+ * Purpose: Displays the form for editing an existing campsite's information.
+ * Feature owner: Raghav Sethi
+ * Outstanding issues: None
+ */
+
 package com.lambda.campsite.view.screens
 
 import androidx.compose.foundation.layout.Arrangement

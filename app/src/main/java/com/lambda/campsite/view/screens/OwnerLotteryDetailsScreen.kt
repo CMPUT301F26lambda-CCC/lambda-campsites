@@ -6,6 +6,13 @@
  * the OwnerCampsiteDetailsScreen shape. Raghav Sethi reviewed, tested, and
  * committed it.
  */
+
+ /**
+ * Purpose: Displays a lottery's details, settings, waiting-list information, and results access.
+ * Feature owner: Raghav Sethi
+ * Outstanding issues: None
+ */
+ 
 package com.lambda.campsite.view.screens
 
 import androidx.compose.foundation.background

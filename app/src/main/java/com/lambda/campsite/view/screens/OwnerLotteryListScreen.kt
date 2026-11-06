@@ -8,6 +8,13 @@
  * #169 follow-up, 2026-11-04: GLM 5.3 Flash (Z.ai), through OpenCode, helped
  * switch the registration close date to [Lottery.lastDayToJoin]; human review pending.
  */
+
+/**
+ * Purpose: Displays the owner's lotteries grouped as active, upcoming, or completed.
+ * Feature owner: Raghav Sethi
+ * Outstanding issues: None
+ */
+
 package com.lambda.campsite.view.screens
 
 import androidx.annotation.StringRes

@@ -9,6 +9,12 @@
  * (US 02.04.06): the campsites, the registration dates and the capacity cap;
  * human review pending.
  */
+/**
+ * Purpose: Displays the step-by-step form for creating or editing a campsite lottery.
+ * Feature owner: Raghav Sethi
+ * Outstanding issues: None
+ */
+
 package com.lambda.campsite.view.screens
 
 import androidx.compose.foundation.background
