@@ -1,4 +1,6 @@
 /*
+ * Purpose: Renders the owner reservation status pill consistently across Flow 11 screens.
+ * Outstanding issues: None known.
  * AI use: GPT-6 (OpenAI), through Codex, assisted with the Flow 11 Figma status styling.
  */
 package com.lambda.campsite.view.components

@@ -1,9 +1,15 @@
 /*
+ * Purpose: tests the security rules for lotteries/{id}.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * these tests in November 2026, following the lottery rules in
  * firestore.rules. It helped with the test cases and the Kotlin syntax.
  * Sashreek Addanki reviewed them.
  */
+// Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted
+// with race/refusal and access-rule regression tests; human review pending.
 package com.lambda.campsite.rules
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -197,6 +203,35 @@ class LotteryRulesTest {
         val error = firestoreErrorFrom { lotteries.document("mine").delete().await() }
 
         assertPermissionDenied(error)
+    }
+
+
+    @Test fun joinedEntrantsLockCampsitesAndBothRegistrationDates() {
+        setUpOnServer("locked", lottery(), entryCount = 1)
+        val ref = lotteries.document("locked")
+        for (update in listOf(
+            mapOf("campsiteIds" to listOf("mine-too")),
+            mapOf("registrationOpens" to time("2027-05-02T15:00:00Z")),
+            mapOf("registrationCloses" to time("2027-06-02T15:00:00Z")))) {
+            assertPermissionDenied(firestoreErrorFrom { ref.update(update).await() })
+        }
+    }
+
+    @Test fun capacityCannotFallBelowJoinedCountButCanBeRaisedOrUnlimited() {
+        setUpOnServer("locked", lottery(), entryCount = 3)
+        val ref = lotteries.document("locked")
+        assertPermissionDenied(firestoreErrorFrom { ref.update("capacity", 2).await() })
+        assertNull(firestoreErrorFrom { ref.update("capacity", 3).await() })
+        assertNull(firestoreErrorFrom { ref.update("capacity", 20).await() })
+        assertNull(firestoreErrorFrom { ref.update(mapOf("capacity" to null)).await() })
+    }
+
+    @Test fun noEntrantsAllowsCampsiteAndRegistrationEdits() {
+        setUpOnServer("empty", lottery(), entryCount = 0)
+        assertNull(firestoreErrorFrom { lotteries.document("empty").update(mapOf(
+            "campsiteIds" to listOf("mine-too"),
+            "registrationOpens" to time("2027-05-02T15:00:00Z"),
+            "registrationCloses" to time("2027-06-02T15:00:00Z"))).await() })
     }
 
     private fun assertPermissionDenied(error: FirebaseFirestoreException?) {

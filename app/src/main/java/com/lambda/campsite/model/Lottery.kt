@@ -1,4 +1,7 @@
 /*
+ * Purpose: a lottery and its status, with the registration window and
+ * waiting-list limit checks.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in November 2026, following the Lottery class and the
  * LotteryStatus enumeration in the team's class diagram. It helped with the
@@ -9,6 +12,9 @@
 // #169 follow-up: Raghav Sethi, 2026-11-04. GLM 5.3 Flash (Z.ai), through OpenCode,
 // helped write [lastDayToJoin], the shared last-join-day read every screen shows;
 // human review pending.
+// Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 (OpenAI), through Codex,
+// assisted with edit guards, race handling and merge preservation. Human review pending.
+// Outstanding issues: manual TalkBack review and rules deployment remain pending.
 package com.lambda.campsite.model
 
 import com.google.firebase.Timestamp
@@ -93,6 +99,16 @@ data class Lottery(
     val drawnCampsiteNames: List<String> = emptyList(),
 ) {
 
+    /** Checks an owner's edit against the latest stored draw status, count and locked fields. */
+    fun editRestriction(stored: Lottery): LotteryEditRestriction? = when {
+        stored.status != LotteryStatus.OPEN -> LotteryEditRestriction.NOT_OPEN
+        stored.entryCount > 0 && (campsiteIds != stored.campsiteIds ||
+            registrationOpens != stored.registrationOpens || registrationCloses != stored.registrationCloses) ->
+            LotteryEditRestriction.LOCKED_FIELDS_CHANGED
+        capacity != null && capacity < stored.entryCount -> LotteryEditRestriction.CAPACITY_BELOW_JOINED
+        else -> null
+    }
+
     /**
      * Returns `true` if entrants can join or leave at [now]: from
      * [registrationOpens] up to, but not including, [registrationCloses],
@@ -132,3 +148,6 @@ data class Lottery(
     fun lastDayToJoin(zone: ZoneId = ZoneId.systemDefault()): LocalDate =
         registrationCloses.toInstant().atZone(zone).toLocalDate().minusDays(1)
 }
+
+/** Why a stored lottery cannot accept the proposed owner edit. */
+enum class LotteryEditRestriction { NOT_OPEN, LOCKED_FIELDS_CHANGED, CAPACITY_BELOW_JOINED }

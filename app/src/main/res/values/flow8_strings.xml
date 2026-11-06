@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- OpenAI GPT-6 through Codex assisted with Flow 8 text. -->
+<!-- Lalith Valluru, 2026-11-03. Outstanding issues: translation review remains. -->
+<!-- Purpose: Provide user-facing text for lottery notifications and the inbox. -->
+<resources>
+    <string name="flow8_inbox">Notifications</string>
+    <string name="flow8_open_inbox">Open notifications</string>
+    <string name="flow8_back_home">Back to Home</string>
+    <string name="flow8_back_inbox">Back to notifications</string>
+    <string name="flow8_loading">Loading notifications…</string>
+    <string name="flow8_empty">No notifications yet. Your lottery results will appear here.</string>
+    <string name="flow8_load_failed">Could not load notifications. Check your connection and retry.</string>
+    <string name="flow8_retry">Retry loading notifications</string>
+    <string name="flow8_read_failed">Your read status could not be confirmed. You can still read this notice.</string>
+    <string name="flow8_retry_read">Retry marking as read</string>
+    <string name="flow8_missing">This notification is no longer available.</string>
+    <string name="flow8_dismiss">Dismiss message</string>
+    <string name="flow8_read">Read</string>
+    <string name="flow8_unread">Unread</string>
+    <string name="flow8_saving_read">Updating read status…</string>
+    <string name="flow8_won">You won!</string>
+    <string name="flow8_lost">Not selected</string>
+    <string name="flow8_confirmed">Reservation confirmed</string>
+    <string name="flow8_removed">Campsite removed</string>
+    <string name="flow8_details">Notification details</string>
+    <string name="flow8_no_body">No additional details were provided.</string>
+    <string name="flow8_browse">Browse campsites</string>
+    <string name="flow8_sent_at">%1$s (%2$s)</string>
+    <string name="flow8_count">Unread notifications: %1$d</string>
+    <string name="flow8_today">Today</string>
+    <string name="flow8_earlier">Earlier</string>
+    <string name="flow8_result_title">Lottery result</string>
+    <string name="flow8_result_failed">Could not load this lottery. Retry to see its booking options.</string>
+    <string name="flow8_stay_period">Stay dates you can book</string>
+    <string name="flow8_registration">Registration period</string>
+    <string name="flow8_opened">Opened: %1$s</string>
+    <string name="flow8_closed">Closed: %1$s</string>
+    <string name="flow8_accept">Accept and choose dates</string>
+    <string name="flow8_view_booking">View reservation</string>
+    <string name="flow8_legacy">Booking details are unavailable for this older or removed lottery. Your original notification is shown below.</string>
+</resources>

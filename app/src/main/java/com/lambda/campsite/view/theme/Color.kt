@@ -1,4 +1,7 @@
 /*
+ * Purpose: the brand colours from the team's Figma file, for light and dark
+ * mode.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped change
  * this file in October 2026, replacing the template's purple with the team's
  * Figma colour tokens. Sashreek Addanki reviewed and committed it.

@@ -1,4 +1,8 @@
 /*
+ * Purpose: emulator tests for FirestoreCampsiteRepository.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * these tests in October 2026. It helped with the test cases, the coroutines
  * code and the Kotlin syntax. It also helped add the availability tests in

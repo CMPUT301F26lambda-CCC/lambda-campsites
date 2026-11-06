@@ -2,7 +2,7 @@
 Purpose:
 This screen allows users to edit their profile information, including
 their name, email and phone number. Each field has its own validation
-to ensure the information entered is in the correct format.
+to ensure the information entered is in the correct format.(US 01.07.03)
 
 Both the Cancel button and the X button at the top have the same
 functionality. When clicked, a confirmation dialog appears with two
@@ -45,7 +45,32 @@ import com.lambda.campsite.R
 import com.lambda.campsite.view.theme.DeepGreen
 import com.lambda.campsite.view.theme.ForestGreen
 import com.lambda.campsite.view.theme.Mint
-
+/**
+ * Lets the entrant edit their name, email and phone number (US 01.07.03).
+ *
+ * The fields start with the profile's current values. Each field is checked
+ * when the entrant presses Save Changes: the name can't be blank, the email
+ * must look like `name@example.com`, and the phone number must have exactly
+ * 10 digits. An error message is shown under each field that fails, and
+ * nothing is saved until all three are valid.
+ *
+ * Cancel and the X button both open a dialog that asks whether to discard
+ * the changes. Keep editing closes the dialog. Discard calls [onCancel].
+ *
+ * The avatar shows the initials of the name being typed, and updates as the
+ * entrant edits it.
+ *
+ * @param name the profile's current name, shown in the Name field.
+ * @param email the profile's current email address, shown in the Email field.
+ * @param phone the profile's current phone number, or `null` if none is saved,
+ *   in which case the Phone field starts empty.
+ * @param onCancel called when the entrant confirms they want to discard
+ *   their changes.
+ * @param onSave called with the trimmed name, email and phone number when
+ *   the entrant presses Save Changes and every field is valid.
+ * @param saveFailed `true` if the last save failed, which shows an error
+ *   message above the Save Changes button.
+ */
 @Composable
 fun EditProfileScreen(
     name: String,

@@ -15,6 +15,9 @@
  * Outstanding issues: None
  */
 
+// Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 (OpenAI), through Codex,
+// assisted with edit guards, race handling and merge preservation. Human review pending.
+// Outstanding issues: manual TalkBack review and rules deployment remain pending.
 package com.lambda.campsite.view.screens
 
 import androidx.compose.foundation.background
@@ -67,6 +70,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -135,7 +139,7 @@ fun NewLotteryScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            stringResource(R.string.new_lottery_title),
+                            stringResource(if (state.isEditing) R.string.edit_lottery_title else R.string.new_lottery_title),
                             modifier = Modifier.semantics { heading() },
                         )
                     },
@@ -173,7 +177,7 @@ fun NewLotteryScreen(
                         Text(
                             stringResource(
                                 if (state.step < WizardSteps.size) R.string.action_continue
-                                else R.string.create_lottery_button,
+                                else if (state.isEditing) R.string.edit_lottery_save else R.string.create_lottery_button,
                             ),
                         )
                     }
@@ -277,7 +281,7 @@ private fun CampsitesStep(
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    if (locked) LockNote(stringResource(R.string.new_lottery_locked_campsites, joinedEntrants))
+    if (locked) LockNote(pluralStringResource(R.plurals.new_lottery_locked_campsites, joinedEntrants, joinedEntrants))
 }
 
 /**
@@ -351,7 +355,7 @@ private fun DatesStep(controller: NewLotteryController, state: NewLotteryUiState
         onClick = { openPickerFor = WizardDateField.REGISTRATION_CLOSES },
     )
     if (datesLocked) {
-        LockNote(stringResource(R.string.new_lottery_locked_registration, state.joinedEntrants))
+        LockNote(pluralStringResource(R.plurals.new_lottery_locked_registration, state.joinedEntrants, state.joinedEntrants))
     }
 
     FormSectionTitle(stringResource(R.string.new_lottery_booking_period))
@@ -491,7 +495,7 @@ private fun SettingsStep(controller: NewLotteryController, state: NewLotteryUiSt
         )
         if (state.hasJoinedEntrants()) {
             // US 02.04.06: the capacity stays above the entrants already joined.
-            LockNote(stringResource(R.string.new_lottery_locked_capacity, state.joinedEntrants))
+            LockNote(pluralStringResource(R.plurals.new_lottery_locked_capacity, state.joinedEntrants, state.joinedEntrants))
         } else {
             Text(
                 text = stringResource(R.string.new_lottery_unlimited_hint),
@@ -585,7 +589,7 @@ private fun ReviewStep(controller: NewLotteryController, state: NewLotteryUiStat
         },
     )
     Text(
-        text = stringResource(R.string.new_lottery_create_hint),
+        text = stringResource(if (state.hasJoinedEntrants()) R.string.edit_lottery_locked_hint else R.string.new_lottery_create_hint),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -641,6 +645,7 @@ internal fun newLotteryErrorRes(error: NewLotteryError): Int = when (error) {
     NewLotteryError.MISSING_NAME -> R.string.error_lottery_missing_name
     NewLotteryError.CAPACITY_BELOW_JOINED -> R.string.error_lottery_capacity_below_joined
     NewLotteryError.NOT_DRAWABLE -> R.string.error_lottery_not_drawable
+    NewLotteryError.LOCKED_FIELDS_CHANGED -> R.string.error_lottery_locked_fields_changed
     NewLotteryError.SAVE_FAILED -> R.string.error_lottery_save_failed
 }
 

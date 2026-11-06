@@ -1,4 +1,9 @@
 /*
+ * Purpose: Checks campsite edit prefilling, validation, and saving.
+ * Outstanding issues: None known.
+ */
+// AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
+/*
  * AI use: Gemini 3.8 Flash (Google DeepMind) helped write these tests in November 2026.
  * It helped with test cases for pre-filled data, editing fields, saving changes
  * while retaining the same campsite ID (US 02.01.03), and offline failure handling.
@@ -8,6 +13,11 @@ package com.lambda.campsite.controller
 
 import com.lambda.campsite.model.Campsite
 import com.lambda.campsite.model.repository.FakeCampsiteRepository
+import com.lambda.campsite.model.repository.CampsiteRepository
+import java.io.IOException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.emitAll
 import com.lambda.campsite.testutil.MainDispatcherRule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -75,5 +85,37 @@ class OwnerCampsiteEditControllerTest {
 
         assertFalse(savedSuccess)
         assertTrue(controller.state.value.saveFailed)
+    }
+
+    @Test
+    fun `edit load failure stops spinner and retry restores fields`() {
+        val base = FakeCampsiteRepository(initial = listOf(original))
+        var fail = true
+        val repository = object : CampsiteRepository by base {
+            override fun campsite(id: String): Flow<Campsite?> = flow {
+                if (fail) throw IOException("Offline")
+                emitAll(base.campsite(id))
+            }
+        }
+        val controller = OwnerCampsiteEditController(original.id, repository)
+        assertTrue(controller.state.value.loadFailed)
+        assertFalse(controller.state.value.isLoading)
+        fail = false
+        controller.retryLoad()
+        assertFalse(controller.state.value.loadFailed)
+        assertEquals(original.name, controller.state.value.name)
+    }
+
+    @Test
+    fun `editing persists price and rules with original campsite ID`() {
+        val repository = FakeCampsiteRepository(initial = listOf(original))
+        val controller = OwnerCampsiteEditController(original.id, repository)
+        controller.onPriceChange("42.00")
+        controller.onRulesChange("Quiet after 10 pm")
+        controller.onSave { }
+        val saved = repository.saved.single()
+        assertEquals(original.id, saved.id)
+        assertEquals(42.0, saved.pricePerNight!!, 0.0)
+        assertEquals("Quiet after 10 pm", saved.rules)
     }
 }

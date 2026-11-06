@@ -1,4 +1,6 @@
 /*
+ * Purpose: Checks owner reservation grouping, selection, and live updates.
+ * Outstanding issues: None known.
  * AI use: GPT-6 (OpenAI), through Codex, helped write Flow 11 controller
  * tests for reservation groups, dates, selection and live updates.
  * Human review is pending.

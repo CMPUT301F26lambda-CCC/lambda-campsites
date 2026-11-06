@@ -1,4 +1,6 @@
 /*
+ * Purpose: Binds CameraX preview and image analysis to the scanner lifecycle and forwards decoded payloads.
+ * Outstanding issues: Physical-device preview and lifecycle behavior remain unverified.
  * Feature owner: Sreeman Reddy, Flow 16 (#133), November 2026.
  * AI use: GPT-6 (OpenAI), through Codex, assisted me with the lifecycle-bound
  * CameraX preview and QR frame analysis. Human review is pending.

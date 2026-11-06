@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lalith Valluru, 2026-11-03. OpenAI GPT-6 through Codex assisted with Flow 9 resources. -->
+<!-- Purpose: Provide user-facing text for winner booking and reservation confirmation. -->
+<!-- Outstanding issues: None known. -->
+<resources>
+    <string name="flow9_choose_site">Choose a campsite</string>
+    <string name="flow9_choose_dates">Choose your dates</string>
+    <string name="flow9_review">Review and confirm</string>
+    <string name="flow9_confirmed">Reservation confirmed</string>
+    <string name="flow9_all_set">You are all set</string>
+    <string name="flow9_declined">Your win has been declined. No reservation was created.</string>
+    <string name="flow9_decline_title">Decline your win?</string>
+    <string name="flow9_decline_body">You will no longer be able to book from this lottery. This cannot be undone.</string>
+    <string name="flow9_decline">Decline</string>
+    <string name="flow9_cancel">Cancel</string>
+    <string name="flow9_back">Back</string>
+    <string name="flow9_done">Done</string>
+    <string name="flow9_continue">Continue</string>
+    <string name="flow9_retry">Retry</string>
+    <string name="flow9_loading">Loading your booking options…</string>
+    <string name="flow9_load_error">Could not load booking options. Check your connection and retry.</string>
+    <string name="flow9_winner_only">This view is only available for an unused lottery win.</string>
+    <string name="flow9_site_intro">You won %1$s. Pick the campsite you want to book.</string>
+    <string name="flow9_sites_heading">Campsites in this lottery</string>
+    <string name="flow9_other_options">When you book one, your other options are released to other winners.</string>
+    <string name="flow9_site_missing">A campsite in this lottery is no longer available.</string>
+    <string name="flow9_checkin">Check-in</string>
+    <string name="flow9_checkout">Check-out</string>
+    <string name="flow9_pick_checkin">Choose check-in</string>
+    <string name="flow9_pick_checkout">Choose check-out</string>
+    <string name="flow9_dates_heading">Available dates</string>
+    <string name="flow9_calendar_hint">Choose a free check-in, then a check-out. Faded dates are booked or outside the stay period or season.</string>
+    <string name="flow9_no_dates">No dates remain for this campsite. Choose another campsite or decline your win.</string>
+    <string name="flow9_previous_month">Previous month</string>
+    <string name="flow9_next_month">Next month</string>
+    <string name="flow9_available_date">%1$s, available</string>
+    <string name="flow9_unavailable_date">%1$s, unavailable</string>
+    <string name="flow9_checkout_date">%1$s, available for check-out</string>
+    <string name="flow9_guests">Guests</string>
+    <string name="flow9_guest_limit">Up to %1$d guests at this campsite.</string>
+    <string name="flow9_fewer_guests">Fewer guests</string>
+    <string name="flow9_more_guests">More guests</string>
+    <string name="flow9_rules">Campsite rules</string>
+    <string name="flow9_no_rules">The owner has not provided additional campsite rules.</string>
+    <string name="flow9_agree">I have read and agree to the campsite rules</string>
+    <string name="flow9_book">Confirm reservation</string>
+    <string name="flow9_saving">Saving…</string>
+    <string name="flow9_receipt_pending">Your booking was saved. Loading its confirmation…</string>
+    <string name="flow9_reservation_number">Reservation number: %1$s</string>
+    <string name="flow9_dates">%1$s – %2$s</string>
+    <string name="flow9_receipt_guests">Guests: %1$d</string>
+    <string name="flow9_dates_taken">Those dates were just booked. Go back and choose available dates.</string>
+    <string name="flow9_invalid_dates">Choose a check-in and check-out with every night still available.</string>
+    <string name="flow9_invalid_guests">Choose a guest count within the campsite limit.</string>
+    <string name="flow9_save_error">Could not save your choice. Check your connection and retry.</string>
+    <string name="flow9_rules_required">Please agree to the campsite rules before confirming.</string>
+    <string name="flow9_wins_title">Your lottery wins</string>
+    <string name="flow9_no_wins">No lottery wins yet.</string>
+    <string name="flow9_open_win">View win</string>
+    <string name="flow9_unused">Ready to book</string>
+    <string name="flow9_booked">Booked</string>
+    <string name="flow9_history_declined">Declined</string>
+</resources>

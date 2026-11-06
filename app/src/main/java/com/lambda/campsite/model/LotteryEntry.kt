@@ -1,4 +1,9 @@
 /*
+ * Purpose: one entrant's place on a lottery's waiting list and where it stands
+ * after the draw.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in November 2026, following the LotteryEntry class and the
  * EntryStatus enumeration in the team's class diagram. It helped with the

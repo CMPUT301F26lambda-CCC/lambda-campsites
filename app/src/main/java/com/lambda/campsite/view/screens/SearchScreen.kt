@@ -1,10 +1,21 @@
 /*
  * Purpose: entrant search matched to the Figma brand header and summary cards (#154).
  * Feature owner: Lalith Valluru. Last updated: 2026-11-03.
- * Outstanding issues: filters, scanner and notifications remain in their separate flows.
+ * Outstanding issues: filters and scanner remain in their separate flows.
+ * Flow 8 (#125): the live unread bell opens the notification inbox.
  * AI use: OpenAI GPT-6 (OpenAI), through Codex, assisted with Compose layout and semantics;
  * human review pending.
+ *
+ * Harmanjoth Kaur, 2026-11-04. Added the campsite filters to this screen
+ * The filter outstanding issue is now done
+ * When the filter is applied the search list, it only
+ * shows the controller's filtered results
+ * instead of the plain search results
+ * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code in November 2026,
+ * helped Harmanjoth Kaur in connecting the filtes with the search screen.
  */
+// Follow-up #174: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted
+// with filtered-empty actions and partial availability notices; human review pending.
 package com.lambda.campsite.view.screens
 
 import androidx.compose.foundation.Image
@@ -18,6 +29,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -37,13 +49,25 @@ import com.lambda.campsite.controller.*
 import com.lambda.campsite.model.Campsite
 import com.lambda.campsite.view.components.*
 import com.lambda.campsite.view.theme.*
+import java.time.LocalDate
+import androidx.compose.runtime.saveable.rememberSaveable
 
 /** Entrant Home, with its real profile greeting and lifecycle-owned live lottery badges. */
 @Composable
-fun SearchScreen(controller: SearchController, onCampsiteClick: (String) -> Unit, profileName: String? = null) {
+fun SearchScreen(controller: SearchController, onCampsiteClick: (String) -> Unit, profileName: String? = null,
+                 onInbox: (() -> Unit)? = null, unreadCount: Int = 0,
+                 filterController: CampsiteFilterController = viewModel(factory = CampsiteFilterController.Factory)) {
     val state by controller.state.collectAsStateWithLifecycle()
-    SearchContent(state, controller::onQueryChanged, controller::onRetry, onCampsiteClick,
+    val filters by filterController.state.collectAsStateWithLifecycle()
+    // The filters work on whatever the entrant searched for (Flow 15).
+    LaunchedEffect(state.results) { filterController.onSearchResultsChanged(state.results) }
+    // Once a filter is applied, the list shows the filtered results instead of the plain search.
+    val shown = if (!filters.hasFilters) state else state.copy(results = filters.results,
+        isLoading = state.isLoading || filters.isLoading, loadFailed = state.loadFailed || filters.loadFailed)
+    SearchContent(shown, controller::onQueryChanged, { controller.onRetry(); filterController.onRetry() }, onCampsiteClick,
         onSubmitSearch = controller::onSubmitSearch, onClearSearch = { controller.onSearch("") }, profileName = profileName,
+        filters = filters, onApplyFilters = filterController::onApplyFilters, onClearFilters = filterController::onClearFilters,
+        onInbox = onInbox, unreadCount = unreadCount, onRetryCalendars = filterController::onRetry,
         status = { camp ->
             val lottery: LotteryController = viewModel(key = "search-lottery-${camp.id}",
                 factory = LotteryController.createFactory(camp.id))
@@ -61,16 +85,26 @@ fun SearchScreen(controller: SearchController, onCampsiteClick: (String) -> Unit
  * @param onClearSearch clears both draft and submitted query.
  * @param profileName actual profile name, or null for a neutral greeting.
  * @param status optional live status supplied by the screen, never invented by a card.
+ * @param filters the applied location, dates and guests, shown on the filter chips and
+ * used to start the Filters sheet (US 01.01.02).
+ * @param onApplyFilters applies the location, check-in, check-out and guests chosen in
+ * the Filters sheet when the entrant presses Apply filter.
+ * @param onClearFilters clears every filter, so the plain search results show again.
+ *
  */
 @Composable
 fun SearchContent(state: SearchUiState, onSearch: (String) -> Unit, onRetry: () -> Unit,
     onCampsiteClick: (String) -> Unit, onSubmitSearch: () -> Unit = { onSearch(state.query) },
     onClearSearch: () -> Unit = { onSearch("") }, profileName: String? = null,
-    status: @Composable (Campsite) -> Unit = {}) {
+                  status: @Composable (Campsite) -> Unit = {}, onInbox: (() -> Unit)? = null, unreadCount: Int = 0,
+                  filters: CampsiteFilterUiState = CampsiteFilterUiState(),
+                  onApplyFilters: (String, LocalDate?, LocalDate?, Int?) -> Unit = { _, _, _, _ -> },
+                  onClearFilters: () -> Unit = {}, onRetryCalendars: () -> Unit = onRetry) {
     val keyboard = LocalSoftwareKeyboardController.current
+    var showFilters by rememberSaveable { mutableStateOf(false) }
     val submit = { onSubmitSearch(); keyboard?.hide(); Unit }
     StatusBarIconStyle(darkIcons = false)
-    Scaffold(containerColor = ForestGreen, topBar = { EntrantSearchHeader(profileName) }) { padding ->
+    Scaffold(containerColor = ForestGreen, topBar = { EntrantSearchHeader(profileName, onInbox, unreadCount) }) { padding ->
         Surface(Modifier.fillMaxSize().padding(padding), color = Mint, contentColor = CampOnSurface,
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)) {
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 24.dp),
@@ -98,11 +132,33 @@ fun SearchContent(state: SearchUiState, onSearch: (String) -> Unit, onRetry: () 
                         keyboardActions = KeyboardActions(onSearch = { submit() }),
                         modifier = Modifier.fillMaxWidth(), singleLine = true)
                 }
+                item {
+                    CampsiteFilterChips(
+                        filters.location, filters.checkIn, filters.checkOut, filters.guests,
+                        onClick = { keyboard?.hide(); showFilters = true })
+                }
+                if (filters.failedCalendarCount > 0) item {
+                    Text(stringResource(R.string.flow15_availability_partial),
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                    OutlinedButton(onClick = onRetryCalendars) { Text(stringResource(R.string.flow15_retry_availability)) }
+                }
+                if (!state.isLoading && filters.pendingCalendarCount > 0) item {
+                    Text(stringResource(R.string.flow15_checking_other_availability),
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                }
                 when {
                     state.isLoading -> item { CircularProgressIndicator(); Text(stringResource(R.string.entrant_campsite_loading)) }
                     state.loadFailed -> item { CampsiteLoadError(onRetry) }
                     state.results.isEmpty() -> item {
-                        if (state.submittedQuery.isBlank()) Text(stringResource(R.string.entrant_campsite_empty),
+                        if (filters.hasDates && filters.failedCalendarCount > 0) {
+                            // No confirmed matches: the partial-read notice and retry above explain why.
+                        } else if (filters.hasFilters) Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(stringResource(R.string.flow15_no_filter_results),
+                                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                            TextButton(onClick = onClearFilters, modifier = Modifier.heightIn(min = 48.dp)) {
+                                Text(stringResource(R.string.flow15_clear_filters))
+                            }
+                        } else if (state.submittedQuery.isBlank()) Text(stringResource(R.string.entrant_campsite_empty),
                             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
                         else Column(Modifier.fillMaxWidth().padding(top = 56.dp, bottom = 24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -131,20 +187,39 @@ fun SearchContent(state: SearchUiState, onSearch: (String) -> Unit, onRetry: () 
                                 onDetails = { onCampsiteClick(camp.id) }, status = { status(camp) })
                         }
                     }
+
                 }
             }
         }
+    }
+        if (showFilters) {
+            CampsiteFilterSheet(filters.location, filters.checkIn, filters.checkOut, filters.guests,
+                onApply = { location, checkIn, checkOut, guests ->
+                    onApplyFilters(location, checkIn, checkOut, guests)
+                    showFilters = false
+                },
+                onClear = onClearFilters,
+                onDismiss = { showFilters = false })
+
     }
 }
 
 /** Existing Home brand artwork with the Figma typography and the actual user's greeting. */
 @Composable
-private fun EntrantSearchHeader(name: String?) {
+private fun EntrantSearchHeader(name: String?, onInbox: (() -> Unit)?, unreadCount: Int) {
     Column(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 24.dp, end = 24.dp, top = 12.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Image(painterResource(R.drawable.camp_logo), null, Modifier.size(40.dp).clip(CircleShape))
             Text(stringResource(R.string.app_name), style = CampBrandName, color = Color.White, modifier = Modifier.weight(1f))
+            if (onInbox != null) IconButton(onClick = onInbox, modifier = Modifier.size(48.dp)) {
+                val description = stringResource(R.string.flow8_open_inbox)
+                val unread = stringResource(R.string.flow8_count, unreadCount)
+                BadgedBox(badge = { if (unreadCount > 0) Badge() }) {
+                    Icon(Icons.Outlined.Notifications, description, tint = Color.White,
+                        modifier = Modifier.semantics { stateDescription = unread })
+                }
+            }
         }
         Text(if (name.isNullOrBlank()) stringResource(R.string.entrant_home_greeting_default)
             else stringResource(R.string.entrant_home_greeting, name), style = MaterialTheme.typography.bodyLarge, color = Mint)

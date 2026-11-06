@@ -1,4 +1,6 @@
 /*
+ * Purpose: Provides shared Flow 10 reservation card, status, and date presentation components.
+ * Outstanding issues: None known.
  * Feature owner: Sreeman Reddy, Flow 10 (#127), November 2026.
  * AI use: GPT-6 (OpenAI), through Codex, assisted me with entrant reservation
  * status styling and date formatting from the read-only Figma mockups.

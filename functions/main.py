@@ -1,3 +1,6 @@
+# Feature owner: Lalith Valluru. Last updated: 2026-11-03 (Flow 8).
+# OpenAI GPT-6 (OpenAI), through Codex, assisted with source lottery IDs in draw notices; human review pending.
+
 # Flow 5: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted
 # with draw metadata/edge-case coverage; human review pending.
 # Last updated: 2026-11-03 (Flow 12).
@@ -39,6 +42,8 @@
 # Flow 12 feature owner: Lalith Valluru. OpenAI GPT-6 (OpenAI), through Codex,
 # assisted with owner_waiting_list_contacts, its contact projection and validation.
 # Human review pending.
+# Issue #151: GPT-6 (OpenAI), through Codex, assisted me with the callable's
+# Admin SDK client setup; emulator clients stay in test fixtures.
 """Cloud Functions for Lambda Campsite.
 
 docs/architecture.md section 4 lists every function: drawLotteries,
@@ -47,14 +52,12 @@ gets added here by its own issue.
 """
 
 import random
-import os
 from datetime import datetime, timezone
 
 from firebase_admin import firestore, initialize_app, messaging
 from firebase_functions import firestore_fn, logger, scheduler_fn, https_fn
 from firebase_functions.options import set_global_options
 from google.cloud.firestore_v1.base_query import FieldFilter
-from google.cloud import firestore as cloud_firestore
 
 # At most 10 copies of each function run at once, so a bug or a burst of
 # requests can't start hundreds of them and run up a bill.
@@ -70,13 +73,7 @@ def owner_waiting_list_contacts(request: https_fn.CallableRequest) -> dict:
     """US 02.09.01: return only contacts for an active owner's lottery entries."""
     if request.auth is None:
         raise https_fn.HttpsError(https_fn.FunctionsErrorCode.UNAUTHENTICATED, "Sign in first.")
-    # A local test suite has no production service-account credentials. The
-    # Google client uses anonymous credentials only when an emulator host is set.
-    # Production always uses the Admin SDK's deployed service identity.
-    db = (cloud_firestore.Client(project=os.environ.get("GCLOUD_PROJECT"))
-          if os.environ.get("FUNCTIONS_EMULATOR") == "true" and os.environ.get("FIRESTORE_EMULATOR_HOST")
-          else firestore.client())
-    return waiting_list_contacts(db, request.auth.uid, request.data)
+    return waiting_list_contacts(firestore.client(), request.auth.uid, request.data)
 
 
 def waiting_list_contacts(db, uid, data):
@@ -183,7 +180,8 @@ def _draw_in_transaction(transaction, db, lottery_ref, now):
         won = entry.id in winner_ids
         transaction.update(entry.reference, {"status": "WON" if won else "NOT_SELECTED"})
         notification = db.collection("notifications").document()
-        transaction.set(notification, _lottery_notification(entry.get("entrantId"), lottery["name"], won))
+        transaction.set(notification, _lottery_notification(entry.get("entrantId"), lottery["name"], won,
+            lottery_ref.id, campsite_names or lottery.get("campsiteIds", []), lottery["registrationOpens"], lottery["registrationCloses"]))
 
     transaction.update(lottery_ref, {
         "status": "DRAWN", "drawnAt": firestore.SERVER_TIMESTAMP,
@@ -192,8 +190,8 @@ def _draw_in_transaction(transaction, db, lottery_ref, now):
     })
 
 
-def _lottery_notification(recipient_id, lottery_name, won):
-    """A WIN or LOSE notification document, the way NotificationFields.kt stores one."""
+def _lottery_notification(recipient_id, lottery_name, won, lottery_id, campsite_names, registration_opens, registration_closes):
+    """A WIN or LOSE notice with a stable source lottery ID for booking handoff."""
     if won:
         title = "You won the lottery"
         body = f"You won the lottery for {lottery_name}."
@@ -202,8 +200,11 @@ def _lottery_notification(recipient_id, lottery_name, won):
         title = "You weren't selected"
         body = f"You weren't selected in the lottery for {lottery_name}."
         notification_type = "LOSE"
+    # Keep public campsite labels and the registration period readable even after a lottery is removed.
+    body += f" Campsites: {', '.join(campsite_names)}. Registration: {registration_opens.isoformat()} to {registration_closes.isoformat()}."
     return {
         "recipientId": recipient_id,
+        "lotteryId": lottery_id,
         "type": notification_type,
         "title": title,
         "body": body,

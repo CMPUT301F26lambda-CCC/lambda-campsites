@@ -1,4 +1,8 @@
 /*
+ * Purpose: stands in for a tab whose real screen isn't built yet.
+ *
+ * Outstanding issues: delete it once every tab has its real screen.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Compose code, syntax and KDoc.
  * Sashreek Addanki reviewed it and committed it.

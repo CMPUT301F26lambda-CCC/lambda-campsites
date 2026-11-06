@@ -1,4 +1,6 @@
 /*
+ * Purpose: Checks Flow 10 reservation tabs, details, cancellation confirmation, and terminal states in Compose.
+ * Outstanding issues: None known.
  * Feature owner: Sreeman Reddy, Flow 10 (#127), November 2026.
  * AI use: GPT-6 (OpenAI), through Codex, assisted me with these UI tests.
  * Human review is pending.

@@ -1,4 +1,9 @@
 /*
+ * Purpose: Defines campsite image storage operations for the model layer.
+ * Outstanding issues: None known.
+ */
+// AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
+/*
  * AI use: Coded by Aarush Bhat with the assistance of Claude Sonnet 5
  * (Anthropic), through Claude Code, in November 2026, following the
  * pattern in NotificationRepository. Aarush Bhat reviewed and committed it.
@@ -25,4 +30,7 @@ interface ImageRepository {
      * @throws Exception if the upload fails, for example when the phone is offline.
      */
     suspend fun upload(photo: Bitmap): String
+
+    /** Resolves an existing photo for display; returns null when it is unavailable. */
+    suspend fun downloadUrl(imageId: String): String? = null
 }

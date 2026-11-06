@@ -1,4 +1,9 @@
 /*
+ * Purpose: Loads the current owner's campsite list and its UI state.
+ * Outstanding issues: None known.
+ */
+// AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
+/*
  * AI use: Gemini 3.8 Flash (Google DeepMind) helped write this file in November 2026.
  * It helped with the ViewModel and StateFlow setup, error handling, syntax and KDoc,
  * following the architecture guide. Raghav Sethi reviewed, tested, and committed it.
@@ -20,6 +25,9 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.lambda.campsite.LambdaApplication
 import com.lambda.campsite.model.Campsite
 import com.lambda.campsite.model.repository.CampsiteRepository
+import com.lambda.campsite.model.repository.ImageRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -44,6 +52,7 @@ data class OwnerCampsiteListUiState(
     val campsites: List<Campsite> = emptyList(),
     val isLoading: Boolean = true,
     val error: CampsiteListError? = null,
+    val photoUrls: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -57,6 +66,7 @@ data class OwnerCampsiteListUiState(
  */
 class OwnerCampsiteListController(
     private val repository: CampsiteRepository,
+    private val imageRepository: ImageRepository? = null,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(OwnerCampsiteListUiState())
@@ -64,12 +74,33 @@ class OwnerCampsiteListController(
     /** The current UI state. The screen reads it with `collectAsStateWithLifecycle()`. */
     val state: StateFlow<OwnerCampsiteListUiState> = _state.asStateFlow()
 
-    init {
-        viewModelScope.launch {
+    private var listJob: Job? = null
+
+    init { retry() }
+
+    /** Reconnects the live Firestore listener after a failure. */
+    fun retry() {
+        listJob?.cancel()
+        _state.update { it.copy(isLoading = true, error = null) }
+        listJob = viewModelScope.launch {
             repository.myCampsites()
                 .catch { _state.update { it.copy(isLoading = false, error = CampsiteListError.LOAD_FAILED) } }
                 .collect { list ->
                     _state.update { it.copy(campsites = list, isLoading = false, error = null) }
+                    list.filter { it.imageId != null }.forEach { campsite ->
+                        if (campsite.imageId !in _state.value.photoUrls) {
+                            viewModelScope.launch {
+                                try {
+                                    val url = imageRepository?.downloadUrl(campsite.imageId!!)
+                                    if (url != null) _state.update { current ->
+                                        current.copy(photoUrls = current.photoUrls + (campsite.imageId!! to url))
+                                    }
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (_: Exception) { /* Keep the no-photo placeholder while offline. */ }
+                            }
+                        }
+                    }
                 }
         }
     }
@@ -85,7 +116,7 @@ class OwnerCampsiteListController(
             initializer {
                 val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]
                     as LambdaApplication
-                OwnerCampsiteListController(application.container.campsiteRepository)
+                OwnerCampsiteListController(application.container.campsiteRepository, application.container.imageRepository)
             }
         }
     }

@@ -8,6 +8,8 @@
  */
 // Flow 5: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex,
 // assisted with read-only draw metadata/results integration; human review pending.
+// Issue #151: GPT-6 (OpenAI), through Codex, assisted me with incremental
+// owner-authorized contact requests and cache cleanup.
 package com.lambda.campsite.controller
 
 import androidx.lifecycle.ViewModel
@@ -85,6 +87,7 @@ class OwnerWaitingListController(
     private val mutableState = MutableStateFlow(OwnerWaitingListUiState())
     private var ownerJob: Job? = null
     private var entriesJob: Job? = null
+    private var contactRetryJob: Job? = null
     private var listVersion = 0L
     private var desiredId = initialLotteryId
     private var mayAutoSelect = initialLotteryId == null
@@ -97,6 +100,8 @@ class OwnerWaitingListController(
         listVersion++
         entriesJob?.cancel()
         entriesJob = null
+        contactRetryJob?.cancel()
+        contactRetryJob = null
     }
 
     private fun observeOwnerLotteries() {
@@ -162,28 +167,48 @@ class OwnerWaitingListController(
                     contacts = emptyMap(), loadingContacts = false, contactsFailed = false) }
             }.collectLatest { entries ->
                 if (version != listVersion || state.value.selectedLotteryId != id) return@collectLatest
+                contactRetryJob?.cancel()
+                contactRetryJob = null
                 val ordered = entries.filter { it.lotteryId == id }
                     .sortedWith(compareBy<LotteryEntry> { it.joinedAt }.thenBy { it.entrantId })
+                val currentIds = ordered.map { it.entrantId }.toSet()
+                val retained = state.value.contacts.filterKeys { it in currentIds }
+                val missing = currentIds.filterNot { it in retained }
                 mutableState.update { it.copy(entries = ordered, loadingEntries = false, error = null,
-                    contacts = it.contacts.filterKeys { key -> ordered.any { row -> row.entrantId == key } },
-                    loadingContacts = ordered.isNotEmpty(), contactsFailed = false,
+                    contacts = retained, loadingContacts = missing.isNotEmpty(), contactsFailed = false,
                     selectedEntrantId = it.selectedEntrantId?.takeIf { selected -> ordered.any { row -> row.entrantId == selected } }) }
-                try {
-                    val contacts = contactRepository.contacts(id, ordered.map { it.entrantId })
-                    if (version == listVersion) mutableState.update { it.copy(
-                        contacts = contacts.filterKeys { key -> ordered.any { row -> row.entrantId == key } }, loadingContacts = false) }
-                } catch (failure: Exception) {
-                    if (failure is CancellationException) throw failure
-                    if (version == listVersion) mutableState.update { it.copy(contacts = emptyMap(),
-                        loadingContacts = false, contactsFailed = true) }
-                }
+                fetchContacts(id, version, missing)
+            }
+        }
+    }
+
+    /** Requests only unseen current entrants, retaining authorized contacts already loaded. */
+    private suspend fun fetchContacts(id: String, version: Long, missing: List<String>) {
+        if (missing.isEmpty()) return
+        try {
+            val loaded = contactRepository.contacts(id, missing)
+            if (version == listVersion && state.value.selectedLotteryId == id) mutableState.update { current ->
+                val visible = current.entries.map { it.entrantId }.toSet()
+                current.copy(contacts = current.contacts + loaded.filterKeys { it in missing && it in visible },
+                    loadingContacts = false, contactsFailed = false)
+            }
+        } catch (failure: Exception) {
+            if (failure is CancellationException) throw failure
+            if (version == listVersion && state.value.selectedLotteryId == id) mutableState.update {
+                it.copy(loadingContacts = false, contactsFailed = true)
             }
         }
     }
 
     /** Retries the failed listener only, without writing data or changing the selected lottery. */
     fun onRetry() {
-        if (state.value.error == OwnerWaitingListError.LOAD_ENTRIES || state.value.contactsFailed) {
+        if (state.value.contactsFailed) {
+            val id = state.value.selectedLotteryId ?: return
+            val missing = state.value.entries.map { it.entrantId }.filterNot { it in state.value.contacts }
+            mutableState.update { it.copy(loadingContacts = missing.isNotEmpty(), contactsFailed = false) }
+            contactRetryJob?.cancel()
+            contactRetryJob = viewModelScope.launch { fetchContacts(id, listVersion, missing) }
+        } else if (state.value.error == OwnerWaitingListError.LOAD_ENTRIES) {
             state.value.selectedLotteryId?.takeIf { id -> state.value.lotteries.any { it.id == id } }?.let(::loadEntries)
         } else observeOwnerLotteries()
     }

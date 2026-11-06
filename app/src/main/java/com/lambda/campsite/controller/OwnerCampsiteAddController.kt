@@ -1,6 +1,8 @@
+// AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
 /**
  * Purpose: ViewModel controller managing new campsite registration form state and saving (US 02.01.01, 02.01.02).
- * Outstanding issues: Photo uploading is deferred until ImageRepository is ready; the form omits the photo UI until then.
+ * Handles the owner's campsite draft and its optional photo.
+ * Outstanding issues: None known.
  */
 /*
  * AI use: Gemini 3.8 Flash (Google DeepMind) helped write this file in November 2026.
@@ -11,6 +13,7 @@
  */
 package com.lambda.campsite.controller
 
+import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -20,6 +23,7 @@ import com.lambda.campsite.LambdaApplication
 import com.lambda.campsite.model.Campsite
 import com.lambda.campsite.model.CampsiteRequiredField
 import com.lambda.campsite.model.repository.CampsiteRepository
+import com.lambda.campsite.model.repository.ImageRepository
 import com.lambda.campsite.model.repository.ProfileRepository
 import java.time.LocalDate
 import kotlinx.coroutines.CancellationException
@@ -39,6 +43,7 @@ import kotlinx.coroutines.launch
 data class OwnerCampsiteAddUiState(
     val form: CampsiteFormData = CampsiteFormData(),
     val generatedId: String? = null,
+    val selectedPhoto: Bitmap? = null,
 )
 
 /**
@@ -54,6 +59,7 @@ data class OwnerCampsiteAddUiState(
 class OwnerCampsiteAddController(
     private val campsiteRepository: CampsiteRepository,
     private val profileRepository: ProfileRepository,
+    private val imageRepository: ImageRepository? = null,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(OwnerCampsiteAddUiState())
@@ -90,6 +96,22 @@ class OwnerCampsiteAddController(
     /** Updates the description / amenities text. */
     fun onDescriptionChange(description: String) {
         _state.update { it.copy(form = it.form.copy(description = description)) }
+    }
+
+    fun onPriceChange(price: String) {
+        _state.update { it.copy(form = it.form.copy(pricePerNight = price, formError = null)) }
+    }
+
+    fun onRulesChange(rules: String) {
+        _state.update { it.copy(form = it.form.copy(rules = rules)) }
+    }
+
+    fun onPhotoSelected(photo: Bitmap) {
+        _state.update { it.copy(selectedPhoto = photo, form = it.form.copy(imageId = null)) }
+    }
+
+    fun onPhotoRemoved() {
+        _state.update { it.copy(selectedPhoto = null, form = it.form.copy(imageId = null)) }
     }
 
     /** Updates maximum guest occupancy (minimum 0). */
@@ -170,13 +192,15 @@ class OwnerCampsiteAddController(
             ownerId = "",
         )
         val seasonError = current.form.checkSeasonError()
+        val priceError = current.form.checkPriceError()
 
-        if (missingFields.isNotEmpty() || seasonError != null) {
+        if (missingFields.isNotEmpty() || seasonError != null || priceError != null) {
             _state.update {
                 it.copy(
                     form = it.form.copy(
                         requiredFieldErrors = missingFields,
                         seasonError = seasonError,
+                        formError = priceError,
                     ),
                 )
             }
@@ -191,7 +215,12 @@ class OwnerCampsiteAddController(
                 val targetId = _state.value.generatedId ?: campsiteRepository.newCampsiteId()
                 _state.update { it.copy(generatedId = targetId) }
 
-                val campsiteToSave = draft.copy(id = targetId, ownerId = profile.deviceId)
+                val imageId = current.form.imageId ?: current.selectedPhoto?.let { photo ->
+                    requireNotNull(imageRepository) { "Photo repository unavailable" }.upload(photo).also { uploadedId ->
+                        _state.update { it.copy(form = it.form.copy(imageId = uploadedId)) }
+                    }
+                }
+                val campsiteToSave = draft.copy(id = targetId, ownerId = profile.deviceId, imageId = imageId)
                 campsiteRepository.save(campsiteToSave)
 
                 val start = current.form.seasonStart
@@ -226,6 +255,7 @@ class OwnerCampsiteAddController(
                 OwnerCampsiteAddController(
                     campsiteRepository = app.container.campsiteRepository,
                     profileRepository = app.container.profileRepository,
+                    imageRepository = app.container.imageRepository,
                 )
             }
         }

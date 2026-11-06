@@ -1,9 +1,11 @@
+/* Outstanding issues: Manual TalkBack review remains. */
+// AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
 /*
 Purpose:
 This page is used to display the profile information for any user.
 Firstly, it will try to retrieve the profile. If nothing is available,
 or it is unable to load the profile, it will simply display an error
-message.
+message.(US 01.07.03)
 Once it is able to retrieve the profile from Firestore, it will
 retrieve the user's roles, name, email and phone number. If the person
 is an Admin, all three slider options are available. However, if the
@@ -15,7 +17,7 @@ their name, email and phone number, and SettingsScreen.kt, where they
 can turn notifications on or off, view the campsite policy they agreed
 to on FirstLaunchScreen, and delete their profile.
 
-Outstanding Issue:
+Resolved issue:
 1.RESOLVED: the slider now calls ProfileController.onSwitchRole (or
 onBecomeOwner for someone who doesn't hold the owner role yet), so the
 navigation bar follows the selected role. For profiles that don't hold
@@ -38,7 +40,7 @@ since each role has a different navigation bar and set of screens.
  * helped with retrieving the user's assigned roles from Firestore through
  * ProfileController and ProfileRepository, building the role selection slider
  * UI, and improving the KDoc for ProfileScreen. Harmanjoth Kaur reviewed the suggestions
- * and made the final changes myself.
+ * and made the final changes.
  *
  * The role slider was connected to the controller in November 2026 with GLM
  * 5.3 Flash (Z.ai), through OpenCode, at Raghav Sethi's request: the slider
@@ -46,6 +48,8 @@ since each role has a different navigation bar and set of screens.
  * owner role) and follows the app's active role. Raghav Sethi tested it.
  */
 
+// Follow-up #176: Lalith Valluru, 2026-11-04. OpenAI GPT-6 (OpenAI), through Codex,
+// assisted with Admin option visibility and role-row dividers; human review pending.
 package com.lambda.campsite.view.screens
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.foundation.layout.Arrangement
@@ -108,7 +112,7 @@ import com.lambda.campsite.view.theme.SelectedMint
  * connects to [EditProfileScreen] for updating personal information and
  * [SettingsScreen] for managing account settings.
  *
- * The Admin option is only selectable for profiles assigned the Admin role.
+ * The Admin option is only shown for profiles assigned the Admin role.
  *
  * @param controller the profile controller that provides the profile state
  *                   and is shared with the navigation bar.
@@ -272,9 +276,9 @@ fun ProfileScreen(controller: ProfileController,
                             .padding(1.dp)
                             .clip(RoundedCornerShape(50))
                     ) {
-                        repeat(3) { index ->
-                            val role = Role.entries[index]
-                            val isSelected = selectedRole == role
+                        val roles = Role.entries.filter { it != Role.ADMIN || profile.hasRole(Role.ADMIN) }
+                        roles.forEachIndexed { index, role ->
+                            val isSelected = state.activeRole == role
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
@@ -282,8 +286,6 @@ fun ProfileScreen(controller: ProfileController,
                                     .background(if (isSelected) SelectedMint else Color.Transparent)
                                     .clickable {
                                         when {
-                                            // Admin is only selectable by profiles that hold it.
-                                            role == Role.ADMIN && !profile.hasRole(Role.ADMIN) -> Unit
                                             profile.hasRole(role) -> controller.onSwitchRole(role)
                                             // Owner is the only role the app can grant:
                                             // "List your campsite" adds it and switches (US 03.11.01).
@@ -311,7 +313,7 @@ fun ProfileScreen(controller: ProfileController,
                                         style = MaterialTheme.typography.labelLarge,
                                     )
                                 }
-                                if (index < 2) {
+                                if (index < roles.lastIndex) {
                                     VerticalDivider(
                                         modifier = Modifier
                                             .fillMaxHeight()

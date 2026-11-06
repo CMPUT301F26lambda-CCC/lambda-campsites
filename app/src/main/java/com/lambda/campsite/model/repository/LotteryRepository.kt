@@ -1,8 +1,15 @@
 /*
+ * Purpose: the model layer's interface for lotteries and their waiting lists.
+ * Controllers depend on it instead of Firestore, so tests can use
+ * FakeLotteryRepository.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in November 2026, following the pattern in CampsiteRepository. It
  * helped with the Kotlin code, syntax and KDoc. Sashreek Addanki reviewed it.
  */
+// Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 (OpenAI), through Codex,
+// assisted with edit guards, race handling and merge preservation. Human review pending.
+// Outstanding issues: manual TalkBack review and rules deployment remain pending.
 package com.lambda.campsite.model.repository
 
 import com.lambda.campsite.model.Lottery
@@ -42,8 +49,10 @@ interface LotteryRepository {
 
     /**
      * Saves [lottery], creating it or replacing its details. The stored
-     * entry count stays as it is.
+     * entry count stays as it is. Existing lotteries are validated atomically
+     * against joined-entrant locks and draw status; edits require a connection.
      *
+     * @throws LotteryEditException if the latest stored lottery refuses the edit.
      * @throws Exception if the lottery can't be saved, for example when it
      *   includes a campsite this device's profile doesn't own.
      */
@@ -112,3 +121,7 @@ class WaitingListException(val reason: Reason) : Exception("Can't join or leave 
         NOT_JOINED,
     }
 }
+
+/** A transaction rejected an edit against the latest lottery, without writing any fields. */
+class LotteryEditException(val restriction: com.lambda.campsite.model.LotteryEditRestriction) :
+    IllegalStateException("Lottery edit refused: $restriction")

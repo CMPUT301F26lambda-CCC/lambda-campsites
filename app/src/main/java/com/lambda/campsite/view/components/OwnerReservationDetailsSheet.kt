@@ -1,4 +1,6 @@
 /*
+ * Purpose: Presents selected owner reservation details and actions for Flow 11.
+ * Outstanding issues: None known.
  * AI use: GPT-6 (OpenAI), through Codex, assisted with the Flow 11 reservation
  * details and the read-only Figma booked-day sheet (frame 59355:2804).
  */

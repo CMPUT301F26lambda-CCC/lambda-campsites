@@ -1,4 +1,6 @@
 /*
+ * Purpose: Checks Flow 16 scanner, permission, error, and camera-unavailable UI states.
+ * Outstanding issues: None known.
  * Feature owner: Sreeman Reddy, Flow 16 (#133), November 2026.
  * AI use: GPT-6 (OpenAI), through Codex, assisted me with scanner UI tests.
  * Human review is pending.

@@ -1,4 +1,9 @@
 /*
+ * Purpose: maps a Lottery to and from lotteries/{id}. Field names must match
+ * firestore.rules.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in November 2026, following the pattern in CampsiteFields. It
  * helped with the Kotlin code, syntax and KDoc. Sashreek Addanki reviewed it.

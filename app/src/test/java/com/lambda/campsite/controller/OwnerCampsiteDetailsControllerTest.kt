@@ -1,4 +1,9 @@
 /*
+ * Purpose: Checks owner campsite details, availability, related lotteries, and failures.
+ * Outstanding issues: None known.
+ */
+// AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with related-lottery coverage.
+/*
  * AI use: Gemini 3.8 Flash (Google DeepMind) helped write these tests in November 2026.
  * It helped with test cases for loading campsite details, availability, and error handling.
  * Raghav Sethi reviewed, ran, and committed them.
@@ -7,7 +12,10 @@ package com.lambda.campsite.controller
 
 import com.lambda.campsite.model.Availability
 import com.lambda.campsite.model.Campsite
+import com.lambda.campsite.model.Lottery
 import com.lambda.campsite.model.repository.FakeCampsiteRepository
+import com.lambda.campsite.model.repository.FakeLotteryRepository
+import com.google.firebase.Timestamp
 import com.lambda.campsite.testutil.MainDispatcherRule
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -63,5 +71,18 @@ class OwnerCampsiteDetailsControllerTest {
         assertFalse(state.isLoading)
         assertNull(state.campsite)
         assertNotNull(state.error)
+    }
+
+    @Test
+    fun `details include lotteries linked to this campsite only`() {
+        val now = Timestamp.now()
+        val related = Lottery("lottery-1", camp.ownerId, "Aspen draw", listOf(camp.id),
+            now, now, LocalDate.of(2027, 5, 1), LocalDate.of(2027, 6, 1))
+        val unrelated = related.copy(id = "lottery-2", campsiteIds = listOf("other-site"))
+        val controller = OwnerCampsiteDetailsController(camp.id,
+            FakeCampsiteRepository(initial = listOf(camp)),
+            FakeLotteryRepository(initial = listOf(related, unrelated)))
+
+        assertEquals(listOf(related), controller.state.value.lotteries)
     }
 }

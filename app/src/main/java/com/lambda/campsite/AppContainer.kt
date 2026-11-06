@@ -1,15 +1,11 @@
-/**
- * Purpose: Central dependency injection container creating and providing repositories.
- * Last updated: 2026-11-03 (Flow 12).
- * Outstanding issues: The conversation repository remains to be added when that feature lands.
- */
+// AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with this header cleanup.
 /*
  * Purpose: builds the app's repositories once and hands them to the
  * controllers. It's the one place that decides which version of each
  * repository the app uses, a simple form of dependency injection.
  *
- * Outstanding issues (Flow 12): Contact callable deployment and shared-project verification
- * remain pending (#129).
+ * Outstanding issues: Shared-project verification of the Flow 12 contact callable
+ * remains pending (see docs/issue151-verification.md).
  *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, syntax and KDoc.
@@ -32,6 +28,7 @@
  */
 // Flow 12 feature owner: Lalith Valluru. OpenAI GPT-6 through Codex assisted
 // with the contact repository binding. Human review pending.
+// Issue #151: GPT-6 (OpenAI), through Codex, assisted me with repository grouping.
 package com.lambda.campsite
 
 import com.google.firebase.Firebase
@@ -39,6 +36,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
+import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.functions
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.storage
 import com.lambda.campsite.model.repository.CampsiteRepository
@@ -53,6 +52,8 @@ import com.lambda.campsite.model.repository.LotteryRepository
 import com.lambda.campsite.model.repository.NotificationRepository
 import com.lambda.campsite.model.repository.ProfileRepository
 import com.lambda.campsite.model.repository.ReservationRepository
+import com.lambda.campsite.model.repository.CallableWaitingListContactRepository
+import com.lambda.campsite.model.repository.WaitingListContactRepository
 
 /**
  * Builds the app's repositories once and hands them to the controllers.
@@ -67,13 +68,6 @@ import com.lambda.campsite.model.repository.ReservationRepository
  */
 class AppContainer {
 
-    /** Flow 12 feature owner: Lalith Valluru; minimal server-authorized contact projection.
-     * OpenAI GPT-6 through Codex assisted; human review pending. */
-    val waitingListContactRepository: com.lambda.campsite.model.repository.WaitingListContactRepository by lazy {
-        com.lambda.campsite.model.repository.CallableWaitingListContactRepository(
-            com.google.firebase.functions.FirebaseFunctions.getInstance())
-    }
-
     /**
      * Firebase Auth. Each install signs in anonymously, and its user ID is the
      * ID of its profile document (US 01.09.01).
@@ -86,6 +80,9 @@ class AppContainer {
     /** Where photo files are kept. Tests point it at the emulator before the app starts. */
     val storage: FirebaseStorage by lazy { Firebase.storage }
 
+    /** Cloud Functions for the authenticated owner contact projection. */
+    val functions: FirebaseFunctions by lazy { Firebase.functions }
+
     /** This device's profile, stored in Firestore. */
     val profileRepository: ProfileRepository by lazy { FirestoreProfileRepository(auth, firestore) }
 
@@ -94,6 +91,11 @@ class AppContainer {
 
     /** Every lottery and waiting list, stored in Firestore. */
     val lotteryRepository: LotteryRepository by lazy { FirestoreLotteryRepository(auth, firestore) }
+
+    /** Minimal owner-authorized contacts for current waiting-list entries. */
+    val waitingListContactRepository: WaitingListContactRepository by lazy {
+        CallableWaitingListContactRepository(functions)
+    }
 
     /**
      * Every reservation, stored in Firestore. Booking also updates the
