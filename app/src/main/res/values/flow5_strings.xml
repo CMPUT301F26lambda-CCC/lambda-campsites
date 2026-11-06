@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Lalith Valluru, 2026-11-03. OpenAI GPT-6 through Codex assisted with Flow 5 labels; human review pending. -->
+<!-- Lalith Valluru, 2026-11-03. OpenAI GPT-6 through Codex assisted with Flow 5 labels. -->
+<!-- Purpose: Provide user-facing text for automatic lottery results. -->
+<!-- Outstanding issues: None known. -->
 <resources>
     <string name="flow5_title">Lottery results</string>
     <string name="flow5_view_results">View lottery results</string>

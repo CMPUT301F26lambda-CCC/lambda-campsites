@@ -1,4 +1,7 @@
 /*
+ * Purpose: the LotteryRepository the app uses, backed by lotteries/{id} and
+ * its entries. Joining and leaving are transactions.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in November 2026, following the pattern in
  * FirestoreCampsiteRepository. It helped with the Kotlin code, the Firestore

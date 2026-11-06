@@ -1,10 +1,10 @@
-/*
- * Purpose: Composes the app navigation graph and routes entrant and owner flows.
- * Outstanding issues: Manual TalkBack review, rules deployment, and shared-project
- * Flow 12 navigation verification remain pending.
- */
 // AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
 /*
+ * Purpose: the root composable: the NavHost, the nav bar and every route in
+ * the app.
+ * Outstanding issues: Manual TalkBack review, rules deployment, and shared-project
+ * Flow 12 navigation verification remain pending.
+ *
  * Flow 8: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted with inbox and booking routing; human review pending.
  * Last updated: 2026-11-03 (Flow 9; Lalith Valluru).
  * OpenAI GPT-6 (OpenAI), through Codex, assisted with the winner booking route; human review pending.

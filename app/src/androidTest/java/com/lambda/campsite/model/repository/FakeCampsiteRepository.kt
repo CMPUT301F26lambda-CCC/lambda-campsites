@@ -5,7 +5,9 @@
  * Addanki reviewed it.
  */
 // UI-test reuse: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex,
-// assisted with reusing this existing unit-test fake for Flow 9; human review pending.
+// assisted with reusing this existing unit-test fake for Flow 9.
+// Purpose: Provide in-memory campsite and availability data for Android UI tests.
+// Outstanding issues: None known.
 package com.lambda.campsite.model.repository
 
 import com.lambda.campsite.model.Availability

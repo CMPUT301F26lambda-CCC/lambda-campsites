@@ -1,4 +1,8 @@
 /*
+ * Purpose: waits for the anonymous sign-in before a test touches Firestore.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, syntax and KDoc.
  * It also helped add signInAsNewUser for the repository tests. Sashreek Addanki

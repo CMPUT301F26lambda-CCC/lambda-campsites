@@ -1,3 +1,8 @@
+/*
+ * Purpose: the app's text styles.
+ *
+ * Outstanding issues: None known.
+ */
 package com.lambda.campsite.view.theme
 
 import androidx.compose.material3.Typography

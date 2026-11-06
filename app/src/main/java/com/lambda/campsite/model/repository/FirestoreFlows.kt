@@ -1,4 +1,9 @@
 /*
+ * Purpose: Firestore snapshot listeners as Flows that end with the error
+ * instead of hiding it.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, the callbackFlow
  * setup, syntax and KDoc. It also helped add the query version for

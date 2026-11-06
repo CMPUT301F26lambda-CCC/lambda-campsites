@@ -1,4 +1,10 @@
 /*
+ * Purpose: the person using this device, with their contact details and roles.
+ * Changes return a copy.
+ *
+ * Outstanding issues: #21 (delete profile), #42 and #47 (admin removes
+ * profiles and owners).
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026, following the Profile class in the team's class
  * diagram. It helped with the Kotlin code, syntax and KDoc. Sashreek Addanki

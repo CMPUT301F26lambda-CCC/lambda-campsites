@@ -5,7 +5,7 @@ Purpose:
 This page is used to display the profile information for any user.
 Firstly, it will try to retrieve the profile. If nothing is available,
 or it is unable to load the profile, it will simply display an error
-message.
+message.(US 01.07.03)
 Once it is able to retrieve the profile from Firestore, it will
 retrieve the user's roles, name, email and phone number. If the person
 is an Admin, all three slider options are available. However, if the

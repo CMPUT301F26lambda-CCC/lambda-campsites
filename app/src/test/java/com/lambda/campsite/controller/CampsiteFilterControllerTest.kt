@@ -8,6 +8,8 @@
  *    and a campsite booked on that night is hidden.
  * 5. Only check-in: campsites free on the check-in night are shown, with the
  *    shortest free stay first, up to 7 nights.
+ * (US 01.01.02),(US 01.01.03)
+ * Outstanding issue- None
  *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped Harmanjoth
  * Kaur with the syntax of the test cases and Kdoc. All the test cases are chosen by

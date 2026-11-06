@@ -1,4 +1,9 @@
 /*
+ * Purpose: emulator tests for FirestoreLotteryRepository, including joining
+ * and leaving a lottery.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * these tests in November 2026. It helped with the test cases, the coroutines
  * code and the Kotlin syntax. Sashreek Addanki reviewed them.

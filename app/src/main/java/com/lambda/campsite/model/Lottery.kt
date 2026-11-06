@@ -1,4 +1,7 @@
 /*
+ * Purpose: a lottery and its status, with the registration window and
+ * waiting-list limit checks.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in November 2026, following the Lottery class and the
  * LotteryStatus enumeration in the team's class diagram. It helped with the

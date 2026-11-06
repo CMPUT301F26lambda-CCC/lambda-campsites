@@ -1,7 +1,7 @@
 /*
 Purpose:
 The purpose of this screen is to display the first-launch screen
-for the Lambda Campsite application.
+for the Lambda Campsite application.(US 01.09.01)
 Users must enter their name and check the option confirming that
 they agree with the app guidelines. They also have the opportunity
 to view and review the guidelines by clicking on the policy link
@@ -20,6 +20,7 @@ The user's name is requested before displaying the app policy so that
 it can be included in the policy through AppPolicySheet. This makes
 the agreement feel more personal and direct, rather than presenting
 users with a generic policy.
+Outstanding Issue-None
 */
 /*
  * AI use: GPT-6 (OpenAI), used through the ChatGPT website, helped resolve

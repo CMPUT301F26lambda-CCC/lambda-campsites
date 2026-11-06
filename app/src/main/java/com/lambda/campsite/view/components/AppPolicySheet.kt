@@ -2,11 +2,12 @@
 Purpose:
 The purpose of this screen is to display the app policy in a bottom
 sheet so users can review the guidelines and information about using
-the Lambda Campsite application.
+the Lambda Campsite application.(US 01.11.01)
 Users have the option to close the policy without agreeing or select
 the I Agree button to accept the policy. Once the user agrees, the
 agreement callback is triggered, allowing the parent screen to update
 the policy agreement checkbox and record the user's agreement.
+Outstanding issue-None
 */
 /*
  * AI use: GPT-6 (OpenAI), used through the ChatGPT website in November 2026,

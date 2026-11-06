@@ -1,4 +1,8 @@
 /*
+ * Purpose: an in-memory LotteryRepository for controller unit tests.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in November 2026, following the pattern in
  * FakeCampsiteRepository. It helped with the Kotlin code, syntax and KDoc.

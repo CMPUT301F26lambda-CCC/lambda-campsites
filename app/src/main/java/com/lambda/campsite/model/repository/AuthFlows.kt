@@ -1,4 +1,9 @@
 /*
+ * Purpose: the signed-in user's ID as a Flow. Every Firestore repository waits
+ * on it before reading or writing.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, syntax and KDoc.
  * Sashreek Addanki reviewed it and committed it.
