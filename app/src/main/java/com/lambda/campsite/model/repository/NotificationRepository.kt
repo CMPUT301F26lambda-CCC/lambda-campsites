@@ -1,4 +1,9 @@
 /*
+ * Purpose: loads this device's own notifications and marks them read. Only
+ * a Cloud Function ever creates one.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Coded by Aarush Bhat with the assistance of Claude Sonnet 5
  * (Anthropic), through Claude Code, in November 2026, following the
  * pattern in CampsiteRepository. Aarush Bhat reviewed and committed it.

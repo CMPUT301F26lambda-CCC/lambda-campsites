@@ -1,4 +1,10 @@
 /*
+ * Purpose: the Firestore version of NotificationRepository. Keeps
+ * notifications at notifications/{id} and leaves out any whose type this
+ * version of the app doesn't know.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Coded by Aarush Bhat with the assistance of Claude Sonnet 5
  * (Anthropic), through Claude Code, in November 2026, following the
  * pattern in FirestoreCampsiteRepository. Aarush Bhat reviewed and
