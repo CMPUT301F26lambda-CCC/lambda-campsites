@@ -9,9 +9,10 @@ They also verify that validation errors are displayed when the user
 enters incomplete or invalid information and disappear once the
 fields are corrected. Additional tests check that the profile avatar
 initials update when the name changes and that an error message is
-displayed when saving fails.
+displayed when saving fails.(US 01.07.03)
 These tests help ensure that the Edit Profile screen behaves as
 expected before the changes are integrated into the application.
+Outstanding Issue-None
 */
 /*
 *

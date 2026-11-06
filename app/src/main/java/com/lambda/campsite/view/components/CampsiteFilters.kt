@@ -6,9 +6,10 @@
  * This file does not filter the campsites itself. But there is also some additional
  * date validation in this file, besides the  validation in CampsiteFilterController.
  * Users cannot select a past date for check-in, and check-out must be at least one day
- * after check-in.
+ * after check-in.(US 01.01.02), (US 01.01.03)
  * If the user changes check-in to the same date as check-out or a later date,
  * the check-out date is cleared.
+ * Outstanding issue- None
  */
 
 /*
