@@ -37,6 +37,13 @@ The photo tests check uploaded image IDs on registration, replacement on edit,
 removal of the link, and preservation of the campsite ID.
 The Profile UI test checks that the Admin selection changes the active role.
 
+Checkpoint intent follow-up (November 6, 2026):
+`OwnerCampsitePhotoPickerIntentTest` verifies that Add photo and Replace photo
+launch `ACTION_GET_CONTENT` for `image/*` with `CATEGORY_OPENABLE`, while
+stubbing the external picker result. Both instrumented tests passed on the
+Android 17 emulator. GPT-6 (OpenAI), through Codex, assisted me with this test;
+human review is pending.
+
 ## Review fixes
 
 The owner Campsites tab uses the existing transparent `flow11_tent` asset;
