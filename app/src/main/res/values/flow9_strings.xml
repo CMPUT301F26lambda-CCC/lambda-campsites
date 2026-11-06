@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Lalith Valluru, 2026-11-03. OpenAI GPT-6 through Codex assisted with Flow 9 resources; human review pending. -->
+<!-- Lalith Valluru, 2026-11-03. OpenAI GPT-6 through Codex assisted with Flow 9 resources. -->
+<!-- Purpose: Provide user-facing text for winner booking and reservation confirmation. -->
+<!-- Outstanding issues: None known. -->
 <resources>
     <string name="flow9_choose_site">Choose a campsite</string>
     <string name="flow9_choose_dates">Choose your dates</string>

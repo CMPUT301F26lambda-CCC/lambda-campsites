@@ -1,6 +1,7 @@
-/* OpenAI GPT-6 (OpenAI), through Codex, assisted with mapping the Figma inbox tokens; human review pending. */
+/* OpenAI GPT-6 (OpenAI), through Codex, assisted with mapping the Figma inbox tokens. */
 // Flow 8 update: Lalith Valluru, 2026-11-03.
 // Outstanding issues: manual TalkBack and deployed push delivery checks remain.
+// Purpose: Define the shared colors used by the notification inbox.
 package com.lambda.campsite.view.theme
 
 import androidx.compose.ui.graphics.Color
