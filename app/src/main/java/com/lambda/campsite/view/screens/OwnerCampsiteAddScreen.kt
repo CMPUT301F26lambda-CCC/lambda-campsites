@@ -1,4 +1,8 @@
-// Issue #150: GPT-6 (OpenAI), through Codex, assisted me with campsite registration.
+/*
+ * Purpose: Connects the owner campsite registration form to its controller.
+ * Outstanding issues: None known.
+ */
+// AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with campsite registration.
 package com.lambda.campsite.view.screens
 
 import androidx.compose.runtime.Composable

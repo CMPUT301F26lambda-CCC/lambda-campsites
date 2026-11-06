@@ -1,4 +1,8 @@
-// Issue #150: GPT-6 (OpenAI), through Codex, assisted me with the shared owner form UI.
+/*
+ * Purpose: Provides shared registration and edit fields for owner campsite forms.
+ * Outstanding issues: None known.
+ * AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with the shared owner form UI.
+ */
 package com.lambda.campsite.view.screens
 
 import android.graphics.Bitmap

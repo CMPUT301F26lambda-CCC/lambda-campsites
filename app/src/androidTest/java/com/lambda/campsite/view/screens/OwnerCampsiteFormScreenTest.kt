@@ -1,5 +1,7 @@
 /*
- * Issue #150: GPT-6 (OpenAI), through Codex, assisted me with owner form UI tests.
+ * Purpose: Checks the owner campsite registration and edit form fields, dates, and validation in Compose.
+ * Outstanding issues: None known.
+ * AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with owner form UI tests.
  * Human review is pending.
  */
 package com.lambda.campsite.view.screens

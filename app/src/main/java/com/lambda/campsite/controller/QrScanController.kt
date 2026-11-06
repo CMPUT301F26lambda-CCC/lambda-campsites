@@ -1,4 +1,6 @@
 /*
+ * Purpose: Validates scanned campsite QR payloads and resolves published campsite destinations for Flow 16.
+ * Outstanding issues: None known.
  * Feature owner: Sreeman Reddy, Flow 16 (#133), November 2026.
  * AI use: GPT-6 (OpenAI), through Codex, assisted me with QR validation and
  * campsite lookup state. Human review is pending.

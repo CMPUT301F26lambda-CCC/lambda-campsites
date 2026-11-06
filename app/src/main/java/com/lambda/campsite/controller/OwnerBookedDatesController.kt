@@ -1,4 +1,6 @@
 /*
+ * Purpose: Maintains the selected owner campsite calendar and its live booked-date state for Flow 11.
+ * Outstanding issues: None known.
  * AI use: GPT-6 (OpenAI), through Codex, helped implement the live owner
  * booking calendar state and reservation lookup for Flow 11 (US 02.06.01).
  * Human review is pending.

@@ -1,11 +1,11 @@
-// Issue #150: GPT-6 (OpenAI), through Codex, assisted me with this header cleanup.
+// AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with this header cleanup.
 /*
  * Purpose: builds the app's repositories once and hands them to the
  * controllers. It's the one place that decides which version of each
  * repository the app uses, a simple form of dependency injection.
  *
- * Outstanding issues (Flow 12): Contact callable deployment and shared-project verification
- * remain pending (#129).
+ * Outstanding issues: Shared-project verification of the Flow 12 contact callable
+ * remains pending (see docs/issue151-verification.md).
  *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, syntax and KDoc.

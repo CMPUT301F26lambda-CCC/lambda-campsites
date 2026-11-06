@@ -1,3 +1,5 @@
+# Purpose: Sets up shared Firebase emulator fixtures for Cloud Functions tests.
+# Outstanding issues: None known.
 # AI use: Coded by Aarush Bhat with the assistance of Claude Sonnet 5
 # (Anthropic), through Claude Code, in November 2026, following
 # docs/testing.md's Cloud Functions tests section. Aarush Bhat reviewed,

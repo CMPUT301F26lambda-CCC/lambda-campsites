@@ -1,4 +1,8 @@
-/* Issue #150 review: GPT-6 (OpenAI), through Codex, assisted me with list contrast coverage. */
+/*
+ * Purpose: Checks that owner campsite list text remains readable on its card background.
+ * Outstanding issues: None known.
+ * AI use: For issue #150 review, GPT-6 (OpenAI), through Codex, assisted me with list contrast coverage.
+ */
 package com.lambda.campsite.view.screens
 
 import androidx.compose.ui.graphics.Color

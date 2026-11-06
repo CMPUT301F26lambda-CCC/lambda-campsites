@@ -1,4 +1,5 @@
-// Issue #150: GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
+/* Outstanding issues: Manual TalkBack review remains. */
+// AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
 /*
 Purpose:
 This page is used to display the profile information for any user.
@@ -16,7 +17,7 @@ their name, email and phone number, and SettingsScreen.kt, where they
 can turn notifications on or off, view the campsite policy they agreed
 to on FirstLaunchScreen, and delete their profile.
 
-Outstanding Issue:
+Resolved issue:
 1.RESOLVED: the slider now calls ProfileController.onSwitchRole (or
 onBecomeOwner for someone who doesn't hold the owner role yet), so the
 navigation bar follows the selected role. For profiles that don't hold
@@ -49,7 +50,6 @@ since each role has a different navigation bar and set of screens.
 
 // Follow-up #176: Lalith Valluru, 2026-11-04. OpenAI GPT-6 (OpenAI), through Codex,
 // assisted with Admin option visibility and role-row dividers; human review pending.
-// Outstanding issues: manual TalkBack review remains.
 package com.lambda.campsite.view.screens
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.foundation.layout.Arrangement

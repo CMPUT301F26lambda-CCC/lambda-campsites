@@ -1,4 +1,6 @@
 /*
+ * Purpose: Shows current and past entrant reservations and the Flow 10 cancellation path.
+ * Outstanding issues: None known.
  * Feature owner: Sreeman Reddy, Flow 10 (#127), November 2026.
  * AI use: GPT-6 (OpenAI), through Codex, assisted me with this screen.
  * Human review is pending.

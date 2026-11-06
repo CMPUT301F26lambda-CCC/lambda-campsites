@@ -1,4 +1,6 @@
 /*
+ * Purpose: Shows the Flow 11 owner calendar, booked dates, and reservation details.
+ * Outstanding issues: None known.
  * AI use: GPT-6 (OpenAI), through Codex, assisted with the Flow 11 booked-dates
  * calendar and read-only Figma alignment for frame 59355:2649.
  */

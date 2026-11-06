@@ -1,4 +1,6 @@
 /*
+ * Purpose: Shows owner Home reservation shortcuts and counts for Flow 11.
+ * Outstanding issues: None known.
  * AI use: GPT-6 (OpenAI), through Codex, assisted with the Flow 11 owner Home
  * reservation entry points based on the read-only Figma frame 59354:2621.
  */

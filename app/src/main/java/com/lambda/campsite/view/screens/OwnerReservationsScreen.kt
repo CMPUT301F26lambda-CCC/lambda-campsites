@@ -1,4 +1,6 @@
 /*
+ * Purpose: Shows grouped owner reservations and opens their details for Flow 11.
+ * Outstanding issues: None known.
  * AI use: GPT-6 (OpenAI), through Codex, assisted with the Flow 11 reservation
  * lists, accessible card actions, and read-only Figma alignment.
  */

@@ -1,5 +1,7 @@
 /*
- * Issue #150: GPT-6 (OpenAI), through Codex, assisted me with photo lifecycle tests.
+ * Purpose: Checks photo selection, upload, replacement, and removal in the owner campsite flow.
+ * Outstanding issues: None known.
+ * AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with photo lifecycle tests.
  * Human review is pending.
  */
 package com.lambda.campsite.controller

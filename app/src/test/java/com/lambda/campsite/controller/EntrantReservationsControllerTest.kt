@@ -1,4 +1,6 @@
 /*
+ * Purpose: Checks Flow 10 reservation grouping, cancellation, and failure states.
+ * Outstanding issues: None known.
  * Feature owner: Sreeman Reddy, Flow 10 (#127), November 2026.
  * AI use: GPT-6 (OpenAI), through Codex, assisted me with these regression tests.
  * Human review is pending.

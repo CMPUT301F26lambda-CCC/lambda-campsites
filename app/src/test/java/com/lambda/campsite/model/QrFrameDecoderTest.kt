@@ -1,4 +1,6 @@
 /*
+ * Purpose: Checks QR decoding from contiguous and padded camera luminance planes.
+ * Outstanding issues: None known.
  * Feature owner: Sreeman Reddy, Flow 16 (#133), November 2026.
  * AI use: GPT-6 (OpenAI), through Codex, assisted me with QR frame regression tests.
  * Human review is pending.

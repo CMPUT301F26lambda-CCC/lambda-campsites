@@ -1,4 +1,6 @@
 /*
+ * Purpose: Loads and groups owner reservations and tracks selection for Flow 11.
+ * Outstanding issues: None known.
  * AI use: GPT-6 (OpenAI), through Codex, helped implement the owner reservation
  * state, date-based groups, selection and repository listener for Flow 11
  * (US 02.07.01 to 02.07.03). Human review is pending.

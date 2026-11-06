@@ -1,8 +1,9 @@
-// Issue #150: GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
+// AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
 /**
  * Purpose: Shared form data model and validation logic for creating and editing campsites
  * (US 02.01.01, US 02.01.03).
  * Shared by the owner registration and edit forms.
+ * Outstanding issues: None known.
  */
 /*
  * AI use: Gemini 3.8 Flash (Google DeepMind) helped write this file in November 2026.

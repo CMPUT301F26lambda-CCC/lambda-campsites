@@ -1,4 +1,5 @@
 /*
+ * Outstanding issues: None known.
  * Feature owner: Sreeman Reddy. Purpose: Flow 11 app navigation and live
  * owner reservation/calendar integration against local Firebase emulators.
  * AI use: GPT-6 (OpenAI), through Codex, helped write the emulator fixtures,
