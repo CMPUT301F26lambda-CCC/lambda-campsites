@@ -3,6 +3,12 @@
  * It helped with ViewModel setup, StateFlow combining campsite and availability flows,
  * error handling, syntax and KDoc. Raghav Sethi reviewed, tested, and committed it.
  */
+
+ /**
+ * Purpose: Loads campsite details and availability for the details and QR code screens.
+ * Feature owner: Raghav Sethi
+ * Outstanding issues: None
+ */
 package com.lambda.campsite.controller
 
 import androidx.lifecycle.ViewModel

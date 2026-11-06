@@ -7,6 +7,13 @@
  * The photo section is hidden until ImageRepository is ready, so photo state was
  * dropped until then.
  */
+
+/**
+ * Purpose: Loads and saves changes to an existing campsite while preserving its ID.
+ * Feature owner: Raghav Sethi
+ * Outstanding issues: None
+ */
+
 package com.lambda.campsite.controller
 
 import androidx.lifecycle.ViewModel

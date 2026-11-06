@@ -3,6 +3,13 @@
  * It helped with the ViewModel and StateFlow setup, error handling, syntax and KDoc,
  * following the architecture guide. Raghav Sethi reviewed, tested, and committed it.
  */
+
+ /**
+ * Purpose: Loads and manages the campsites registered by the owner.
+ * Feature owner: Raghav Sethi
+ * Outstanding issues: None
+ */
+ 
 package com.lambda.campsite.controller
 
 import androidx.lifecycle.ViewModel

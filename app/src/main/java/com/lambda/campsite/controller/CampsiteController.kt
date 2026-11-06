@@ -4,6 +4,12 @@
  * Outstanding issues: joining is delegated to LotteryController (Flow 7).
  * AI use: OpenAI GPT-6 through Codex assisted with state/listener logic and KDoc; human review pending.
  */
+
+ /**
+ * Purpose: Loads and manages the owner's list of registered campsites.
+ * Feature owner: Raghav Sethi
+ * Outstanding issues: None
+ */
 package com.lambda.campsite.controller
 
 import androidx.lifecycle.ViewModel

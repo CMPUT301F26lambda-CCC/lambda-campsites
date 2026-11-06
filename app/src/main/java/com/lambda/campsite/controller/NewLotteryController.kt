@@ -9,6 +9,12 @@
  * lock once entrants joined, the capacity floor against the live wait list,
  * and the fresh re-read of the stored lottery on save.
  */
+
+ /**
+ * Purpose: Manages the lottery creation and editing wizard, including validation and saving.
+ * Feature owner: Raghav Sethi
+ * Outstanding issues: None
+ */
 package com.lambda.campsite.controller
 
 import androidx.lifecycle.ViewModel
