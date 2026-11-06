@@ -1,4 +1,9 @@
 /*
+ * Purpose: the top-level tabs for each role, with their routes, labels and
+ * icons.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026, following the nav bar component in the team's
  * Figma file. It helped with the Kotlin code, syntax and KDoc. Sashreek Addanki

@@ -1,4 +1,7 @@
 /*
+ * Purpose: the Material theme built from Color.kt and Type.kt, and the status
+ * bar icon style.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped change
  * this file in October 2026 to use the team's brand colours and turn off
  * wallpaper-based colours. Sashreek Addanki reviewed and committed it.

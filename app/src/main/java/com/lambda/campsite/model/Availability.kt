@@ -1,4 +1,9 @@
 /*
+ * Purpose: a campsite's season and its booked nights, and the rule that a stay
+ * covers check-in up to check-out.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in November 2026, following the Availability class in the team's
  * class diagram. It helped with the Kotlin code, syntax and KDoc. Sashreek

@@ -1,4 +1,9 @@
 /*
+ * Purpose: the campsite an owner lists: its details, owner, price and the
+ * required-field checks.
+ *
+ * Outstanding issues: #41 (admin removes a campsite), #111 (ratings).
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026, following the Campsite class in the team's class
  * diagram. It helped with the Kotlin code, syntax and KDoc. Sashreek Addanki

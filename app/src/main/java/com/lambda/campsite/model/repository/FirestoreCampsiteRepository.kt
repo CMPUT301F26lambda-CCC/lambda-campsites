@@ -1,4 +1,9 @@
 /*
+ * Purpose: the CampsiteRepository the app uses, backed by campsites/{id} and
+ * its availability calendar.
+ *
+ * Outstanding issues: None known.
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, the Firestore
  * queries, syntax and KDoc. It also helped add the availability calendar in

@@ -1,5 +1,8 @@
 // Issue #150: GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
 /*
+ * Purpose: the root composable: the NavHost, the nav bar and every route in
+ * the app.
+ *
  * Flow 8: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted with inbox and booking routing; human review pending.
  * Last updated: 2026-11-03 (Flow 9; Lalith Valluru).
  * OpenAI GPT-6 (OpenAI), through Codex, assisted with the winner booking route; human review pending.

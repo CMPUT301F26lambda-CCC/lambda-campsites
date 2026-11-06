@@ -1,4 +1,10 @@
 /*
+ * Purpose: the model layer's interface for campsites and their calendars.
+ * Controllers depend on it instead of Firestore, so tests can use
+ * FakeCampsiteRepository.
+ *
+ * Outstanding issues: #41 (admin removes a campsite).
+ *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Kotlin code, syntax and KDoc.
  * It also helped add the availability methods in November 2026. Sashreek
