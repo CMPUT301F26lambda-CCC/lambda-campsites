@@ -7,6 +7,7 @@ time to review the policy they agreed to earlier on FirstLaunchScreen.kt.
 If users wish to delete their profile, they can select the Delete Profile
 option and proceed with the profile deletion. Once the profile is deleted,
 they will be redirected to LaunchScreen.kt.
+(US 01.10.01), (US 01.11.01) and (US 01.08.01).
 
 Outstanding Issues:
 1.Clicking on Delete Profile does not currently delete the user's profile
