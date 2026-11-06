@@ -1,7 +1,8 @@
 /**
  * Purpose: Generates and decodes QR codes for campsites using ZXing (US 01.12.01, US 02.02.01).
- * Outstanding issues: Camera scanner integration will land with US 01.12.01; decode() provides
- * the shared payload parsing contract.
+ * Outstanding issues: None known. The camera scanner is integrated in Flow 16.
+ * Third-party library: ZXing core provides QRCodeWriter and BitMatrix;
+ * https://github.com/zxing/zxing.
  */
 /*
  * AI use: Gemini 3.8 Flash (Google DeepMind) helped write this file in November 2026,

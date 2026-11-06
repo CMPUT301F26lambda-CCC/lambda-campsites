@@ -1,4 +1,6 @@
 /*
+ * Purpose: Checks calendar loading, campsite switching, season limits, and live booking updates.
+ * Outstanding issues: None known.
  * AI use: GPT-6 (OpenAI), through Codex, helped write Flow 11 calendar tests
  * for month navigation, booked dates and live cancellation updates.
  * Human review is pending.

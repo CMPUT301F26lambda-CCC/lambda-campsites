@@ -1,4 +1,6 @@
 /*
+ * Purpose: Loads entrant reservations, groups current and past stays, and handles cancellation state for Flow 10.
+ * Outstanding issues: None known.
  * Feature owner: Sreeman Reddy, Flow 10 (#127), November 2026.
  * AI use: GPT-6 (OpenAI), through Codex, assisted me with the entrant reservation
  * list state and cancellation actions. Human review is pending.

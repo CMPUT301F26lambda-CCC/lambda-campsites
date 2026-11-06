@@ -1,4 +1,6 @@
 /*
+ * Purpose: Checks QR validation, campsite lookup, errors, and one-time navigation.
+ * Outstanding issues: None known.
  * Feature owner: Sreeman Reddy, Flow 16 (#133), November 2026.
  * AI use: GPT-6 (OpenAI), through Codex, assisted me with scanner state tests.
  * Human review is pending.

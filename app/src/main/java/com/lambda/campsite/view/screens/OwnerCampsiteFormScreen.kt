@@ -1,4 +1,8 @@
-// Issue #150: GPT-6 (OpenAI), through Codex, assisted me with the owner form layout.
+/*
+ * Purpose: Arranges the shared owner campsite form and its submit and navigation actions.
+ * Outstanding issues: None known.
+ * AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with the owner form layout.
+ */
 package com.lambda.campsite.view.screens
 
 import androidx.activity.compose.BackHandler

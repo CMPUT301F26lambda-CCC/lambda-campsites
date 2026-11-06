@@ -1,4 +1,8 @@
-// Issue #150: GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
+/*
+ * Purpose: Loads the current owner's campsite list and its UI state.
+ * Outstanding issues: None known.
+ */
+// AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
 /*
  * AI use: Gemini 3.8 Flash (Google DeepMind) helped write this file in November 2026.
  * It helped with the ViewModel and StateFlow setup, error handling, syntax and KDoc,

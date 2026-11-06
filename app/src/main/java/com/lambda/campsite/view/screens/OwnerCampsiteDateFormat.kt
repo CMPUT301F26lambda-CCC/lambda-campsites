@@ -1,4 +1,8 @@
-// Issue #150 review: GPT-6 (OpenAI), through Codex, assisted me with shared owner date formatting.
+/*
+ * Purpose: Formats owner campsite season dates consistently across forms and details.
+ * Outstanding issues: None known.
+ * AI use: For issue #150 review, GPT-6 (OpenAI), through Codex, assisted me with shared owner date formatting.
+ */
 package com.lambda.campsite.view.screens
 
 import java.time.LocalDate

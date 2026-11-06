@@ -1,12 +1,13 @@
-// Issue #150: GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
+// AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
 /*
  * Purpose: the root composable: the NavHost, the nav bar and every route in
  * the app.
+ * Outstanding issues: Manual TalkBack review, rules deployment, and shared-project
+ * Flow 12 navigation verification remain pending.
  *
  * Flow 8: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted with inbox and booking routing; human review pending.
  * Last updated: 2026-11-03 (Flow 9; Lalith Valluru).
  * OpenAI GPT-6 (OpenAI), through Codex, assisted with the winner booking route; human review pending.
- * Outstanding issues: Flow 12 shared-project navigation verification remains pending (#129).
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * this file in October 2026. It helped with the Compose navigation code, syntax
  * and KDoc. Sashreek Addanki reviewed it and committed it.
@@ -38,7 +39,6 @@
 // assisted me with the Home scan button and full-screen scanner route.
 // Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 (OpenAI), through Codex,
 // assisted with edit guards, race handling and merge preservation. Human review pending.
-// Outstanding issues: manual TalkBack review and rules deployment remain pending.
 /*
 * Flow 14: Harmanjoth Kaur, November 2026. Claude Opus 5.5 (Anthropic), through
 * Claude Code, helped add the Settings, Edit Profile and First Launch routes

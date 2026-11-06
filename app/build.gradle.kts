@@ -23,6 +23,8 @@
 // on November 3, 2026. Sashreek Addanki reviewed it.
 // Flow 16: GPT-6 (OpenAI), through Codex, assisted me with the CameraX
 // dependencies used by the entrant QR scanner. Human review is pending.
+// GPT-6 (OpenAI), through Codex, assisted me with the Espresso-Intents
+// dependency for the owner campsite photo-picker test.
 import java.util.Properties
 
 plugins {
@@ -115,6 +117,7 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.espresso.intents)
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)

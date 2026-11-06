@@ -1,4 +1,8 @@
-/* Issue #150: GPT-6 (OpenAI), through Codex, assisted me with the role switch UI regression test. */
+/*
+ * Purpose: Checks that choosing an owner or entrant role changes the visible app navigation.
+ * Outstanding issues: None known.
+ * AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with the role switch UI regression test.
+ */
 package com.lambda.campsite.view.screens
 
 import androidx.compose.ui.test.hasClickAction

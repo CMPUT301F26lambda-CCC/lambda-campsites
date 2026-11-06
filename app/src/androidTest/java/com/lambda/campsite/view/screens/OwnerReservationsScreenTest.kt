@@ -1,4 +1,6 @@
 /*
+ * Purpose: Checks Flow 11 owner reservation and booked-date screens in isolated Compose tests.
+ * Outstanding issues: None known.
  * AI use: GPT-6 (OpenAI), through Codex, helped write isolated Compose tests
  * for Flow 11's owner reservation list and calendar (US 02.06.01 and
  * 02.07.01 to 02.07.03). Human review is pending.

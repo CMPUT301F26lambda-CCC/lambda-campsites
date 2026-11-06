@@ -1,4 +1,8 @@
-// Issue #150: GPT-6 (OpenAI), through Codex, assisted me with related-lottery coverage.
+/*
+ * Purpose: Checks owner campsite details, availability, related lotteries, and failures.
+ * Outstanding issues: None known.
+ */
+// AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with related-lottery coverage.
 /*
  * AI use: Gemini 3.8 Flash (Google DeepMind) helped write these tests in November 2026.
  * It helped with test cases for loading campsite details, availability, and error handling.

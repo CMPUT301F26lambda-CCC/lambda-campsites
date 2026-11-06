@@ -1,4 +1,6 @@
 /*
+ * Purpose: Defines colors used by the Flow 11 reservation screens.
+ * Outstanding issues: None known.
  * AI use: GPT-6 (OpenAI), through Codex, assisted with mapping the read-only
  * Flow 11 Figma colours into the Android reservation screens.
  */

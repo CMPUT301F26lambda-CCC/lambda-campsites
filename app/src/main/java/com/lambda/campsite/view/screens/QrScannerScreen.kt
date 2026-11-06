@@ -1,4 +1,6 @@
 /*
+ * Purpose: Presents the Flow 16 camera scanner, permission states, and scan results.
+ * Outstanding issues: Physical-device camera and permission behavior remain unverified.
  * Feature owner: Sreeman Reddy, Flow 16 (#133), November 2026.
  * AI use: GPT-6 (OpenAI), through Codex, assisted me with the Figma-aligned
  * scanner and camera-permission screens. Human review is pending.

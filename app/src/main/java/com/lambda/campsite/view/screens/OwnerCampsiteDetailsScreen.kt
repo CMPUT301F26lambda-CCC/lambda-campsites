@@ -1,4 +1,8 @@
-// Issue #150: GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
+/*
+ * Purpose: Shows owner campsite details, availability, QR code, and edit actions.
+ * Outstanding issues: None known.
+ */
+// AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
 /*
  * AI use: Gemini 3.8 Flash (Google DeepMind) helped write this file in November 2026.
  * It helped with controller integration, TalkBack accessibility, formatted availability

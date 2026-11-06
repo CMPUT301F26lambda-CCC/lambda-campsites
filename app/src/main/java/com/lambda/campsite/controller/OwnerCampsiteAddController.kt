@@ -1,7 +1,8 @@
-// Issue #150: GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
+// AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
 /**
  * Purpose: ViewModel controller managing new campsite registration form state and saving (US 02.01.01, 02.01.02).
  * Handles the owner's campsite draft and its optional photo.
+ * Outstanding issues: None known.
  */
 /*
  * AI use: Gemini 3.8 Flash (Google DeepMind) helped write this file in November 2026.

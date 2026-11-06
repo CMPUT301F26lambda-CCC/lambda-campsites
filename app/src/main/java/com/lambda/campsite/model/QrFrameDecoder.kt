@@ -1,6 +1,14 @@
 /*
+ * Purpose: Copies a CameraX luminance plane with its row and pixel strides
+ * and decodes a QR payload with ZXing.
+ * Outstanding issues: Physical-device Y-plane decoding remains unverified.
  * Feature owner: Sreeman Reddy, Flow 16 (#133), November 2026.
- * AI use: GPT-6 (OpenAI), through Codex, assisted me with camera-frame QR decoding.
+ * Third-party APIs: Android CameraX supplies the Y-plane buffer and strides;
+ * ZXing core supplies PlanarYUVLuminanceSource, HybridBinarizer and QRCodeReader.
+ * Sources: https://developer.android.com/media/camera/camerax/analyze
+ * and https://github.com/zxing/zxing.
+ * AI use: GPT-6 (OpenAI), through Codex, helped implement the stride-aware
+ * CameraX-to-ZXing decoding in this file. QrFrameDecoderTest covers padded planes.
  * Human review is pending.
  */
 package com.lambda.campsite.model
