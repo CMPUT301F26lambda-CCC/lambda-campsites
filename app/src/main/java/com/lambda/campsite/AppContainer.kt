@@ -25,6 +25,10 @@
  * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
  * Sashreek Addanki add the reservation repository, on November 2, 2026.
  * Sashreek Addanki reviewed it.
+ *
+ * The conversation repository was added by Aarush Bhat with the assistance
+ * of Claude Sonnet 5 (Anthropic), through Claude Code, in November 2026.
+ * Aarush Bhat reviewed and committed it.
  */
 // Flow 12 feature owner: Lalith Valluru. OpenAI GPT-6 through Codex assisted
 // with the contact repository binding. Human review pending.
@@ -41,7 +45,9 @@ import com.google.firebase.functions.functions
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.storage
 import com.lambda.campsite.model.repository.CampsiteRepository
+import com.lambda.campsite.model.repository.ConversationRepository
 import com.lambda.campsite.model.repository.FirestoreCampsiteRepository
+import com.lambda.campsite.model.repository.FirestoreConversationRepository
 import com.lambda.campsite.model.repository.FirestoreImageRepository
 import com.lambda.campsite.model.repository.FirestoreLotteryRepository
 import com.lambda.campsite.model.repository.FirestoreNotificationRepository
@@ -108,4 +114,7 @@ class AppContainer {
 
     /** Campsite photos, stored in Storage and Firestore. */
     val imageRepository: ImageRepository by lazy { FirestoreImageRepository(auth, firestore, storage) }
+
+    /** Owner-and-guest chat about a reservation, stored in Firestore. */
+    val conversationRepository: ConversationRepository by lazy { FirestoreConversationRepository(auth, firestore) }
 }
