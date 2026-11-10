@@ -518,4 +518,8 @@
     <string name="flow15_availability_partial">Availability could not be checked for some campsites. Only confirmed matches are shown.</string>
     <string name="flow15_retry_availability">Retry availability</string>
     <string name="flow15_checking_other_availability">Checking availability for other campsites…</string>
+
+    <!-- WOW factor #71: match score -->
+    <string name="match_score">%1$d%% match</string>
+    <string name="match_score_description">%1$d percent match</string>
 </resources>
