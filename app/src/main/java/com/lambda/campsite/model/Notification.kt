@@ -29,6 +29,7 @@ enum class NotificationType {
     LOSE,
     RESERVATION_CONFIRMED,
     CAMPSITE_REMOVED,
+    WAITING_LIST_MESSAGE,
 }
 
 /**
