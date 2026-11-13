@@ -52,6 +52,7 @@ gets added here by its own issue.
 """
 
 import random
+from uuid import UUID
 from datetime import datetime, timezone
 
 from firebase_admin import firestore, initialize_app, messaging
@@ -116,6 +117,79 @@ def _waiting_list_contacts_transaction(transaction, db, uid, lottery_id, ids):
         result.append({"entrantId": entrant_id, "name": text("name") or "",
                        "email": text("email"), "phone": text("phone")})
     return {"contacts": result}
+
+
+# Issues #37 and #38: Lalith Valluru. GPT-6 through Codex assisted with
+# authenticated sending, deduplication and storing a private history record.
+@https_fn.on_call()
+def send_waiting_list_notification(request: https_fn.CallableRequest) -> dict:
+    """Send one owner's message to the selected lottery's current waiting list."""
+    if request.auth is None:
+        raise https_fn.HttpsError(https_fn.FunctionsErrorCode.UNAUTHENTICATED, "Sign in first.")
+    return send_waiting_list_message(firestore.client(), request.auth.uid, request.data)
+
+
+def send_waiting_list_message(db, uid, data):
+    """Validate the message before starting its Firestore transaction."""
+    invalid = https_fn.FunctionsErrorCode.INVALID_ARGUMENT
+    if not isinstance(data, dict):
+        raise https_fn.HttpsError(invalid, "A lottery and message are required.")
+    lottery_id, message, request_id = (data.get(key) for key in ("lotteryId", "message", "requestId"))
+    if (not isinstance(lottery_id, str) or not lottery_id or "/" in lottery_id
+            or lottery_id in (".", "..") or len(lottery_id.encode("utf-8")) > 1500):
+        raise https_fn.HttpsError(invalid, "Invalid lottery ID.")
+    if not isinstance(message, str) or not 1 <= len(message.strip()) <= 500:
+        raise https_fn.HttpsError(invalid, "Enter a message of 1 to 500 characters.")
+    try:
+        request_id = str(UUID(request_id))
+    except (AttributeError, ValueError, TypeError):
+        raise https_fn.HttpsError(invalid, "Invalid send request ID.")
+    return _send_waiting_list_transaction(db.transaction(), db, uid, lottery_id, message.strip(), request_id)
+
+
+@firestore.transactional
+def _send_waiting_list_transaction(transaction, db, uid, lottery_id, message, request_id):
+    owner_ref = db.collection("profiles").document(uid)
+    owner = owner_ref.get(transaction=transaction).to_dict() or {}
+    lottery_ref = db.collection("lotteries").document(lottery_id)
+    lottery = lottery_ref.get(transaction=transaction).to_dict() or {}
+    if ("OWNER" not in owner.get("roles", []) or owner.get("ownerBanned", False)
+            or owner.get("removed", False) or lottery.get("ownerId") != uid):
+        raise https_fn.HttpsError(https_fn.FunctionsErrorCode.PERMISSION_DENIED, "This lottery is unavailable.")
+
+    history_ref = owner_ref.collection("sentNotifications").document(request_id)
+    previous = history_ref.get(transaction=transaction).to_dict()
+    if previous is not None:
+        if previous["lotteryId"] != lottery_id or previous["message"] != message:
+            raise https_fn.HttpsError(https_fn.FunctionsErrorCode.ALREADY_EXISTS, "This request has already been used.")
+        return {"recipientCount": len(previous["recipientIds"])}
+
+    entries = lottery_ref.collection("entries").where(filter=FieldFilter("status", "==", "WAITING"))
+    recipient_ids = sorted(entry.id for entry in entries.limit(500).stream(transaction=transaction))
+    if not recipient_ids:
+        raise https_fn.HttpsError(https_fn.FunctionsErrorCode.FAILED_PRECONDITION, "No entrants to notify.")
+    if len(recipient_ids) == 500:
+        raise https_fn.HttpsError(https_fn.FunctionsErrorCode.RESOURCE_EXHAUSTED, "Waiting list exceeds the send limit.")
+
+    lottery_name = lottery.get("name") or lottery_id
+    transaction.create(history_ref, {
+        "lotteryId": lottery_id,
+        "lotteryName": lottery_name,
+        "message": message,
+        "sentAt": firestore.SERVER_TIMESTAMP,
+        "recipientIds": recipient_ids,
+    })
+    for entrant_id in recipient_ids:
+        transaction.create(db.collection("notifications").document(), {
+            "recipientId": entrant_id,
+            "type": "WAITING_LIST_MESSAGE",
+            "title": lottery_name,
+            "body": message,
+            "lotteryId": lottery_id,
+            "sentAt": firestore.SERVER_TIMESTAMP,
+            "read": False,
+        })
+    return {"recipientCount": len(recipient_ids)}
 
 
 @scheduler_fn.on_schedule(schedule="every 5 minutes")
