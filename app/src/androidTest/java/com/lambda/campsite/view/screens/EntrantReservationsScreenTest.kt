@@ -3,12 +3,22 @@
  * Outstanding issues: None known.
  * Feature owner: Sreeman Reddy, Flow 10 (#127), November 2026.
  * AI use: GPT-6 (OpenAI), through Codex, assisted me with these UI tests.
- * Issue #52: Lalith Valluru, November 2026. GPT-6 (OpenAI), through Codex, assisted with CSV action coverage.
+ * Issue #52: Lalith Valluru, November 2026. GPT-6 (OpenAI), through Codex, assisted with CSV action and document picker failure coverage.
  */
 package com.lambda.campsite.view.screens
 
+import android.app.Activity
+import android.app.Instrumentation.ActivityResult
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.runtime.mutableStateOf
+import androidx.test.espresso.intent.Intents
+import androidx.test.espresso.intent.VerificationModes.times
+import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
+import androidx.test.espresso.intent.matcher.IntentMatchers.hasType
+import org.hamcrest.Matchers.allOf
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
@@ -16,10 +26,12 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.firebase.Timestamp
 import com.lambda.campsite.R
+import com.lambda.campsite.controller.EntrantReservationsController
 import com.lambda.campsite.controller.EntrantReservationTab
 import com.lambda.campsite.controller.EntrantReservationsUiState
 import com.lambda.campsite.model.Reservation
 import com.lambda.campsite.model.ReservationStatus
+import com.lambda.campsite.model.repository.FakeReservationRepository
 import com.lambda.campsite.view.theme.LambdaCampsiteTheme
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -108,6 +120,36 @@ class EntrantReservationsScreenTest {
         download.performScrollTo().assertIsDisplayed().performClick()
         download.performClick()
         compose.runOnIdle { assertEquals(2, exportAttempts) }
+    }
+
+    @Test fun cancellationCsvLaunchesDocumentPickerAndCanRetryAfterFailedWrite() {
+        val cancelled = stay.copy(status = ReservationStatus.CANCELLED, cancelledAt = Timestamp.now())
+        val repository = FakeReservationRepository(myUserId = stay.guestId, initial = listOf(cancelled))
+        val controller = EntrantReservationsController(repository) { today }
+        val picker = allOf(hasAction(Intent.ACTION_CREATE_DOCUMENT), hasType("text/csv"))
+        // Return a URI with no provider so the real ContentResolver write fails.
+        val unavailable = Intent().setData(Uri.parse("content://com.lambda.campsite.test.unavailable/receipt"))
+        Intents.init()
+        try {
+            Intents.intending(picker).respondWith(ActivityResult(Activity.RESULT_OK, unavailable))
+            compose.setContent { LambdaCampsiteTheme {
+                EntrantReservationDetailsScreen(stay.id, controller, campsiteController = null, onBack = {})
+            } }
+
+            val download = compose.onNodeWithText(text(R.string.cancellation_csv_download))
+            download.performScrollTo().performClick()
+            Intents.intended(picker, times(1))
+            val error = text(R.string.cancellation_csv_failed)
+            compose.waitUntil(5_000) {
+                compose.onAllNodes(hasText(error))
+                    .fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithText(error).assertIsDisplayed()
+            download.performClick()
+            Intents.intended(picker, times(2))
+        } finally {
+            Intents.release()
+        }
     }
 
 }
