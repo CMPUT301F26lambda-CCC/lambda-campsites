@@ -3,13 +3,14 @@
  * Outstanding issues: None known.
  * Feature owner: Sreeman Reddy, Flow 10 (#127), November 2026.
  * AI use: GPT-6 (OpenAI), through Codex, assisted me with these UI tests.
- * Human review is pending.
+ * Issue #52: Lalith Valluru, November 2026. GPT-6 (OpenAI), through Codex, assisted with CSV action coverage.
  */
 package com.lambda.campsite.view.screens
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
@@ -89,4 +90,24 @@ class EntrantReservationsScreenTest {
         compose.onNodeWithText(text(R.string.flow10_status_completed)).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.flow10_cancel_reservation)).assertDoesNotExist()
     }
+
+    @Test fun csvActionAppearsAfterCancellationIsRecordedAndRemainsAvailableToRetry() {
+        val state = mutableStateOf(EntrantReservationsUiState(
+            reservations = listOf(stay), today = today, isLoading = false))
+        var exportAttempts = 0
+        compose.setContent { LambdaCampsiteTheme {
+            EntrantReservationDetailsContent(stay.id, state.value, null,
+                onCancelRequested = {}, onCancelDismissed = {}, onCancelConfirmed = {},
+                onBack = {}, onExport = { exportAttempts++ })
+        } }
+
+        val download = compose.onNodeWithText(text(R.string.cancellation_csv_download))
+        download.assertDoesNotExist()
+        compose.runOnIdle { state.value = state.value.copy(reservations = listOf(stay.copy(
+            status = ReservationStatus.CANCELLED, cancelledAt = Timestamp.now()))) }
+        download.performScrollTo().assertIsDisplayed().performClick()
+        download.performClick()
+        compose.runOnIdle { assertEquals(2, exportAttempts) }
+    }
+
 }
