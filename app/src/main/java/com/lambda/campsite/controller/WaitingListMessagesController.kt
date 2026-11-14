@@ -32,7 +32,7 @@ data class WaitingListMessagesState(
     val historyFailed: Boolean = false,
 )
 
-enum class WaitingListSendError { EMPTY, TOO_LARGE, FAILED }
+enum class WaitingListSendError { EMPTY, FAILED }
 
 /** Coordinates sends and history reads with Firebase. */
 class WaitingListMessagesController(private val repository: WaitingListMessageRepository) : ViewModel() {
@@ -61,7 +61,6 @@ class WaitingListMessagesController(private val repository: WaitingListMessageRe
             } catch (error: Exception) {
                 val reason = when ((error as? FirebaseFunctionsException)?.code) {
                     FirebaseFunctionsException.Code.FAILED_PRECONDITION -> WaitingListSendError.EMPTY
-                    FirebaseFunctionsException.Code.RESOURCE_EXHAUSTED -> WaitingListSendError.TOO_LARGE
                     else -> WaitingListSendError.FAILED
                 }
                 mutableState.update { it.copy(sendError = reason) }
@@ -86,6 +85,9 @@ class WaitingListMessagesController(private val repository: WaitingListMessageRe
             }
         }
     }
+
+    /** Loads the private recipient details for an opened history record. */
+    suspend fun recipientNames(message: SentWaitingListMessage) = repository.recipientNames(message)
 
     companion object {
         val Factory = viewModelFactory {

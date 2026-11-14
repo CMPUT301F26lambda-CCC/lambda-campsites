@@ -491,6 +491,10 @@ service cloud.firestore {
     // #38: The callable writes a separate history record under its sender.
     match /profiles/{uid}/sentNotifications/{messageId} {
       allow read: if isSelf(uid) && activeOwner();
+
+      match /recipients/{recipientId} {
+        allow read: if isSelf(uid) && activeOwner();
+      }
     }
 
     // Only a Cloud Function creates a notification (US 01.03.01, 01.03.02).

@@ -62,7 +62,6 @@ fun ComposeWaitingListMessage(
                 item {
                     Text(stringResource(when (error) {
                         WaitingListSendError.EMPTY -> R.string.waitlist_message_empty
-                        WaitingListSendError.TOO_LARGE -> R.string.waitlist_message_too_large
                         WaitingListSendError.FAILED -> R.string.waitlist_message_failed
                     }), modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
                 }
@@ -93,6 +92,18 @@ fun SentWaitingListMessages(controller: WaitingListMessagesController, onBack: (
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
     val selected = state.history?.firstOrNull { it.id == selectedId }
     LaunchedEffect(controller) { controller.loadHistory() }
+    var retryRecipients by remember { mutableIntStateOf(0) }
+    val recipientNames by produceState<Result<List<String>>?>(null, selected, retryRecipients) {
+        value = null
+        val message = selected ?: return@produceState
+        value = try {
+            Result.success(controller.recipientNames(message))
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
+    }
     BackHandler(selected != null) { selectedId = null }
     MessageScreen(R.string.waitlist_message_history, { if (selected != null) selectedId = null else onBack() }) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(20.dp),
@@ -112,7 +123,17 @@ fun SentWaitingListMessages(controller: WaitingListMessagesController, onBack: (
                         Text(stringResource(R.string.waitlist_message_recipients),
                             style = MaterialTheme.typography.titleMedium)
                     }
-                    items(selected.recipientIds) { id -> Text(id) }
+                    val recipients = recipientNames
+                    when {
+                        recipients == null -> item { CircularProgressIndicator() }
+                        recipients.isFailure -> item {
+                            Text(stringResource(R.string.waitlist_message_recipients_failed))
+                            TextButton(onClick = { retryRecipients++ }) {
+                                Text(stringResource(R.string.retry_button))
+                            }
+                        }
+                        else -> items(recipients.getOrThrow()) { name -> Text(name) }
+                    }
                 }
                 history.isEmpty() -> item { Text(stringResource(R.string.waitlist_message_history_empty)) }
                 else -> items(history, key = { it.id }) { message ->

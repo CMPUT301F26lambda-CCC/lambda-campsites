@@ -35,15 +35,25 @@ class WaitingListMessageRepository(
     fun history() = auth.signedInUserId().flatMapLatest { uid ->
         firestore.collection("profiles").document(uid).collection("sentNotifications")
             .orderBy("sentAt", Query.Direction.DESCENDING).liveSnapshots().map { snapshot ->
-                snapshot.documents.map { doc ->
+                snapshot.documents.filter { it.getBoolean("complete") != false }.map { doc ->
                     SentWaitingListMessage(
                         doc.id,
                         requireNotNull(doc.getString("lotteryName")),
                         requireNotNull(doc.getString("message")),
                         requireNotNull(doc.getTimestamp("sentAt")),
-                        (doc.get("recipientIds") as List<*>).map { it as String },
+                        (doc.get("recipientIds") as? List<*>)?.filterIsInstance<String>().orEmpty(),
                     )
                 }
+            }
+    }
+
+    /** Reads the participant names captured during delivery. */
+    suspend fun recipientNames(message: SentWaitingListMessage): List<String> {
+        if (message.recipientIds.isNotEmpty()) return message.recipientIds
+        val uid = requireNotNull(auth.currentUser?.uid)
+        return firestore.collection("profiles").document(uid).collection("sentNotifications")
+            .document(message.id).collection("recipients").get().await().documents.map {
+                it.getString("name")?.takeIf(String::isNotBlank) ?: it.id
             }
     }
 

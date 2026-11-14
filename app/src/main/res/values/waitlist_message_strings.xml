@@ -10,7 +10,6 @@
     <string name="waitlist_message_sending">Sending notification…</string>
     <string name="waitlist_message_sent">Notification sent.</string>
     <string name="waitlist_message_empty">No entrants to notify.</string>
-    <string name="waitlist_message_too_large">The waiting list is too large to send to at once.</string>
     <string name="waitlist_message_failed">Couldn’t send the notification. Try again.</string>
     <string name="waitlist_message_confirm_title">Send to the waiting list?</string>
     <string name="waitlist_message_confirm_body">This sends your message to the entrants currently waiting for this lottery.</string>
@@ -18,5 +17,6 @@
     <string name="waitlist_message_history">Sent notifications</string>
     <string name="waitlist_message_history_empty">No sent notifications.</string>
     <string name="waitlist_message_history_failed">Couldn’t load sent notifications.</string>
-    <string name="waitlist_message_recipients">Recipient IDs</string>
+    <string name="waitlist_message_recipients">Recipients</string>
+    <string name="waitlist_message_recipients_failed">Couldn’t load recipients.</string>
 </resources>
