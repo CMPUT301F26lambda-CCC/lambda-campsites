@@ -312,6 +312,7 @@ private fun typeTitle(type: NotificationType): Int = when (type) {
     NotificationType.LOSE -> R.string.flow8_lost
     NotificationType.RESERVATION_CONFIRMED -> R.string.flow8_confirmed
     NotificationType.CAMPSITE_REMOVED -> R.string.flow8_removed
+    NotificationType.WAITING_LIST_MESSAGE -> R.string.waitlist_message_title
 }
 
 @Composable

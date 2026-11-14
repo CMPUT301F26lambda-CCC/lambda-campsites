@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Purpose: Text for owner waiting-list notifications and sent history. -->
+<!-- Outstanding issues: None known. -->
+<!-- Lalith Valluru. GPT-6 through Codex assisted with #37 and #38. -->
+<resources>
+    <string name="waitlist_message_title">Waiting-list message</string>
+    <string name="waitlist_message_compose">Message waiting list</string>
+    <string name="waitlist_message_label">Message (up to 500 characters)</string>
+    <string name="waitlist_message_send">Send notification</string>
+    <string name="waitlist_message_sending">Sending notification…</string>
+    <string name="waitlist_message_sent">Notification sent.</string>
+    <string name="waitlist_message_empty">No entrants to notify.</string>
+    <string name="waitlist_message_failed">Couldn’t send the notification. Try again.</string>
+    <string name="waitlist_message_confirm_title">Send to the waiting list?</string>
+    <string name="waitlist_message_confirm_body">This sends your message to the entrants currently waiting for this lottery.</string>
+    <string name="waitlist_message_keep">Keep editing</string>
+    <string name="waitlist_message_history">Sent notifications</string>
+    <string name="waitlist_message_history_empty">No sent notifications.</string>
+    <string name="waitlist_message_history_failed">Couldn’t load sent notifications.</string>
+    <string name="waitlist_message_recipients">Recipients</string>
+    <string name="waitlist_message_recipients_failed">Couldn’t load recipients.</string>
+    <plurals name="waitlist_message_partial">
+        <item quantity="one">Partially sent · %d recipient reached</item>
+        <item quantity="other">Partially sent · %d recipients reached</item>
+    </plurals>
+    <string name="waitlist_message_resume">Resume send</string>
+    <string name="waitlist_message_resume_failed">Couldn’t resume the send. Try again.</string>
+</resources>

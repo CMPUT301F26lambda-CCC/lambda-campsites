@@ -52,6 +52,8 @@ gets added here by its own issue.
 """
 
 import random
+from uuid import UUID
+from hashlib import sha256
 from datetime import datetime, timezone
 
 from firebase_admin import firestore, initialize_app, messaging
@@ -116,6 +118,127 @@ def _waiting_list_contacts_transaction(transaction, db, uid, lottery_id, ids):
         result.append({"entrantId": entrant_id, "name": text("name") or "",
                        "email": text("email"), "phone": text("phone")})
     return {"contacts": result}
+
+
+# Issues #37 and #38: Lalith Valluru. GPT-6 through Codex assisted with
+# authenticated sending, deduplication and storing a private history record.
+@https_fn.on_call()
+def send_waiting_list_notification(request: https_fn.CallableRequest) -> dict:
+    """Send one owner's message to the selected lottery's current waiting list."""
+    if request.auth is None:
+        raise https_fn.HttpsError(https_fn.FunctionsErrorCode.UNAUTHENTICATED, "Sign in first.")
+    return send_waiting_list_message(firestore.client(), request.auth.uid, request.data)
+
+
+def send_waiting_list_message(db, uid, data):
+    """Validate the message before starting its Firestore transaction."""
+    invalid = https_fn.FunctionsErrorCode.INVALID_ARGUMENT
+    if not isinstance(data, dict):
+        raise https_fn.HttpsError(invalid, "A lottery and message are required.")
+    lottery_id, message, request_id = (data.get(key) for key in ("lotteryId", "message", "requestId"))
+    if (not isinstance(lottery_id, str) or not lottery_id or "/" in lottery_id
+            or lottery_id in (".", "..") or len(lottery_id.encode("utf-8")) > 1500):
+        raise https_fn.HttpsError(invalid, "Invalid lottery ID.")
+    if not isinstance(message, str) or not 1 <= len(message.strip()) <= 500:
+        raise https_fn.HttpsError(invalid, "Enter a message of 1 to 500 characters.")
+    try:
+        request_id = str(UUID(request_id))
+    except (AttributeError, ValueError, TypeError):
+        raise https_fn.HttpsError(invalid, "Invalid send request ID.")
+    history = db.document(f"profiles/{uid}/sentNotifications/{request_id}")
+    lottery = db.document(f"lotteries/{lottery_id}")
+    message = message.strip()
+    _capture_waiting_list(db.transaction(), db, uid, lottery, history, message)
+    while True:
+        count = _send_waiting_list_batch(db.transaction(), db, uid, lottery, history, message)
+        if count is not None:
+            return {"recipientCount": count}
+
+
+def _owned_waiting_list_lottery(transaction, db, uid, lottery_ref):
+    """Check that the caller can still send messages for this lottery."""
+    owner = db.document(f"profiles/{uid}").get(transaction=transaction).to_dict() or {}
+    lottery = lottery_ref.get(transaction=transaction).to_dict() or {}
+    if ("OWNER" not in owner.get("roles", []) or owner.get("ownerBanned", False)
+            or owner.get("removed", False) or lottery.get("ownerId") != uid):
+        raise https_fn.HttpsError(https_fn.FunctionsErrorCode.PERMISSION_DENIED, "This lottery is unavailable.")
+
+    return lottery
+
+
+WAITING_LIST_BATCH_SIZE = 200
+
+
+@firestore.transactional
+def _capture_waiting_list(transaction, db, uid, lottery_ref, history_ref, message):
+    """Save the full audience atomically before any recipient is notified."""
+    lottery = _owned_waiting_list_lottery(transaction, db, uid, lottery_ref)
+    previous = history_ref.get(transaction=transaction).to_dict()
+    if previous is not None:
+        if previous["lotteryId"] != lottery_ref.id or previous["message"] != message:
+            raise https_fn.HttpsError(https_fn.FunctionsErrorCode.ALREADY_EXISTS, "This request has already been used.")
+        return
+
+    waiting = (lottery_ref.collection("entries")
+               .where(filter=FieldFilter("status", "==", "WAITING")).order_by("__name__"))
+    recipient_ids = [entry.id for entry in waiting.stream(transaction=transaction)]
+    if not recipient_ids:
+        raise https_fn.HttpsError(https_fn.FunctionsErrorCode.FAILED_PRECONDITION, "No entrants to notify.")
+    total = len(recipient_ids)
+    for offset in range(0, total, WAITING_LIST_BATCH_SIZE):
+        page = history_ref.collection("audience").document(str(offset))
+        transaction.create(page, {"ids": recipient_ids[offset:offset + WAITING_LIST_BATCH_SIZE]})
+    transaction.create(history_ref, {
+        "lotteryId": lottery_ref.id, "lotteryName": lottery.get("name") or lottery_ref.id,
+        "message": message, "sentAt": firestore.SERVER_TIMESTAMP,
+        "recipientCount": 0, "complete": False, "audienceSize": total,
+    })
+
+
+@firestore.transactional
+def _send_waiting_list_batch(transaction, db, uid, lottery_ref, history_ref, message):
+    """Commit notifications and advance the saved audience cursor together."""
+    _owned_waiting_list_lottery(transaction, db, uid, lottery_ref)
+    previous = history_ref.get(transaction=transaction).to_dict()
+    if previous is not None:
+        if previous["lotteryId"] != lottery_ref.id or previous["message"] != message:
+            raise https_fn.HttpsError(https_fn.FunctionsErrorCode.ALREADY_EXISTS, "This request has already been used.")
+        if "recipientIds" in previous:
+            return len(previous["recipientIds"])
+        if previous["complete"]:
+            return previous["recipientCount"]
+
+    if previous is None or "audienceSize" not in previous:
+        raise https_fn.HttpsError(https_fn.FunctionsErrorCode.FAILED_PRECONDITION,
+                                 "The original recipient list is unavailable.")
+    offset = previous["recipientCount"]
+    page = history_ref.collection("audience").document(str(offset))
+    selected = page.get(transaction=transaction).get("ids")
+    profiles = {doc.id: doc.to_dict() or {} for doc in db.get_all(
+        [db.document(f"profiles/{entrant_id}") for entrant_id in selected], transaction=transaction
+    )}
+    lottery_name = previous["lotteryName"]
+    for entrant_id in selected:
+        profile = profiles.get(entrant_id, {})
+        name = profile.get("name")
+        name = name.strip()[:200] if isinstance(name, str) and not profile.get("removed") else ""
+        transaction.create(history_ref.collection("recipients").document(entrant_id), {"name": name})
+        notification_id = sha256(f"{uid}/{history_ref.id}/{entrant_id}".encode()).hexdigest()
+        transaction.create(db.collection("notifications").document(notification_id), {
+            "recipientId": entrant_id,
+            "type": "WAITING_LIST_MESSAGE",
+            "title": lottery_name,
+            "body": message,
+            "lotteryId": lottery_ref.id,
+            "sentAt": firestore.SERVER_TIMESTAMP,
+            "read": False,
+        })
+
+    count = offset + len(selected)
+    complete = count == previous["audienceSize"]
+    transaction.update(history_ref, {"recipientCount": count, "complete": complete})
+    transaction.delete(page)
+    return count if complete else None
 
 
 @scheduler_fn.on_schedule(schedule="every 5 minutes")

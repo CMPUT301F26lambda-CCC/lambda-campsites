@@ -90,7 +90,7 @@ private val DetailsDate = DateTimeFormatter.ofPattern("MMM d, yyyy")
  * @param onEditClick invoked to edit the lottery.
  * @param onWaitingListClick invoked to see the entrants on the waiting list.
  * @param onMessageWaitingListClick invoked to message everyone on the waiting list.
- * @param onSentMessagesClick invoked to read the messages sent to this lottery.
+ * @param onSentMessagesClick invoked to read the owner’s sent notification history.
  * @param onResultsClick invoked to see the draw's results, offered once the
  *   lottery has been drawn (US 02.05.01).
  * @param modifier optional layout modifier.

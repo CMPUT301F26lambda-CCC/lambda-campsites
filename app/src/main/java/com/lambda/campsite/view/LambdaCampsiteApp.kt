@@ -46,6 +46,9 @@
 package com.lambda.campsite.view
 
 import android.net.Uri
+import com.lambda.campsite.controller.WaitingListMessagesController
+import com.lambda.campsite.view.screens.ComposeWaitingListMessage
+import com.lambda.campsite.view.screens.SentWaitingListMessages
 import android.os.Bundle
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.size
@@ -694,13 +697,24 @@ fun LambdaCampsiteApp(
                             navController.navigate(ownerLotteryWaitingListRoute(lotteryId))
                         },
                         onMessageWaitingListClick = {
-                            // Handled when messaging lands (US 02.10)
+                            navController.navigate("owner/waitlist-message/${Uri.encode(lotteryId)}")
                         },
                         onSentMessagesClick = {
-                            // Handled when sent messages land (US 02.10.02)
+                            navController.navigate("owner/sent-notifications")
                         },
                         onResultsClick = { navController.navigate(ownerLotteryResultsRoute(lotteryId)) },
                     )
+                }
+
+                composable("owner/waitlist-message/{lotteryId}") { entry ->
+                    val id = requireNotNull(entry.arguments?.getString("lotteryId"))
+                    val messages: WaitingListMessagesController = viewModel(factory = WaitingListMessagesController.Factory)
+                    ComposeWaitingListMessage(id, messages) { navController.popBackStack() }
+                }
+
+                composable("owner/sent-notifications") {
+                    val messages: WaitingListMessagesController = viewModel(factory = WaitingListMessagesController.Factory)
+                    SentWaitingListMessages(messages) { navController.popBackStack() }
                 }
 
                 composable(OWNER_LOTTERY_RESULTS_ROUTE) { entry ->
