@@ -22,6 +22,9 @@ data class SentWaitingListMessage(
     val message: String,
     val sentAt: Timestamp,
     val recipientIds: List<String>,
+    val lotteryId: String,
+    val complete: Boolean,
+    val recipientCount: Int,
 )
 
 /** Firebase operations for waiting-list messages. */
@@ -35,13 +38,17 @@ class WaitingListMessageRepository(
     fun history() = auth.signedInUserId().flatMapLatest { uid ->
         firestore.collection("profiles").document(uid).collection("sentNotifications")
             .orderBy("sentAt", Query.Direction.DESCENDING).liveSnapshots().map { snapshot ->
-                snapshot.documents.filter { it.getBoolean("complete") != false }.map { doc ->
+                snapshot.documents.map { doc ->
+                    val legacyIds = (doc.get("recipientIds") as? List<*>)?.filterIsInstance<String>().orEmpty()
                     SentWaitingListMessage(
                         doc.id,
                         requireNotNull(doc.getString("lotteryName")),
                         requireNotNull(doc.getString("message")),
                         requireNotNull(doc.getTimestamp("sentAt")),
-                        (doc.get("recipientIds") as? List<*>)?.filterIsInstance<String>().orEmpty(),
+                        legacyIds,
+                        doc.getString("lotteryId").orEmpty(),
+                        doc.getBoolean("complete") ?: true,
+                        doc.getLong("recipientCount")?.toInt() ?: legacyIds.size,
                     )
                 }
             }

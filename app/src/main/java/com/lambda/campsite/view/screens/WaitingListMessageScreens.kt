@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -120,6 +121,18 @@ fun SentWaitingListMessages(controller: WaitingListMessagesController, onBack: (
                         Text(selected.lotteryName, style = MaterialTheme.typography.titleLarge)
                         Text(DateFormat.getDateTimeInstance().format(selected.sentAt.toDate()))
                         Text(selected.message)
+                        if (!selected.complete) {
+                            PartialSendStatus(selected.recipientCount)
+                            Button(onClick = { controller.resume(selected) },
+                                enabled = state.resumingId == null && selected.lotteryId.isNotBlank()) {
+                                Text(stringResource(if (state.resumingId == selected.id)
+                                    R.string.waitlist_message_sending else R.string.waitlist_message_resume))
+                            }
+                            if (state.resumeFailedId == selected.id) {
+                                Text(stringResource(R.string.waitlist_message_resume_failed),
+                                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                            }
+                        }
                         Text(stringResource(R.string.waitlist_message_recipients),
                             style = MaterialTheme.typography.titleMedium)
                     }
@@ -141,6 +154,7 @@ fun SentWaitingListMessages(controller: WaitingListMessagesController, onBack: (
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(message.lotteryName, style = MaterialTheme.typography.titleMedium)
                             Text(DateFormat.getDateTimeInstance().format(message.sentAt.toDate()))
+                            if (!message.complete) PartialSendStatus(message.recipientCount)
                             Text(message.message, maxLines = 3, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                         }
                     }
@@ -148,6 +162,11 @@ fun SentWaitingListMessages(controller: WaitingListMessagesController, onBack: (
             }
         }
     }
+}
+
+@Composable
+private fun PartialSendStatus(count: Int) {
+    Text(pluralStringResource(R.plurals.waitlist_message_partial, count, count))
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

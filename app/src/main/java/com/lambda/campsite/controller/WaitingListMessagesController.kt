@@ -30,6 +30,8 @@ data class WaitingListMessagesState(
     val sendError: WaitingListSendError? = null,
     val history: List<SentWaitingListMessage>? = null,
     val historyFailed: Boolean = false,
+    val resumingId: String? = null,
+    val resumeFailedId: String? = null,
 )
 
 enum class WaitingListSendError { EMPTY, FAILED }
@@ -82,6 +84,23 @@ class WaitingListMessagesController(private val repository: WaitingListMessageRe
                 throw error
             } catch (_: Exception) {
                 mutableState.update { it.copy(history = null, historyFailed = true) }
+            }
+        }
+    }
+
+    /** Continues a recorded send using its original message and request ID. */
+    fun resume(message: SentWaitingListMessage) {
+        if (message.complete || message.lotteryId.isBlank() || state.value.resumingId != null) return
+        mutableState.update { it.copy(resumingId = message.id, resumeFailedId = null) }
+        viewModelScope.launch {
+            try {
+                repository.send(message.lotteryId, message.message, message.id)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                mutableState.update { it.copy(resumeFailedId = message.id) }
+            } finally {
+                mutableState.update { it.copy(resumingId = null) }
             }
         }
     }

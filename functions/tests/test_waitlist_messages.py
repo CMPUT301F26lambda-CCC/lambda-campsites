@@ -81,8 +81,12 @@ def test_large_send_resumes_with_the_original_waiting_list(db, monkeypatch):
     with pytest.raises(RuntimeError, match="Interrupted"):
         send_waiting_list_message(db, "owner", request)
     history = db.document(f"profiles/owner/sentNotifications/{request['requestId']}")
-    assert history.get().get("complete") is False
-    assert history.get().get("recipientCount") == 200
+    # History orders all records by sentAt, including sends still in progress.
+    rows = list(history.parent.order_by("sentAt", direction="DESCENDING").stream())
+    assert [row.id for row in rows] == [request["requestId"]]
+    assert rows[0].get("complete") is False
+    assert rows[0].get("recipientCount") == 200
+    assert rows[0].get("lotteryId") == lottery.id
     entries.document(ids[-1]).delete()
     entries.document("newcomer").set({"status": "WAITING"})
 
