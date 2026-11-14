@@ -1,6 +1,7 @@
 # Purpose: Exercise waiting-list sends against the local Firestore emulator.
 # Outstanding issues: Real FCM delivery requires a deployed device check.
 # Lalith Valluru. GPT-6 through Codex assisted with these tests.
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import json
@@ -73,6 +74,12 @@ def test_large_send_resumes_with_the_original_waiting_list(db, monkeypatch):
     def interrupt_after_first_batch(*args):
         nonlocal calls
         calls += 1
+        if calls == 1:
+            history = db.document(f"profiles/owner/sentNotifications/{request['requestId']}")
+            assert history.get().get("recipientCount") == 0
+            assert sorted(uid for page in history.collection("audience").stream()
+                          for uid in page.get("ids")) == ids
+            assert list(db.collection("notifications").stream()) == []
         if calls == 2:
             raise RuntimeError("Interrupted between batches")
         return send_batch(*args)
@@ -87,6 +94,9 @@ def test_large_send_resumes_with_the_original_waiting_list(db, monkeypatch):
     assert rows[0].get("complete") is False
     assert rows[0].get("recipientCount") == 200
     assert rows[0].get("lotteryId") == lottery.id
+    # Simulate resuming after the historical read window without delaying the test.
+    stale_time = datetime.now(timezone.utc) - timedelta(hours=2)
+    history.update({"sentAt": stale_time, "snapshotAt": stale_time})
     entries.document(ids[-1]).delete()
     entries.document("newcomer").set({"status": "WAITING"})
 
@@ -95,6 +105,7 @@ def test_large_send_resumes_with_the_original_waiting_list(db, monkeypatch):
     notices = [doc.get("recipientId") for doc in db.collection("notifications").stream()]
     assert sorted(notices) == ids
     assert history.get().get("complete") is True
+    assert list(history.collection("audience").stream()) == []
     assert sorted(doc.id for doc in history.collection("recipients").stream()) == ids
 
 

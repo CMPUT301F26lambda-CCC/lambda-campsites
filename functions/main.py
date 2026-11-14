@@ -18,8 +18,6 @@
 #   other send error, like FCM being down, fails the function and that
 #   push is lost. Retrying could send the same push twice, and the in-app
 #   notification is there either way.
-# - Waiting-list sends can resume from their saved cursor while the Firestore
-#   snapshot remains readable (normally one hour).
 # - send_push only runs for notifications. Messages get a trigger with #112.
 # - A lottery the draw can't finish is logged and left OPEN instead of
 #   being marked failed. That way nothing about it changes until someone
@@ -150,21 +148,57 @@ def send_waiting_list_message(db, uid, data):
     history = db.document(f"profiles/{uid}/sentNotifications/{request_id}")
     lottery = db.document(f"lotteries/{lottery_id}")
     message = message.strip()
+    _capture_waiting_list(db.transaction(), db, uid, lottery, history, message)
     while True:
         count = _send_waiting_list_batch(db.transaction(), db, uid, lottery, history, message)
         if count is not None:
             return {"recipientCount": count}
 
 
-@firestore.transactional
-def _send_waiting_list_batch(transaction, db, uid, lottery_ref, history_ref, message):
-    """Commit notifications, the private recipient records and the cursor together."""
+def _owned_waiting_list_lottery(transaction, db, uid, lottery_ref):
+    """Check that the caller can still send messages for this lottery."""
     owner = db.document(f"profiles/{uid}").get(transaction=transaction).to_dict() or {}
     lottery = lottery_ref.get(transaction=transaction).to_dict() or {}
     if ("OWNER" not in owner.get("roles", []) or owner.get("ownerBanned", False)
             or owner.get("removed", False) or lottery.get("ownerId") != uid):
         raise https_fn.HttpsError(https_fn.FunctionsErrorCode.PERMISSION_DENIED, "This lottery is unavailable.")
 
+    return lottery
+
+
+WAITING_LIST_BATCH_SIZE = 200
+
+
+@firestore.transactional
+def _capture_waiting_list(transaction, db, uid, lottery_ref, history_ref, message):
+    """Save the full audience atomically before any recipient is notified."""
+    lottery = _owned_waiting_list_lottery(transaction, db, uid, lottery_ref)
+    previous = history_ref.get(transaction=transaction).to_dict()
+    if previous is not None:
+        if previous["lotteryId"] != lottery_ref.id or previous["message"] != message:
+            raise https_fn.HttpsError(https_fn.FunctionsErrorCode.ALREADY_EXISTS, "This request has already been used.")
+        return
+
+    waiting = (lottery_ref.collection("entries")
+               .where(filter=FieldFilter("status", "==", "WAITING")).order_by("__name__"))
+    recipient_ids = [entry.id for entry in waiting.stream(transaction=transaction)]
+    if not recipient_ids:
+        raise https_fn.HttpsError(https_fn.FunctionsErrorCode.FAILED_PRECONDITION, "No entrants to notify.")
+    total = len(recipient_ids)
+    for offset in range(0, total, WAITING_LIST_BATCH_SIZE):
+        page = history_ref.collection("audience").document(str(offset))
+        transaction.create(page, {"ids": recipient_ids[offset:offset + WAITING_LIST_BATCH_SIZE]})
+    transaction.create(history_ref, {
+        "lotteryId": lottery_ref.id, "lotteryName": lottery.get("name") or lottery_ref.id,
+        "message": message, "sentAt": firestore.SERVER_TIMESTAMP,
+        "recipientCount": 0, "complete": False, "audienceSize": total,
+    })
+
+
+@firestore.transactional
+def _send_waiting_list_batch(transaction, db, uid, lottery_ref, history_ref, message):
+    """Commit notifications and advance the saved audience cursor together."""
+    _owned_waiting_list_lottery(transaction, db, uid, lottery_ref)
     previous = history_ref.get(transaction=transaction).to_dict()
     if previous is not None:
         if previous["lotteryId"] != lottery_ref.id or previous["message"] != message:
@@ -174,32 +208,24 @@ def _send_waiting_list_batch(transaction, db, uid, lottery_ref, history_ref, mes
         if previous["complete"]:
             return previous["recipientCount"]
 
-    entries = (lottery_ref.collection("entries")
-               .where(filter=FieldFilter("status", "==", "WAITING")).order_by("__name__"))
-    if previous and previous.get("cursor"):
-        entries = entries.start_after({"__name__": lottery_ref.collection("entries").document(previous["cursor"])})
-    # Each page fits within the transaction's write and request-size limits.
-    snapshot_time = previous["snapshotAt"] if previous else None
-    if snapshot_time is None:
-        page = list(entries.limit(201).stream(transaction=transaction))
-    else:
-        page = list(entries.limit(201).stream(read_time=snapshot_time))
-    if not page and previous is None:
-        raise https_fn.HttpsError(https_fn.FunctionsErrorCode.FAILED_PRECONDITION, "No entrants to notify.")
-
-    selected = page[:200]
+    if previous is None or "audienceSize" not in previous:
+        raise https_fn.HttpsError(https_fn.FunctionsErrorCode.FAILED_PRECONDITION,
+                                 "The original recipient list is unavailable.")
+    offset = previous["recipientCount"]
+    page = history_ref.collection("audience").document(str(offset))
+    selected = page.get(transaction=transaction).get("ids")
     profiles = {doc.id: doc.to_dict() or {} for doc in db.get_all(
-        [db.document(f"profiles/{entry.id}") for entry in selected], transaction=transaction
-    )} if selected else {}
-    lottery_name = previous["lotteryName"] if previous else (lottery.get("name") or lottery_ref.id)
-    for entry in selected:
-        profile = profiles.get(entry.id, {})
+        [db.document(f"profiles/{entrant_id}") for entrant_id in selected], transaction=transaction
+    )}
+    lottery_name = previous["lotteryName"]
+    for entrant_id in selected:
+        profile = profiles.get(entrant_id, {})
         name = profile.get("name")
         name = name.strip()[:200] if isinstance(name, str) and not profile.get("removed") else ""
-        transaction.create(history_ref.collection("recipients").document(entry.id), {"name": name})
-        notification_id = sha256(f"{uid}/{history_ref.id}/{entry.id}".encode()).hexdigest()
+        transaction.create(history_ref.collection("recipients").document(entrant_id), {"name": name})
+        notification_id = sha256(f"{uid}/{history_ref.id}/{entrant_id}".encode()).hexdigest()
         transaction.create(db.collection("notifications").document(notification_id), {
-            "recipientId": entry.id,
+            "recipientId": entrant_id,
             "type": "WAITING_LIST_MESSAGE",
             "title": lottery_name,
             "body": message,
@@ -208,15 +234,10 @@ def _send_waiting_list_batch(transaction, db, uid, lottery_ref, history_ref, mes
             "read": False,
         })
 
-    count = (previous["recipientCount"] if previous else 0) + len(selected)
-    complete = len(page) <= 200
-    transaction.set(history_ref, {
-        "lotteryId": lottery_ref.id, "lotteryName": lottery_name, "message": message,
-        "snapshotAt": previous["snapshotAt"] if previous else page[0].read_time,
-        "sentAt": previous["sentAt"] if previous else firestore.SERVER_TIMESTAMP,
-        "recipientCount": count, "complete": complete,
-        "cursor": selected[-1].id if selected else (previous or {}).get("cursor"),
-    })
+    count = offset + len(selected)
+    complete = count == previous["audienceSize"]
+    transaction.update(history_ref, {"recipientCount": count, "complete": complete})
+    transaction.delete(page)
     return count if complete else None
 
 
