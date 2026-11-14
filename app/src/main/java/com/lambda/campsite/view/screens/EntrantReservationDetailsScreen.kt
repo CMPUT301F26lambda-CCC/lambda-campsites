@@ -3,10 +3,13 @@
  * Outstanding issues: None known.
  * Feature owner: Sreeman Reddy, Flow 10 (#127), November 2026.
  * AI use: GPT-6 (OpenAI), through Codex, assisted me with this screen.
- * Human review is pending.
+ * Issue #52: Lalith Valluru, November 2026. GPT-6 (OpenAI), through Codex, assisted with the CSV export.
  */
 package com.lambda.campsite.view.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.content.ActivityNotFoundException
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -46,6 +49,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -76,6 +81,10 @@ import com.lambda.campsite.view.theme.CampSurfaceHigh
 import com.lambda.campsite.view.theme.ForestGreen
 import com.lambda.campsite.view.theme.Mint
 import com.lambda.campsite.view.theme.StatusBarIconStyle
+import java.io.IOException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -92,6 +101,39 @@ fun EntrantReservationDetailsScreen(
     val location = campsiteController?.state?.collectAsStateWithLifecycle()?.value?.campsite?.location
     val snackbar = remember { SnackbarHostState() }
     val cancelledMessage = stringResource(R.string.flow10_cancelled_message)
+    val reservation = state.reservation(reservationId)
+    val csv = reservation?.cancellationCsv()
+    val resolver = LocalContext.current.contentResolver
+    val scope = rememberCoroutineScope()
+    val saved = stringResource(R.string.cancellation_csv_saved)
+    val failed = stringResource(R.string.cancellation_csv_failed)
+    val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        if (uri != null && csv != null) scope.launch {
+            val message = try {
+                withContext(Dispatchers.IO) {
+                    val stream = resolver.openOutputStream(uri, "wt") ?: throw IOException()
+                    stream.bufferedWriter(Charsets.UTF_8).use { it.write(csv) }
+                }
+                saved
+            } catch (_: IOException) {
+                failed
+            } catch (_: SecurityException) {
+                failed
+            } catch (_: IllegalArgumentException) {
+                failed
+            }
+            snackbar.showSnackbar(message)
+        }
+    }
+    val onExport: (() -> Unit)? = if (csv != null) {
+        {
+            try {
+                export.launch("cancellation-${reservation.number}.csv")
+            } catch (_: ActivityNotFoundException) {
+                scope.launch { snackbar.showSnackbar(failed) }
+            }
+        }
+    } else null
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { controller.onResume() }
     LaunchedEffect(state.cancelledId) {
         if (state.cancelledId == reservationId) {
@@ -101,7 +143,7 @@ fun EntrantReservationDetailsScreen(
     }
     EntrantReservationDetailsContent(reservationId, state, location,
         controller::onCancelRequested, controller::onCancelDismissed, controller::onCancelConfirmed,
-        onBack, controller::onRetry, snackbar)
+        onBack, controller::onRetry, snackbar, onExport)
 }
 
 /** Full-height Figma detail screen, with the shared navigation bar outside it. */
@@ -117,6 +159,7 @@ fun EntrantReservationDetailsContent(
     onBack: () -> Unit,
     onRetry: () -> Unit = {},
     snackbar: SnackbarHostState = remember { SnackbarHostState() },
+    onExport: (() -> Unit)? = null,
 ) {
     StatusBarIconStyle(darkIcons = false)
     val reservation = state.reservation(reservationId)
@@ -157,7 +200,7 @@ fun EntrantReservationDetailsContent(
                         contentAlignment = Alignment.Center) {
                         Text(stringResource(R.string.flow10_reservation_unavailable))
                     }
-                    else -> ReservationDetails(reservation, state, location, onCancelRequested)
+                    else -> ReservationDetails(reservation, state, location, onCancelRequested, onExport)
                 }
             }
         }
@@ -171,7 +214,7 @@ fun EntrantReservationDetailsContent(
 /** Reservation facts and cancellation policy shown in the Figma detail card. */
 @Composable
 private fun ReservationDetails(reservation: Reservation, state: EntrantReservationsUiState,
-    location: String?, onCancelRequested: (String) -> Unit) {
+    location: String?, onCancelRequested: (String) -> Unit, onExport: (() -> Unit)?) {
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 12.dp),
@@ -202,6 +245,11 @@ private fun ReservationDetails(reservation: Reservation, state: EntrantReservati
                 if (reservation.status == ReservationStatus.CANCELLED && reservation.cancelledAt != null) {
                     ReservationFact(R.drawable.flow10_cancel, R.string.flow10_status_cancelled,
                         reservationLocalDateTime(reservation.cancelledAt))
+                    if (onExport != null) {
+                        TextButton(onClick = onExport, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.cancellation_csv_download))
+                        }
+                    }
                 }
             }
             Spacer(Modifier.height(if (state.canCancel(reservation)) 104.dp else 24.dp))
@@ -279,3 +327,18 @@ private fun reservationLocalDate(timestamp: Timestamp): String =
 private fun reservationLocalDateTime(timestamp: Timestamp): String =
     timestamp.toDate().toInstant().atZone(ZoneId.systemDefault())
         .format(DateTimeFormatter.ofPattern("MMM d, yyyy, h:mm a", Locale.getDefault()))
+
+/** Exports the confirmed cancellation using the full reservation ID and UTC time. */
+internal fun Reservation.cancellationCsv(): String? {
+    val timestamp = cancelledAt ?: return null
+    if (status != ReservationStatus.CANCELLED) return null
+    val values = listOf(id, campsiteName, checkIn.toString(), checkOut.toString(),
+        timestamp.toDate().toInstant().toString())
+    val row = values.joinToString(",") { value ->
+        // A campsite name is user-provided and may be opened in a spreadsheet.
+        val safe = if (value.trimStart().firstOrNull() in listOf('=', '+', '-', '@') ||
+            value.firstOrNull() in listOf('\t', '\r', '\n')) "'" + value else value
+        "\"" + safe.replace("\"", "\"\"") + "\""
+    }
+    return "reservation_id,campsite,check_in,check_out,cancelled_at_utc\r\n$row\r\n"
+}
