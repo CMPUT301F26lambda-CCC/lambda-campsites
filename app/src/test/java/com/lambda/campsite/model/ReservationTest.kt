@@ -12,6 +12,8 @@
 package com.lambda.campsite.model
 
 import com.google.firebase.Timestamp
+import com.lambda.campsite.view.screens.cancellationCsv
+import org.junit.Assert.assertNull
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -39,6 +41,27 @@ class ReservationTest {
         rulesAgreedAt = Timestamp(0, 0),
         createdAt = Timestamp(0, 0),
     )
+
+    // #52: GPT-6 through Codex assisted with cancellation CSV coverage.
+    @Test
+    fun `cancellation export includes the full ID dates and server time`() {
+        val cancelled = reservation.copy(
+            campsiteName = "Pine, \"North\"",
+            status = ReservationStatus.CANCELLED,
+            cancelledAt = Timestamp(0, 0),
+        )
+        assertEquals(
+            "reservation_id,campsite,check_in,check_out,cancelled_at_utc\r\n" +
+                "\"abc123xyz789\",\"Pine, \"\"North\"\"\",\"2027-07-02\",\"2027-07-04\",\"1970-01-01T00:00:00Z\"\r\n",
+            cancelled.cancellationCsv(),
+        )
+    }
+
+    @Test
+    fun `confirmation export requires a recorded cancellation`() {
+        assertNull(reservation.cancellationCsv())
+        assertNull(reservation.copy(status = ReservationStatus.CANCELLED).cancellationCsv())
+    }
 
     @Test
     fun `a stay that hasn't started is active`() {
