@@ -367,7 +367,7 @@ def create_rejection_notification(db, reservation_id, before, after):
             "recipientId": guest_id,
             "type": "RESERVATION_REJECTED",
             "title": "Reservation rejected",
-            "body": f"Your reservation at {campsite} was rejected. The dates are available again.",
+            "body": f"Your reservation at {campsite} was rejected. Your booked dates have been released.",
             "sentAt": firestore.SERVER_TIMESTAMP,
             "read": False,
         })

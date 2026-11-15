@@ -45,7 +45,7 @@
     <string name="owner_reject">Reject</string>
     <string name="owner_reservation_rejected">Reservation rejected.</string>
     <string name="owner_reservation_rejected_title">Reservation rejected</string>
-    <string name="owner_rejected_dates_available">%1$s is available again.</string>
+    <string name="owner_rejected_dates_released">This reservation no longer holds %1$s.</string>
     <string name="owner_reject_not_allowed">This reservation can no longer be rejected.</string>
     <string name="owner_reject_not_found">This reservation is no longer available.</string>
     <string name="owner_reject_failed">Could not reject the reservation. Please try again.</string>

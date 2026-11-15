@@ -79,6 +79,7 @@ fun OwnerReservationDetailsScreen(
 ) {
     BackHandler(enabled = state.confirmingId != reservation.id) { onBack() }
     val snackbar = remember { SnackbarHostState() }
+    val dateFormat = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
     val rejectedMessage = stringResource(R.string.owner_reservation_rejected)
     LaunchedEffect(state.rejectedId) {
         if (state.rejectedId == reservation.id) {
@@ -129,14 +130,14 @@ fun OwnerReservationDetailsScreen(
                     }
                 }
                 DetailSection(stringResource(R.string.owner_reservation_stay)) {
-                    DetailValue(stringResource(R.string.reservation_check_in), reservation.checkIn.format(dateFormat()))
-                    DetailValue(stringResource(R.string.reservation_check_out), reservation.checkOut.format(dateFormat()))
+                    DetailValue(stringResource(R.string.reservation_check_in), reservation.checkIn.format(dateFormat))
+                    DetailValue(stringResource(R.string.reservation_check_out), reservation.checkOut.format(dateFormat))
                     DetailValue(stringResource(R.string.reservation_guests), reservation.guests.toString())
                 }
                 DetailSection(stringResource(R.string.owner_reservation_status)) {
                     OwnerReservationStatusPill(reservation.status, reservation.isCompleted(state.today))
                     if (reservation.status == ReservationStatus.REJECTED) {
-                        Text(stringResource(R.string.owner_rejected_dates_available,
+                        Text(stringResource(R.string.owner_rejected_dates_released,
                             reservationDateRange(reservation)),
                             style = MaterialTheme.typography.bodyMedium,
                             color = Flow11Colors.secondaryText)
@@ -229,5 +230,3 @@ private fun RejectionError(error: OwnerRejectionError) {
 
 private fun initials(name: String): String = name.split(Regex("\\s+"))
     .filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercase(Locale.getDefault()) }
-
-private fun dateFormat(): DateTimeFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
