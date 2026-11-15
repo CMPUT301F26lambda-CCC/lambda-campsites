@@ -3,6 +3,8 @@
  * Feature owner: Lalith Valluru. Last updated: 2026-11-03.
  * Outstanding issues: manual TalkBack/device review remains pending (#125).
  * AI use: OpenAI GPT-6 through Codex assisted with Compose UI, navigation callbacks and KDoc; human review pending.
+ * AI use: GPT-6 (OpenAI), through Codex, assisted with the US 02.08.01
+ * reservation rejection notification label. Human review pending.
  */
 package com.lambda.campsite.view.screens
 
@@ -311,6 +313,7 @@ private fun typeTitle(type: NotificationType): Int = when (type) {
     NotificationType.WIN -> R.string.flow8_won
     NotificationType.LOSE -> R.string.flow8_lost
     NotificationType.RESERVATION_CONFIRMED -> R.string.flow8_confirmed
+    NotificationType.RESERVATION_REJECTED -> R.string.owner_reservation_rejected_title
     NotificationType.CAMPSITE_REMOVED -> R.string.flow8_removed
     NotificationType.WAITING_LIST_MESSAGE -> R.string.waitlist_message_title
 }

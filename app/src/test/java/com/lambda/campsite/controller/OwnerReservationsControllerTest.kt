@@ -4,6 +4,8 @@
  * AI use: GPT-6 (OpenAI), through Codex, helped write Flow 11 controller
  * tests for reservation groups, dates, selection and live updates.
  * Human review is pending.
+ * AI use: GPT-6 (OpenAI), through Codex, assisted with US 02.08.01
+ * rejection confirmation and failure regression tests. Human review pending.
  */
 package com.lambda.campsite.controller
 
@@ -82,5 +84,60 @@ class OwnerReservationsControllerTest {
         controller.onResume()
         assertEquals(emptyList<Reservation>(), controller.state.value.active)
         assertEquals("one", controller.state.value.past.single().id)
+    }
+
+    @Test fun `rejection needs confirmation then frees nights and moves to cancelled`() {
+        val stay = reservation("one", today.plusDays(1), today.plusDays(3), ReservationStatus.CONFIRMED)
+        val repository = FakeReservationRepository(myUserId = "owner-1", initial = listOf(stay)) { today }
+        val controller = OwnerReservationsController(repository) { today }
+        controller.onReservationSelected(stay.id)
+
+        controller.onRejectRequested(stay.id)
+        assertEquals(stay.id, controller.state.value.confirmingId)
+        assertEquals(setOf(stay.checkIn, stay.checkIn.plusDays(1)), repository.bookedNights(stay.campsiteId))
+        controller.onRejectDismissed()
+        assertNull(controller.state.value.confirmingId)
+        assertEquals(ReservationStatus.CONFIRMED, controller.state.value.selectedReservation?.status)
+
+        controller.onRejectRequested(stay.id)
+        controller.onRejectConfirmed()
+        assertEquals(ReservationStatus.REJECTED, controller.state.value.selectedReservation?.status)
+        assertEquals(emptyList<Reservation>(), controller.state.value.active)
+        assertEquals(stay.id, controller.state.value.cancelled.single().id)
+        assertEquals(emptySet<LocalDate>(), repository.bookedNights(stay.campsiteId))
+        assertEquals(stay.id, controller.state.value.rejectedId)
+    }
+
+    @Test fun `started or other owner stay cannot be rejected`() {
+        val started = reservation("started", today, today.plusDays(2), ReservationStatus.CONFIRMED)
+        val otherOwner = started.copy(id = "other", ownerId = "owner-2", checkIn = today.plusDays(2))
+        val repository = FakeReservationRepository(myUserId = "owner-1", initial = listOf(started, otherOwner)) { today }
+        val controller = OwnerReservationsController(repository) { today }
+
+        controller.onReservationSelected("started")
+        controller.onRejectRequested("started")
+        assertNull(controller.state.value.confirmingId)
+        controller.onRejectConfirmed()
+        assertEquals(ReservationStatus.CONFIRMED, controller.state.value.selectedReservation?.status)
+        controller.onReservationSelected("other")
+        assertEquals("started", controller.state.value.selectedReservation?.id)
+    }
+
+    @Test fun `save failure keeps confirmation open for retry`() {
+        val stay = reservation("one", today.plusDays(1), today.plusDays(3), ReservationStatus.CONFIRMED)
+        val repository = FakeReservationRepository(myUserId = "owner-1", initial = listOf(stay)) { today }
+        val controller = OwnerReservationsController(repository) { today }
+        controller.onReservationSelected(stay.id)
+        controller.onRejectRequested(stay.id)
+        repository.failSaves = true
+
+        controller.onRejectConfirmed()
+        assertEquals(stay.id, controller.state.value.confirmingId)
+        assertEquals(OwnerRejectionError.SAVE_FAILED, controller.state.value.rejectError)
+        assertEquals(ReservationStatus.CONFIRMED, controller.state.value.selectedReservation?.status)
+
+        repository.failSaves = false
+        controller.onRejectConfirmed()
+        assertEquals(ReservationStatus.REJECTED, controller.state.value.selectedReservation?.status)
     }
 }

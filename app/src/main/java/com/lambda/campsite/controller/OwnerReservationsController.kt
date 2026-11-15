@@ -4,6 +4,8 @@
  * AI use: GPT-6 (OpenAI), through Codex, helped implement the owner reservation
  * state, date-based groups, selection and repository listener for Flow 11
  * (US 02.07.01 to 02.07.03). Human review is pending.
+ * AI use: GPT-6 (OpenAI), through Codex, assisted with the rejection
+ * confirmation and error state for US 02.08.01. Human review is pending.
  */
 package com.lambda.campsite.controller
 
@@ -15,8 +17,10 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.lambda.campsite.LambdaApplication
 import com.lambda.campsite.model.Reservation
 import com.lambda.campsite.model.ReservationStatus
+import com.lambda.campsite.model.repository.ReservationException
 import com.lambda.campsite.model.repository.ReservationRepository
 import java.time.LocalDate
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +32,9 @@ import kotlinx.coroutines.launch
 /** The three owner reservation lists from US 02.07.01 to 02.07.03. */
 enum class OwnerReservationTab { ACTIVE, PAST, CANCELLED }
 
+/** A rejection failure shown without exposing a backend exception. */
+enum class OwnerRejectionError { NOT_ALLOWED, NOT_FOUND, SAVE_FAILED }
+
 /**
  * State for the owner's reservations screen.
  *
@@ -35,6 +42,10 @@ enum class OwnerReservationTab { ACTIVE, PAST, CANCELLED }
  * @property today the device's current date, refreshed when the screen resumes.
  * @property selectedTab the list the owner is viewing.
  * @property selectedReservationId the reservation whose details are open, if any.
+ * @property confirmingId the reservation waiting for rejection confirmation.
+ * @property rejectingId the reservation currently being saved.
+ * @property rejectedId the latest successful rejection, for one result message.
+ * @property rejectError a failure the details screen can explain.
  * @property isLoading whether the first repository result is still pending.
  * @property loadFailed whether the live listener failed.
  */
@@ -43,6 +54,10 @@ data class OwnerReservationsUiState(
     val today: LocalDate = LocalDate.now(),
     val selectedTab: OwnerReservationTab = OwnerReservationTab.ACTIVE,
     val selectedReservationId: String? = null,
+    val confirmingId: String? = null,
+    val rejectingId: String? = null,
+    val rejectedId: String? = null,
+    val rejectError: OwnerRejectionError? = null,
     val isLoading: Boolean = true,
     val loadFailed: Boolean = false,
 ) {
@@ -70,6 +85,10 @@ data class OwnerReservationsUiState(
     /** Current details, updated when the live repository result changes. */
     val selectedReservation: Reservation?
         get() = reservations.firstOrNull { it.id == selectedReservationId }
+
+    /** A confirmed future stay can be rejected before check-in. */
+    fun canReject(reservation: Reservation): Boolean =
+        reservation.status == ReservationStatus.CONFIRMED && today.isBefore(reservation.checkIn)
 }
 
 /**
@@ -92,19 +111,75 @@ class OwnerReservationsController(
 
     /** Shows one of the three lists. */
     fun onTabSelected(tab: OwnerReservationTab) {
-        mutableState.update { it.copy(selectedTab = tab, selectedReservationId = null) }
+        mutableState.update { it.copy(selectedTab = tab, selectedReservationId = null,
+            confirmingId = null, rejectedId = null, rejectError = null) }
     }
 
     /** Opens details for a reservation in the current list. */
     fun onReservationSelected(id: String) {
         mutableState.update { current ->
-            if (current.visibleReservations.any { it.id == id }) current.copy(selectedReservationId = id)
+            if (current.visibleReservations.any { it.id == id }) current.copy(selectedReservationId = id,
+                rejectedId = null, rejectError = null)
             else current
         }
     }
 
     /** Closes the reservation details. */
-    fun onDetailsDismissed() { mutableState.update { it.copy(selectedReservationId = null) } }
+    fun onDetailsDismissed() { mutableState.update { it.copy(selectedReservationId = null,
+        confirmingId = null, rejectedId = null, rejectError = null) } }
+
+    /** Asks for confirmation only for a future stay in this owner's list. */
+    fun onRejectRequested(id: String) {
+        mutableState.update { current ->
+            val reservation = current.selectedReservation
+            if (reservation?.id == id && current.canReject(reservation) && current.rejectingId == null) {
+                current.copy(confirmingId = id, rejectError = null)
+            } else current
+        }
+    }
+
+    /** Keeps the reservation and closes the confirmation dialog. */
+    fun onRejectDismissed() {
+        mutableState.update { if (it.rejectingId == null) it.copy(confirmingId = null, rejectError = null) else it }
+    }
+
+    /** Rejects after confirmation; the repository updates the calendar and live list. */
+    fun onRejectConfirmed() {
+        val current = mutableState.value
+        val id = current.confirmingId ?: return
+        val reservation = current.selectedReservation
+        if (current.rejectingId != null) return
+        if (reservation?.id != id) {
+            mutableState.update { it.copy(confirmingId = null, rejectError = OwnerRejectionError.NOT_FOUND) }
+            return
+        }
+        if (!current.canReject(reservation)) {
+            mutableState.update { it.copy(confirmingId = null, rejectError = OwnerRejectionError.NOT_ALLOWED) }
+            return
+        }
+        mutableState.update { it.copy(rejectingId = id, rejectError = null) }
+        viewModelScope.launch {
+            try {
+                repository.reject(id)
+                mutableState.update { it.copy(confirmingId = null, rejectingId = null,
+                    rejectError = null, rejectedId = if (it.selectedReservationId == id) id else null) }
+            } catch (failure: CancellationException) {
+                throw failure
+            } catch (failure: ReservationException) {
+                val error = when (failure.reason) {
+                    ReservationException.Reason.CANT_CHANGE -> OwnerRejectionError.NOT_ALLOWED
+                    ReservationException.Reason.NO_SUCH_RESERVATION -> OwnerRejectionError.NOT_FOUND
+                    else -> OwnerRejectionError.SAVE_FAILED
+                }
+                mutableState.update { it.copy(rejectingId = null, rejectError = error) }
+            } catch (_: Exception) {
+                mutableState.update { it.copy(rejectingId = null, rejectError = OwnerRejectionError.SAVE_FAILED) }
+            }
+        }
+    }
+
+    /** Clears the one-time success after the snackbar is shown. */
+    fun onRejectResultShown() { mutableState.update { it.copy(rejectedId = null) } }
 
     /** Restarts the repository listener after a load failure. */
     fun onRetry() { observe() }
