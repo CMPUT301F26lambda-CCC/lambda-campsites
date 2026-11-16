@@ -44,6 +44,8 @@
 # Human review pending.
 # Issue #151: GPT-6 (OpenAI), through Codex, assisted me with the callable's
 # Admin SDK client setup; emulator clients stay in test fixtures.
+# Issue #35: GPT-6 (OpenAI), through Codex, assisted with the owner-rejection
+# notification trigger, transient write retries, and regression tests. Human review is pending.
 """Cloud Functions for Lambda Campsite.
 
 docs/architecture.md section 4 lists every function: drawLotteries,
@@ -55,10 +57,15 @@ import random
 from uuid import UUID
 from hashlib import sha256
 from datetime import datetime, timezone
+from time import sleep
 
 from firebase_admin import firestore, initialize_app, messaging
 from firebase_functions import firestore_fn, logger, scheduler_fn, https_fn
 from firebase_functions.options import set_global_options
+from google.api_core.exceptions import (
+    Aborted, AlreadyExists, DeadlineExceeded, InternalServerError,
+    ServiceUnavailable, TooManyRequests,
+)
 from google.cloud.firestore_v1.base_query import FieldFilter
 
 # At most 10 copies of each function run at once, so a bug or a burst of
@@ -334,6 +341,54 @@ def _lottery_notification(recipient_id, lottery_name, won, lottery_id, campsite_
         "sentAt": firestore.SERVER_TIMESTAMP,
         "read": False,
     }
+
+
+@firestore_fn.on_document_updated(document="reservations/{reservationId}")
+def notify_rejected_reservation(event: firestore_fn.Event) -> None:
+    """Notify the entrant once when an owner rejects a confirmed reservation."""
+    if event.data is None:
+        return
+    before = event.data.before.to_dict() if event.data.before else None
+    after = event.data.after.to_dict() if event.data.after else None
+    create_rejection_notification(firestore.client(), event.params["reservationId"], before, after)
+
+
+def create_rejection_notification(db, reservation_id, before, after):
+    """Create one inbox notice for a CONFIRMED-to-REJECTED change.
+
+    A stable document ID prevents duplicate notices if Firestore delivers the
+    event more than once or a write succeeds but its response is lost. The
+    Python Firestore trigger has no delivery retry option, so retry transient
+    write errors here and raise if all attempts fail.
+    """
+    if not before or not after or before.get("status") != "CONFIRMED" or after.get("status") != "REJECTED":
+        return
+    guest_id = after.get("guestId")
+    if not guest_id or guest_id != before.get("guestId"):
+        return
+    campsite = after.get("campsiteName") or "your campsite"
+    notification_id = sha256(f"reservation-rejected/{reservation_id}".encode()).hexdigest()
+    notice = {
+        "recipientId": guest_id,
+        "type": "RESERVATION_REJECTED",
+        "title": "Reservation rejected",
+        "body": f"Your reservation at {campsite} was rejected. Your booked dates have been released.",
+        "sentAt": firestore.SERVER_TIMESTAMP,
+        "read": False,
+    }
+    notification_ref = db.collection("notifications").document(notification_id)
+    transient_errors = (Aborted, DeadlineExceeded, InternalServerError, ServiceUnavailable, TooManyRequests)
+    max_attempts = 3
+    for attempt in range(max_attempts):
+        try:
+            notification_ref.create(notice)
+            return
+        except AlreadyExists:
+            return
+        except transient_errors:
+            if attempt == max_attempts - 1:
+                raise
+            sleep(2 ** attempt)
 
 
 @firestore_fn.on_document_created(document="notifications/{notificationId}")

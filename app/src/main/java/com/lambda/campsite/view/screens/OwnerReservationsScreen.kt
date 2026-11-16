@@ -3,6 +3,8 @@
  * Outstanding issues: None known.
  * AI use: GPT-6 (OpenAI), through Codex, assisted with the Flow 11 reservation
  * lists, accessible card actions, and read-only Figma alignment.
+ * AI use: GPT-6 (OpenAI), through Codex, assisted with opening the US 02.08.01
+ * rejection details screen from the reservation list. Human review pending.
  */
 package com.lambda.campsite.view.screens
 
@@ -66,7 +68,6 @@ import com.lambda.campsite.controller.OwnerReservationTab
 import com.lambda.campsite.controller.OwnerReservationsController
 import com.lambda.campsite.controller.OwnerReservationsUiState
 import com.lambda.campsite.model.Reservation
-import com.lambda.campsite.view.components.OwnerReservationDetailsSheet
 import com.lambda.campsite.view.components.OwnerReservationStatusPill
 import com.lambda.campsite.view.theme.Flow11Colors
 import com.lambda.campsite.view.theme.StatusBarIconStyle
@@ -83,15 +84,25 @@ fun OwnerReservationsScreen(
     val state by controller.state.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { controller.onResume() }
     LaunchedEffect(initialTab) { controller.onTabSelected(initialTab) }
-    OwnerReservationsContent(
-        state = state,
-        onTabSelected = controller::onTabSelected,
-        onReservationSelected = controller::onReservationSelected,
-        onRetry = controller::onRetry,
-        onBack = onBack,
-    )
-    state.selectedReservation?.let {
-        OwnerReservationDetailsSheet(it, controller::onDetailsDismissed, completed = it.isCompleted(state.today))
+    val selected = state.selectedReservation
+    if (selected == null) {
+        OwnerReservationsContent(
+            state = state,
+            onTabSelected = controller::onTabSelected,
+            onReservationSelected = controller::onReservationSelected,
+            onRetry = controller::onRetry,
+            onBack = onBack,
+        )
+    } else {
+        OwnerReservationDetailsScreen(
+            reservation = selected,
+            state = state,
+            onBack = controller::onDetailsDismissed,
+            onRejectRequested = { controller.onRejectRequested(selected.id) },
+            onRejectDismissed = controller::onRejectDismissed,
+            onRejectConfirmed = controller::onRejectConfirmed,
+            onRejectResultShown = controller::onRejectResultShown,
+        )
     }
 }
 
