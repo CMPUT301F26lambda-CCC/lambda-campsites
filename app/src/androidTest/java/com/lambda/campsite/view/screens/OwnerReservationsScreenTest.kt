@@ -4,6 +4,8 @@
  * AI use: GPT-6 (OpenAI), through Codex, helped write isolated Compose tests
  * for Flow 11's owner reservation list and calendar (US 02.06.01 and
  * 02.07.01 to 02.07.03). Human review is pending.
+ * AI use: GPT-6 (OpenAI), through Codex, assisted with a US 02.08.01
+ * rejection confirmation UI regression test. Human review pending.
  */
 package com.lambda.campsite.view.screens
 
@@ -44,6 +46,37 @@ class OwnerReservationsScreenTest {
         lotteryId = "lottery-1", checkIn = today.plusDays(1), checkOut = today.plusDays(3),
         guests = 2, rulesAgreedAt = Timestamp.now(), createdAt = Timestamp.now(),
     )
+
+    @Test fun rejectActionRequiresConfirmationAndShowsRejectedResult() {
+        val state = mutableStateOf(OwnerReservationsUiState(
+            reservations = listOf(stay), today = today,
+            selectedReservationId = stay.id, isLoading = false,
+        ))
+        compose.setContent { LambdaCampsiteTheme {
+            OwnerReservationDetailsScreen(
+                reservation = state.value.selectedReservation!!,
+                state = state.value,
+                onBack = {},
+                onRejectRequested = { state.value = state.value.copy(confirmingId = stay.id) },
+                onRejectDismissed = { state.value = state.value.copy(confirmingId = null) },
+                onRejectConfirmed = { state.value = state.value.copy(
+                    reservations = listOf(stay.copy(status = ReservationStatus.REJECTED)),
+                    confirmingId = null, rejectedId = stay.id,
+                ) },
+                onRejectResultShown = { state.value = state.value.copy(rejectedId = null) },
+            )
+        } }
+
+        compose.onNodeWithText(text(R.string.owner_reject_reservation)).performClick()
+        compose.onNodeWithText(text(R.string.owner_reject_confirm_title)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.owner_reject_keep)).performClick()
+        compose.onNodeWithText(text(R.string.owner_reject_confirm_title)).assertDoesNotExist()
+
+        compose.onNodeWithText(text(R.string.owner_reject_reservation)).performClick()
+        compose.onNodeWithText(text(R.string.owner_reject)).performClick()
+        compose.onNodeWithText(text(R.string.reservation_status_rejected)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.owner_reject_reservation)).assertDoesNotExist()
+    }
 
     @Test fun ownerHomeOpensFigmaReservationAndCalendarEntries() {
         val state = OwnerReservationsUiState(reservations = listOf(stay), today = today, isLoading = false)

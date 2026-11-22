@@ -2,6 +2,8 @@
   AI use: GPT-6 (OpenAI), through Codex, helped write the owner calendar and
   reservation list labels for Flow 11 (US 02.06.01 and 02.07.01 to 02.07.03).
   Human review is pending.
+  AI use: GPT-6 (OpenAI), through Codex, assisted with US 02.08.01 rejection
+  labels and confirmation copy. Human review pending.
 -->
 <resources>
     <string name="owner_name_fallback">Owner</string>
@@ -31,6 +33,22 @@
     <string name="reservation_status_cancelled">Cancelled</string>
     <string name="reservation_status_rejected">Rejected</string>
     <string name="reservation_status_completed">Completed</string>
+    <string name="owner_reservation_entrant">Entrant</string>
+    <string name="owner_reservation_stay">Stay</string>
+    <string name="owner_reservation_status">Status</string>
+    <string name="owner_reservation_rules">Campsite rules</string>
+    <string name="owner_reservation_rules_agreed">Rules acknowledged</string>
+    <string name="owner_reject_reservation">Reject reservation</string>
+    <string name="owner_reject_confirm_title">Reject this reservation?</string>
+    <string name="owner_reject_confirm_body">%1$s will be notified and %2$s will open up for other winners.</string>
+    <string name="owner_reject_keep">Keep reservation</string>
+    <string name="owner_reject">Reject</string>
+    <string name="owner_reservation_rejected">Reservation rejected.</string>
+    <string name="owner_reservation_rejected_title">Reservation rejected</string>
+    <string name="owner_rejected_dates_released">This reservation no longer holds %1$s.</string>
+    <string name="owner_reject_not_allowed">This reservation can no longer be rejected.</string>
+    <string name="owner_reject_not_found">This reservation is no longer available.</string>
+    <string name="owner_reject_failed">Could not reject the reservation. Please try again.</string>
     <string name="reservation_stay_summary">%1$s · %2$s</string>
     <string name="reservation_on_date">Reservation on %1$s</string>
     <string name="view_reservation">View reservation</string>
