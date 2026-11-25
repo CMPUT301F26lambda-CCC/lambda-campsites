@@ -9,6 +9,9 @@
  * this file in October 2026, following the Profile class in the team's class
  * diagram. It helped with the Kotlin code, syntax and KDoc. Sashreek Addanki
  * reviewed it, ran the tests and committed it.
+ *
+ * Flow 18 (US 01.08.02): Harmanjoth Kaur, November 2026, added imageId so a
+ * profile can have a photo.
  */
 package com.lambda.campsite.model
 
@@ -19,8 +22,8 @@ package com.lambda.campsite.model
  * updated copy, and the controller saves that copy through the repository. This
  * suits `StateFlow`, which only sends a new value when it's actually different.
  *
- * The class diagram's `image` attribute arrives with the Image class.
- *
+ *  Like [Campsite], a profile is an [ImageOwner], so it can have one photo
+ *  (US 01.08.02).
  * @property deviceId the Firebase Auth user ID for this install (US 01.09.01).
  * @property name the person's name.
  * @property email the person's email address.
@@ -33,6 +36,8 @@ package com.lambda.campsite.model
  *   (US 03.07.01). While it's set, the profile can't become an owner again.
  * @property removed set when an admin removes the profile (US 03.02.01).
  * @property pushToken this device's Firebase Cloud Messaging token, or `null`.
+ * @property imageId the ID of the person's profile photo, or `null` if they
+ *   haven't added one (US 01.08.02).
  */
 data class Profile(
     val deviceId: String,
@@ -45,7 +50,9 @@ data class Profile(
     val ownerBanned: Boolean = false,
     val removed: Boolean = false,
     val pushToken: String? = null,
-) {
+    override val imageId: String? = null,
+) : ImageOwner
+{
 
     /** Returns `true` if this profile holds [role]. */
     fun hasRole(role: Role): Boolean = role in roles
