@@ -14,6 +14,8 @@
 // OpenAI GPT-6 (OpenAI), through Codex, assisted with the optional lotteryId contract; human review pending.
 // Flow 8 update: Lalith Valluru, 2026-11-03.
 // Outstanding issues: manual TalkBack and deployed push delivery checks remain.
+// AI use: GPT-6 (OpenAI), through Codex, assisted with the reservation rejection
+// notification type for US 02.08.01. Human review is pending.
 package com.lambda.campsite.model
 
 import com.google.firebase.Timestamp
@@ -21,14 +23,17 @@ import com.google.firebase.Timestamp
 /**
  * What a [Notification] is about (US 01.03.01, 01.03.02, 01.05.01).
  *
- * WIN and LOSE come from the lottery draw Cloud Function. CAMPSITE_REMOVED
- * comes from the `cleanUpCampsite` Cloud Function (US 03.01.01).
+ * WIN and LOSE come from the lottery draw Cloud Function.
+ * RESERVATION_REJECTED comes from the reservation update trigger.
+ * CAMPSITE_REMOVED comes from the `cleanUpCampsite` Cloud Function (US 03.01.01).
  */
 enum class NotificationType {
     WIN,
     LOSE,
     RESERVATION_CONFIRMED,
+    RESERVATION_REJECTED,
     CAMPSITE_REMOVED,
+    WAITING_LIST_MESSAGE,
 }
 
 /**

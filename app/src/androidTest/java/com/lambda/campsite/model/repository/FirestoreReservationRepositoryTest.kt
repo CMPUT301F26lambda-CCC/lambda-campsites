@@ -12,6 +12,8 @@
  * FirestoreLotteryRepositoryTest. It helped with the test cases, the
  * coroutines code, the second Firebase app for the two-phone test and the
  * Kotlin syntax. Sashreek Addanki reviewed them.
+ * AI use: GPT-6 (OpenAI), through Codex, assisted with an owner-only
+ * rejection regression test for US 02.08.01. Human review pending.
  */
 package com.lambda.campsite.model.repository
 
@@ -228,6 +230,17 @@ class FirestoreReservationRepositoryTest {
 
         assertEquals(ReservationStatus.REJECTED, reservationOnServer("atMine")?.status)
         assertEquals(emptyList<String>(), bookedNightsOnServer())
+    }
+
+    @Test
+    fun entrantCannotRejectTheOwnersReservation() {
+        setUpOnServer(reservation("guestStay", guestId = uid, ownerId = "another-owner"))
+        setUpCalendar(bookedNights = listOf("2027-07-02", "2027-07-03"))
+
+        assertEquals(ReservationException.Reason.NO_SUCH_RESERVATION,
+            refusalFrom { repository.reject("guestStay") }.reason)
+        assertEquals(ReservationStatus.CONFIRMED, reservationOnServer("guestStay")?.status)
+        assertEquals(listOf("2027-07-02", "2027-07-03"), bookedNightsOnServer())
     }
 
     @Test

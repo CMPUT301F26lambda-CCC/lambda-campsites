@@ -51,4 +51,8 @@
         <item quantity="one">%1$d guest</item>
         <item quantity="other">%1$d guests</item>
     </plurals>
+    <!-- #52: Lalith Valluru. GPT-6 through Codex assisted with export labels. -->
+    <string name="cancellation_csv_download">Download cancellation CSV</string>
+    <string name="cancellation_csv_saved">Cancellation confirmation saved.</string>
+    <string name="cancellation_csv_failed">Couldn’t save the confirmation. Select Download cancellation CSV to try again.</string>
 </resources>

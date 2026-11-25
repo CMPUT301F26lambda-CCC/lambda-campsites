@@ -260,7 +260,7 @@
     <string name="action_message_waiting_list">Message waiting list</string>
     <string name="message_waiting_list_row_subtitle">Send an update to everyone on it</string>
     <string name="action_sent_messages">Sent messages</string>
-    <string name="sent_messages_row_subtitle">The messages sent to this waiting list</string>
+    <string name="sent_messages_row_subtitle">Notifications you sent to waiting lists</string>
     <string name="error_lottery_not_found">Lottery not found.</string>
 
     <!-- Lottery owner: results -->
