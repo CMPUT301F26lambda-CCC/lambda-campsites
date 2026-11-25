@@ -11,17 +11,17 @@ and return to the Profile screen.
 When the user clicks Save Changes, the updated name, email and phone
 number are passed to the controller, which saves the updated profile
 information to Firestore.
+Change Photo opens the phone's gallery. The picked photo is uploaded
+and saved straight away, and the avatar shows it (US 01.08.02).
 
 Outstanding Issues:
-- The Change Photo button is not functional yet. The functionality
-  to allow users to upload or change their profile picture still
-  needs to be implemented.
+- Removing the photo will be added in a separate change.
 */
 /*
  * AI use: Claude Sonnet 5.5 (Anthropic), used through the Claude chat
  * helped with implementing field validation, generating the user's initials dynamically
- * for the profile avatar, and reviewing the KDoc documentation.
- * Harmanjoth reviewed the suggestions and committed them.
+ * for the profile avatar, connect the Change Photo button to the photo picker
+ * and reviewing the KDoc documentation. Harmanjoth reviewed the suggestions and committed them.
  */
 package com.lambda.campsite.view.screens
 
@@ -45,6 +45,13 @@ import com.lambda.campsite.R
 import com.lambda.campsite.view.theme.DeepGreen
 import com.lambda.campsite.view.theme.ForestGreen
 import com.lambda.campsite.view.theme.Mint
+import android.graphics.Bitmap
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import com.lambda.campsite.view.components.PHOTO_TYPES
+import com.lambda.campsite.view.components.ProfileAvatar
+import com.lambda.campsite.view.components.rememberPhotoPicker
 /**
  * Lets the entrant edit their name, email and phone number (US 01.07.03).
  *
@@ -57,8 +64,9 @@ import com.lambda.campsite.view.theme.Mint
  * Cancel and the X button both open a dialog that asks whether to discard
  * the changes. Keep editing closes the dialog. Discard calls [onCancel].
  *
- * The avatar shows the initials of the name being typed, and updates as the
- * entrant edits it.
+ * The avatar shows the profile photo, or the initials of the name being
+ * typed when there's no photo. Change Photo opens the phone's gallery, and
+ * the picked photo is saved straight away (US 01.08.02).
  *
  * @param name the profile's current name, shown in the Name field.
  * @param email the profile's current email address, shown in the Email field.
@@ -70,6 +78,10 @@ import com.lambda.campsite.view.theme.Mint
  *   the entrant presses Save Changes and every field is valid.
  * @param saveFailed `true` if the last save failed, which shows an error
  *   message above the Save Changes button.
+ * @param photoUrl where to load the profile photo from, or `null` to show the initials.
+ * @param photoSaving `true` while a photo is uploading, which turns off Change Photo.
+ * @param photoFailed `true` if the last photo upload failed, which shows an error.
+ * @param onPhotoPicked called with the photo the entrant picked.
  */
 @Composable
 fun EditProfileScreen(
@@ -79,6 +91,10 @@ fun EditProfileScreen(
     onCancel: () -> Unit,
     onSave: (String, String, String) -> Unit,
     saveFailed: Boolean = false,
+    photoUrl: String? = null,
+    photoSaving: Boolean = false,
+    photoFailed: Boolean = false,
+    onPhotoPicked: (Bitmap) -> Unit = {},
 ) {
     var editedName by rememberSaveable(name) { mutableStateOf(name) }
     var showDiscardDialog by rememberSaveable { mutableStateOf(false) }
@@ -96,13 +112,15 @@ fun EditProfileScreen(
     val emailError = triedToSave && !emailRegex.matches(editedEmail.trim())
     val phoneError = triedToSave && (!phoneRegex.matches(editedPhone.trim()) ||
             editedPhone.count { it.isDigit() } != 10)
-    val initials = editedName
-        .trim()
-        .split(Regex("\\s+"))
-        .mapNotNull { it.firstOrNull()?.uppercaseChar() }
-        .take(2)
-        .joinToString("")
-        .ifBlank { "?" }
+    // The photo is saved as soon as it's picked (US 01.08.02).
+    var pickFailed by remember { mutableStateOf(false) }
+    val photoPicker = rememberPhotoPicker(
+        onPicked = {
+            pickFailed = false
+            onPhotoPicked(it)
+        },
+        onFailed = { pickFailed = true },
+    )
 
     Column(
         modifier = Modifier
@@ -140,21 +158,10 @@ fun EditProfileScreen(
                     color = Mint,
                 )
             }
-            Box(
-                modifier = Modifier
-                    .size(112.dp)
-                    .clip(CircleShape)
-                    .background(Mint),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = initials,
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = DeepGreen,
-                )
-            }
+            ProfileAvatar(name = editedName, photoUrl = photoUrl)
             Button(
-                onClick = { },
+                onClick = { photoPicker.launch(PHOTO_TYPES) },
+                enabled = !photoSaving,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Mint,
                     contentColor = DeepGreen,
@@ -170,6 +177,14 @@ fun EditProfileScreen(
                 Spacer(Modifier.width(8.dp))
 
                 Text(stringResource(R.string.profile_change_photo))
+            }
+            if (photoFailed || pickFailed) {
+                Text(
+                    text = stringResource(R.string.profile_photo_failed),
+                    color = Mint,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
             }
         }
         Column(

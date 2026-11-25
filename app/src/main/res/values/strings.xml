@@ -520,5 +520,6 @@
     <string name="flow15_checking_other_availability">Checking availability for other campsites…</string>
     <!-- Flow 18-->
     <string name="profile_photo_description">Your profile photo</string>
+    <string name="profile_photo_failed">Couldn\'t update your photo. Check your connection and try again.</string>
 
 </resources>
