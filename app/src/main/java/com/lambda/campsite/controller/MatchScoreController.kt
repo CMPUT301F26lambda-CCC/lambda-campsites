@@ -12,7 +12,7 @@
  *   down to 50%.
  * - With no filters applied there is no score, and the order doesn't change.
  * Campsites with the same score keep the order CampsiteFilterController gave.
- * Outstanding issues: nearby campsites and partial date matches aren't scored.
+ * Outstanding issues: None
  */
 /*
 AI use: Claude Opus 5.5 (Anthropic) helped Harmanjoth Kaur in score calculation after the
