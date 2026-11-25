@@ -2,8 +2,10 @@
  * Purpose: checks ProfilePhotoController (US 01.08.02, Flow 18).
  * 1. Picking a photo uploads it and saves it as the profile photo.
  * 2. A failed upload shows an error and keeps the old photo.
- * Feature owner: Harmanjoth Kaur. Last updated: 2026-11-25.
- * Outstanding issues: none known.
+ * 3. Removing the photo saves the profile with no photo, so the initials
+ *    show again.
+ *
+ * Outstanding issues: none
  *
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code in November
  * 2026, helped Harmanjoth Kaur with the syntax of the test cases and the KDoc.
@@ -66,5 +68,20 @@ class ProfilePhotoControllerTest {
         // Nothing was saved, so the profile still has its old photo.
         assertTrue(profiles.saved.isEmpty())
         assertTrue(control.state.value.hasPhoto)
+    }
+    @Test fun `removing the photo saves the profile with no photo`() {
+        val profiles = FakeProfileRepository(entrant.copy(imageId = "image-old"))
+        val images = FakeImageRepository()
+        val control = ProfilePhotoController(profiles, images)
+
+        control.onRemovePhoto()
+
+        assertEquals(null, profiles.saved.last().imageId)
+        assertFalse(control.state.value.hasPhoto)
+        assertEquals(null, control.state.value.photoUrl)
+        assertFalse(control.state.value.saving)
+        assertFalse(control.state.value.failed)
+        // Removing doesn't upload anything.
+        assertTrue(images.uploaded.isEmpty())
     }
 }

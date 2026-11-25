@@ -13,9 +13,10 @@ number are passed to the controller, which saves the updated profile
 information to Firestore.
 Change Photo opens the phone's gallery. The picked photo is uploaded
 and saved straight away, and the avatar shows it (US 01.08.02).
+Remove photo takes the photo off, so the initials show again.
 
 Outstanding Issues:
-- Removing the photo will be added in a separate change.
+- None
 */
 /*
  * AI use: Claude Sonnet 5.5 (Anthropic), used through the Claude chat
@@ -82,6 +83,8 @@ import com.lambda.campsite.view.components.rememberPhotoPicker
  * @param photoSaving `true` while a photo is uploading, which turns off Change Photo.
  * @param photoFailed `true` if the last photo upload failed, which shows an error.
  * @param onPhotoPicked called with the photo the entrant picked.
+ * @param hasPhoto `true` when the profile has a photo, which shows Remove photo.
+ * @param onRemovePhoto called when the entrant taps Remove photo.
  */
 @Composable
 fun EditProfileScreen(
@@ -95,6 +98,8 @@ fun EditProfileScreen(
     photoSaving: Boolean = false,
     photoFailed: Boolean = false,
     onPhotoPicked: (Bitmap) -> Unit = {},
+    hasPhoto: Boolean = false,
+    onRemovePhoto: () -> Unit = {},
 ) {
     var editedName by rememberSaveable(name) { mutableStateOf(name) }
     var showDiscardDialog by rememberSaveable { mutableStateOf(false) }
@@ -177,6 +182,17 @@ fun EditProfileScreen(
                 Spacer(Modifier.width(8.dp))
 
                 Text(stringResource(R.string.profile_change_photo))
+            }
+            if (hasPhoto) {
+                TextButton(
+                    onClick = onRemovePhoto,
+                    enabled = !photoSaving,
+                ) {
+                    Text(
+                        text = stringResource(R.string.profile_remove_photo),
+                        color = Mint,
+                    )
+                }
             }
             if (photoFailed || pickFailed) {
                 Text(

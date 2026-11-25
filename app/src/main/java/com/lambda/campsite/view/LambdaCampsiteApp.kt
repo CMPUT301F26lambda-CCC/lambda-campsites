@@ -43,8 +43,8 @@
 * Claude Code, helped add the Settings, Edit Profile and First Launch routes
 *
 *  Flow 18: Harmanjoth Kaur, November 2026. Claude Opus 5.5 (Anthropic), through
-* Claude Code, helped connect ProfilePhotoController to the Profile and Edit
-* Profile routes (US 01.08.02).
+* Claude Code, helped connect ProfilePhotoController to the Profile and Edit Profile
+* routes, to add, change and remove the photo (US 01.08.02).
 *
 */
 package com.lambda.campsite.view
@@ -767,6 +767,8 @@ fun LambdaCampsiteApp(
                             photoSaving = photo.saving,
                             photoFailed = photo.failed,
                             onPhotoPicked = photoController::onPhotoPicked,
+                            hasPhoto = photo.hasPhoto,
+                            onRemovePhoto = photoController::onRemovePhoto,
                             onCancel = {
                                 profileController.onEditProfileClosed()
                                 navController.popBackStack()

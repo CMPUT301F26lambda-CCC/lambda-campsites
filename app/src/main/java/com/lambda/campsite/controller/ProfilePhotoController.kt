@@ -3,16 +3,15 @@
  * photo the entrant picks and saves it as their profile's imageId, and finds
  * the photo's address so the Profile and Edit Profile screens can show it.
  * With no photo, the screens show the entrant's initials.
+ * It also removes the photo, so the initials show again.
  *
  * Outstanding issues:
- * 1. Removing the photo will be added in a separate change.
- * 2. For now, the photo disappears when the app is reopened. The backend
- *    still needs to save imageId (in ProfileFields and the profile security
- *    rules) before it stays.
+ *1.The photo isn't kept until the backend saves imageId (in ProfileFields
+ *  and the profile security rule
  *
  * AI Use: Claude Opus 5.5 (Anthropic), November 2026, helped Harmanjoth Kaur identify the correct
- * photo address and handle the exception that occurs when a user leaves the screen without
- * performing any action. It also assisted with Kotlin syntax and refining KDoc comments.
+ * photo address and handle the cancellation when the user leaves the screen while a photo is still
+ * uploading. It also assisted with Kotlin syntax and refining KDoc comments.
  */
 
 package com.lambda.campsite.controller
@@ -40,8 +39,8 @@ import kotlinx.coroutines.launch
  * @property hasPhoto `true` when the profile has a photo.
  * @property photoUrl where to load the photo from, or `null` while it's loading or
  *   when there's no photo. The screens show the initials until it's set.
- * @property saving `true` while a photo is uploading.
- * @property failed `true` when the last upload failed, for example offline.
+ * @property saving `true` while a photo is uploading or being removed
+ * @property failed `true` when the last change failed, for example offline.
  */
 data class ProfilePhotoUiState(
     val hasPhoto: Boolean = false,
@@ -51,7 +50,7 @@ data class ProfilePhotoUiState(
 )
 
 /**
- * Adds and replaces the entrant's profile photo (US 01.08.02).
+ * Adds, replaces and removes the entrant's profile photo (US 01.08.02).
  *
  * It listens to the profile like [ProfileController] does, but only for its
  * photo, so ProfileController doesn't change. A new photo is uploaded through
@@ -94,9 +93,19 @@ class ProfilePhotoController(
     fun onPhotoPicked(photo: Bitmap) {
         if (profile == null || state.value.saving) return
         save { images.upload(photo) }
+
     }
 
-    private fun save(newImageId: suspend () -> String) {
+    /**
+     * Removes the profile photo, so the screens show the initials again.
+     * Does nothing when there's no photo or while another change is saving.
+     */
+    fun onRemovePhoto() {
+        if (profile?.imageId == null || state.value.saving) return
+        save { null }
+    }
+
+    private fun save(newImageId: suspend () -> String?)  {
         mutableState.update { it.copy(saving = true, failed = false) }
         viewModelScope.launch {
             try {
