@@ -521,5 +521,5 @@
 
     <!-- WOW factor #71: match score -->
     <string name="match_score">%1$d%% match</string>
-    <string name="match_score_description">%1$d percent match</string>
+
 </resources>
