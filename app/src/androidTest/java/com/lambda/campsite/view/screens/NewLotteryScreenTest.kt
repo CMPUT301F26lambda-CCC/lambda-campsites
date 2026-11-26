@@ -3,6 +3,8 @@
  * OpenCode, at Raghav Sethi's request. It helped with the Compose test setup,
  * the wizard's step-by-step interactions, the calendar picker test, the
  * end-to-end create path and KDoc. Raghav Sethi reviewed, tested, and committed it.
+ * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped test
+ * picking another owner's campsite in the wizard; human review pending.
  */
 // Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted
 // with edit-mode and singular-lock UI checks; human review pending.
@@ -191,6 +193,36 @@ class NewLotteryScreenTest {
     }
 
     @Test
+    fun pickingAnotherOwnersPublishedCampsiteListsEveryOwner() {
+        val context: Context = ApplicationProvider.getApplicationContext()
+        val shared = Campsite(id = "c3", ownerId = "user-2", name = "Birch Bay", location = "Slave Lake, AB")
+        setContent(listOf(campsite, shared))
+
+        composeRule.onNodeWithText(campsite.name).performClick()
+        composeRule.onNodeWithText(shared.name).performClick()
+        composeRule.onNodeWithText(context.getString(R.string.action_continue)).performClick()
+        composeRule.watch()
+        composeRule.runOnIdle { setDates(controller) }
+        composeRule.onNodeWithText(context.getString(R.string.action_continue)).performClick()
+        composeRule.watch()
+        composeRule.onNodeWithText(context.getString(R.string.new_lottery_name_required)).performTextInput(
+            "Two owners, one lottery",
+        )
+        composeRule.onNodeWithText(context.getString(R.string.action_continue)).performClick()
+        composeRule.watch()
+        composeRule.onNodeWithText(stepHeader(4)).assertIsDisplayed()
+
+        composeRule.onNodeWithText(context.getString(R.string.create_lottery_button)).performClick()
+        composeRule.watch()
+        composeRule.waitUntil(timeoutMillis = 5_000) { lotteries.saved.isNotEmpty() }
+
+        val saved = lotteries.saved.single()
+        assertEquals(listOf("c1", "c3"), saved.campsiteIds)
+        assertEquals(listOf("user-1", "user-2"), saved.ownerIds)
+        assertEquals("user-1", saved.ownerId)
+    }
+
+    @Test
     fun reviewStepShowsUpEditButtonsThatReturnToAStep() {
         val context: Context = ApplicationProvider.getApplicationContext()
         setContent()
@@ -213,7 +245,7 @@ class NewLotteryScreenTest {
     @Test fun editingUsesSaveLabelsAndSingularJoinedExplanation() {
         val zone = java.time.ZoneId.systemDefault()
         fun stamp(day: LocalDate) = com.google.firebase.Timestamp(java.util.Date.from(day.atStartOfDay(zone).toInstant()))
-        val lottery = Lottery("edit-demo", "user-1", "Demo lottery", listOf("c1"),
+        val lottery = Lottery("edit-demo", "user-1", listOf("user-1"), "Demo lottery", listOf("c1"),
             stamp(LocalDate.of(2026, 10, 6)), stamp(LocalDate.of(2026, 10, 19)),
             LocalDate.of(2027, 5, 15), LocalDate.of(2027, 9, 30), entryCount = 1)
         setContent(editing = lottery)
