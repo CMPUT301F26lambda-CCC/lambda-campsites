@@ -9,6 +9,8 @@
  */
 // Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 (OpenAI), through Codex,
 // assisted with edit guards, race handling and merge preservation. Human review pending.
+// Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped merge the
+// creator and participating-owner queries in [myLotteries]; human review pending.
 // Outstanding issues: manual TalkBack review and rules deployment remain pending.
 package com.lambda.campsite.model.repository
 
@@ -23,6 +25,7 @@ import com.lambda.campsite.model.Lottery
 import com.lambda.campsite.model.LotteryEntry
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -77,7 +80,13 @@ class FirestoreLotteryRepository(
 
     override fun myLotteries(): Flow<List<Lottery>> =
         auth.signedInUserId().flatMapLatest { uid ->
-            lotteries.whereEqualTo(LotteryFields.OWNER_ID, uid).liveSnapshots().map { it.toLotteries() }
+            // New lotteries name every owner in ownerIds. Lotteries saved before
+            // US 02.04.08 only have ownerId, so both queries run and the same
+            // lottery is kept once.
+            combine(
+                lotteries.whereEqualTo(LotteryFields.OWNER_ID, uid).liveSnapshots(),
+                lotteries.whereArrayContains(LotteryFields.OWNER_IDS, uid).liveSnapshots(),
+            ) { byCreator, byOwner -> (byCreator.toLotteries() + byOwner.toLotteries()).distinctBy { it.id } }
         }
 
     override fun newLotteryId(): String = lotteries.document().id

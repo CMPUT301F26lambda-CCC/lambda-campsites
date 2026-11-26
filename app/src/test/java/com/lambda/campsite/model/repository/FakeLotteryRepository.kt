@@ -7,6 +7,8 @@
  * this file in November 2026, following the pattern in
  * FakeCampsiteRepository. It helped with the Kotlin code, syntax and KDoc.
  * Sashreek Addanki reviewed it.
+ * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped make
+ * [myLotteries] include lotteries this user helps run; human review pending.
  */
 package com.lambda.campsite.model.repository
 
@@ -55,7 +57,7 @@ class FakeLotteryRepository(
         stored.map { lotteries -> lotteries.values.filter { campsiteId in it.campsiteIds } }
 
     override fun myLotteries(): Flow<List<Lottery>> =
-        stored.map { lotteries -> lotteries.values.filter { it.ownerId == myUserId } }
+        stored.map { lotteries -> lotteries.values.filter { it.isOwnedBy(myUserId) } }
 
     override fun newLotteryId(): String = "lottery-${nextId++}"
 
