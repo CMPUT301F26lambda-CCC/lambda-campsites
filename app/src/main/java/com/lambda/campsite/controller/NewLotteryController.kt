@@ -10,7 +10,7 @@
  * and the fresh re-read of the stored lottery on save.
  * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped offer
  * every published campsite and derive the lottery's owners from the selection
- * (US 02.04.08); human review pending.
+ * (US 02.04.08), and show each campsite's listing owner; human review pending.
  */
 
  /**
@@ -106,6 +106,9 @@ enum class NewLotteryError {
  *   settings, 4 review.
  * @property campsites the campsites this owner can include: their own, published
  *   or not, and every other owner's published ones (US 02.04.02, 02.04.08).
+ * @property myUserId the signed-in profile's device ID, or `null` until the
+ *   profile has loaded. The screen uses it to show "Listed by" only on other
+ *   owners' campsites.
  * @property selectedCampsiteIds the campsites picked for this lottery, in the
  *   order they were picked.
  * @property registrationOpens when entrants can start joining (US 02.04.03).
@@ -124,6 +127,7 @@ enum class NewLotteryError {
 data class NewLotteryUiState(
     val step: Int = 1,
     val campsites: List<Campsite> = emptyList(),
+    val myUserId: String? = null,
     val selectedCampsiteIds: List<String> = emptyList(),
     val registrationOpens: LocalDate? = null,
     val registrationCloses: LocalDate? = null,
@@ -200,6 +204,11 @@ class NewLotteryController(
 
     init {
         viewModelScope.launch {
+            // The screen marks other owners' campsites with their name, so it
+            // needs to know which user is signed in (US 02.04.08).
+            profileRepository.currentProfile().firstOrNull()?.let { profile ->
+                _state.update { it.copy(myUserId = profile.deviceId) }
+            }
             // The owner's own campsites, plus every other owner's published
             // ones, so one lottery can cover several owners' sites (US 02.04.08).
             combine(

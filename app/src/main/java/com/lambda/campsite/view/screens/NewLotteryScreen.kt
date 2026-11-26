@@ -18,6 +18,9 @@
 // Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 (OpenAI), through Codex,
 // assisted with edit guards, race handling and merge preservation. Human review pending.
 // Outstanding issues: manual TalkBack review and rules deployment remain pending.
+// Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped show
+// "Listed by" on other owners' campsites in the picker and review steps; human
+// review pending.
 package com.lambda.campsite.view.screens
 
 import androidx.compose.foundation.background
@@ -101,6 +104,19 @@ private enum class WizardDateField {
     STAY_START,
     STAY_END,
 }
+
+/**
+ * "Listed by …" for a campsite another owner published (US 02.04.08), or
+ * `null` for the signed-in owner's own, or when the name was never copied
+ * onto an older campsite.
+ */
+@Composable
+private fun Campsite.listedByText(myUserId: String?): String? =
+    if (!ownerName.isBlank() && ownerId != myUserId) {
+        stringResource(R.string.new_lottery_listed_by, ownerName)
+    } else {
+        null
+    }
 
 /**
  * The four-step "New lottery" wizard (US 02.04.01 to 02.04.07).
@@ -200,6 +216,7 @@ fun NewLotteryScreen(
                     controller = controller,
                     selectedCampsiteIds = state.selectedCampsiteIds,
                     campsites = state.campsites,
+                    myUserId = state.myUserId,
                     joinedEntrants = state.joinedEntrants,
                 )
                 2 -> DatesStep(controller, state)
@@ -251,13 +268,15 @@ private fun WizardStepHeader(step: Int) {
 
 /**
  * The campsites a lottery covers, locked when its waiting list already took
- * entrants (US 02.04.06): they joined those exact campsites.
+ * entrants (US 02.04.06): they joined those exact campsites. Campsites other
+ * owners published show who lists them (US 02.04.08).
  */
 @Composable
 private fun CampsitesStep(
     controller: NewLotteryController,
     selectedCampsiteIds: List<String>,
     campsites: List<Campsite>,
+    myUserId: String?,
     joinedEntrants: Int,
 ) {
     val locked = joinedEntrants > 0
@@ -267,6 +286,7 @@ private fun CampsitesStep(
         CampsitePickRow(
             campsite = campsite,
             selected = isSelected,
+            listedBy = campsite.listedByText(myUserId),
             locked = locked,
             onClick = { controller.onCampsiteToggled(campsite.id) },
         )
@@ -286,11 +306,19 @@ private fun CampsitesStep(
 
 /**
  * One owner campsite with the checkbox that picks it for the lottery
- * (US 02.04.02). While [locked], the card can't be tapped and shows a lock,
- * so TalkBack reads what a visual owner sees (US 02.04.06).
+ * (US 02.04.02). [listedBy] reads "Listed by …" for another owner's campsite,
+ * or `null` for the signed-in owner's own. While [locked], the card can't be
+ * tapped and shows a lock, so TalkBack reads what a visual owner sees
+ * (US 02.04.06).
  */
 @Composable
-private fun CampsitePickRow(campsite: Campsite, selected: Boolean, locked: Boolean, onClick: () -> Unit) {
+private fun CampsitePickRow(
+    campsite: Campsite,
+    selected: Boolean,
+    listedBy: String?,
+    locked: Boolean,
+    onClick: () -> Unit,
+) {
     OutlinedCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -323,6 +351,13 @@ private fun CampsitePickRow(campsite: Campsite, selected: Boolean, locked: Boole
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (listedBy != null) {
+                    Text(
+                        text = listedBy,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             if (locked) {
                 Icon(
@@ -559,7 +594,12 @@ private fun ReviewStep(controller: NewLotteryController, state: NewLotteryUiStat
         body = {
             state.campsites
                 .filter { it.id in state.selectedCampsiteIds }
-                .forEach { campsite -> Text(campsite.name, style = MaterialTheme.typography.bodyMedium) }
+                .forEach { campsite ->
+                    Text(campsite.name, style = MaterialTheme.typography.bodyMedium)
+                    campsite.listedByText(state.myUserId)?.let { listedBy ->
+                        Text(listedBy, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
         },
     )
     ReviewCard(

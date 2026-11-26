@@ -190,6 +190,7 @@
     <string name="new_lottery_select_campsites">Select campsites</string>
     <string name="new_lottery_count_one_campsite">1 campsite selected</string>
     <string name="new_lottery_count_many_campsites">%1$d campsites selected</string>
+    <string name="new_lottery_listed_by">Listed by %1$s</string>
     <string name="new_lottery_registration_period">Registration period</string>
     <string name="new_lottery_registration_opens">Opens*</string>
     <string name="new_lottery_registration_closes">Closes*</string>
