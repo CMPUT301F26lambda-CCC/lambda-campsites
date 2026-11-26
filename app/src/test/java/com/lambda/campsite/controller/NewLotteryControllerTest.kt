@@ -7,7 +7,8 @@
  * #169 follow-up, 2026-11-04: GLM 5.3 Flash (Z.ai), through OpenCode, helped
  * write the edit-lock tests for joined entrants (US 02.04.06); human review pending.
  * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped test
- * multi-owner campsite choices and owner-list derivation; human review pending.
+ * multi-owner campsite choices, owner-list derivation and the owner-name copy;
+ * human review pending.
  */
 // Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted
 // with race/refusal and access-rule regression tests; human review pending.
@@ -230,8 +231,11 @@ class NewLotteryControllerTest {
 
     @Test
     fun `another owner's published campsite can join the lottery`() {
-        val shared = Campsite(id = "c3", ownerId = "user-2", name = "Birch Bay", location = "Slave Lake, AB")
+        val shared = Campsite(
+            id = "c3", ownerId = "user-2", name = "Birch Bay", location = "Slave Lake, AB", ownerName = "Priya Sharma",
+        )
         val (controller, repository) = newController(aspen, shared)
+        assertEquals("user-1", controller.state.value.myUserId)
         controller.onCampsiteToggled("c1")
         controller.onCampsiteToggled("c3")
         controller.onNext()
@@ -251,7 +255,8 @@ class NewLotteryControllerTest {
     @Test
     fun `a co-owner's unpublished campsite shows while editing`() {
         val unpublished = Campsite(
-            id = "c3", ownerId = "user-2", name = "Birch Bay", location = "Slave Lake, AB", published = false,
+            id = "c3", ownerId = "user-2", name = "Birch Bay", location = "Slave Lake, AB",
+            published = false, ownerName = "Priya Sharma",
         )
         val shared = joinedLottery.copy(
             ownerIds = listOf("user-1", "user-2"),
@@ -271,7 +276,9 @@ class NewLotteryControllerTest {
             campsiteIds = listOf("c1", "c3"),
             entryCount = 0,
         )
-        val coOwnerSite = Campsite(id = "c3", ownerId = "user-2", name = "Birch Bay", location = "Slave Lake, AB")
+        val coOwnerSite = Campsite(
+            id = "c3", ownerId = "user-2", name = "Birch Bay", location = "Slave Lake, AB", ownerName = "Priya Sharma",
+        )
         val (controller, repository) = editController(shared, listOf(aspen, coOwnerSite))
 
         controller.onNameChange("Renamed lottery")

@@ -10,6 +10,8 @@
  * The imageId test was added by Aarush Bhat with the assistance of Claude
  * Sonnet 5 (Anthropic), through Claude Code, in November 2026. Aarush Bhat
  * reviewed, ran and committed it.
+ * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped test
+ * the owner-name copy and its fallback for older documents; human review pending.
  */
 package com.lambda.campsite.model.repository
 
@@ -88,6 +90,20 @@ class CampsiteFieldsTest {
         val fields = CampsiteFields.toMap(campsite.copy(imageId = null))
 
         assertNull(CampsiteFields.fromMap("campsite-1", fields).imageId)
+    }
+
+    @Test
+    fun `the owner's name is stored and read back`() {
+        val named = campsite.copy(ownerName = "Alex Kim")
+
+        assertEquals("Alex Kim", CampsiteFields.fromMap("campsite-1", CampsiteFields.toMap(named)).ownerName)
+    }
+
+    @Test
+    fun `a campsite saved before owner names reads with no name`() {
+        val fields = CampsiteFields.toMap(campsite) - CampsiteFields.OWNER_NAME
+
+        assertEquals("", CampsiteFields.fromMap("campsite-1", fields).ownerName)
     }
 
     @Test

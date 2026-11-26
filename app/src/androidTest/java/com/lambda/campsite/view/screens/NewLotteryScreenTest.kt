@@ -4,7 +4,8 @@
  * the wizard's step-by-step interactions, the calendar picker test, the
  * end-to-end create path and KDoc. Raghav Sethi reviewed, tested, and committed it.
  * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped test
- * picking another owner's campsite in the wizard; human review pending.
+ * picking another owner's campsite and its "Listed by" line in the wizard; human
+ * review pending.
  */
 // Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted
 // with edit-mode and singular-lock UI checks; human review pending.
@@ -195,9 +196,14 @@ class NewLotteryScreenTest {
     @Test
     fun pickingAnotherOwnersPublishedCampsiteListsEveryOwner() {
         val context: Context = ApplicationProvider.getApplicationContext()
-        val shared = Campsite(id = "c3", ownerId = "user-2", name = "Birch Bay", location = "Slave Lake, AB")
+        val shared = Campsite(
+            id = "c3", ownerId = "user-2", name = "Birch Bay", location = "Slave Lake, AB", ownerName = "Priya Sharma",
+        )
         setContent(listOf(campsite, shared))
 
+        // Another owner's campsite says who lists it; the user's own doesn't.
+        composeRule.onNodeWithText(context.getString(R.string.new_lottery_listed_by, "Priya Sharma"))
+            .assertIsDisplayed()
         composeRule.onNodeWithText(campsite.name).performClick()
         composeRule.onNodeWithText(shared.name).performClick()
         composeRule.onNodeWithText(context.getString(R.string.action_continue)).performClick()
