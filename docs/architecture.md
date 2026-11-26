@@ -44,7 +44,8 @@ Issue #151 waiting-list follow-up: Sreeman Reddy · last updated 2026-11-03.
 >
 > Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped
 > document multi-owner lotteries: the ownerIds field, legacy fallback, query
-> merge, rules and UI changes. Human review is pending.
+> merge, rules and UI changes, and the campsite ownerName copy. Human review
+> is pending.
 
 This page explains how the app is put together. It covers the class diagram and the reasons behind it, the backend on Firebase, and how the Android app splits into Model, View and Controller. Section 6 follows one entrant from tapping "Join" to holding a reservation, so you can see every layer working in one story. Section 7 is the practical part: where files live, what to name things, and how to add something to the frontend or the backend. If a term is new to you, like repository, Flow or transaction, `docs/glossary.md` explains it.
 
@@ -133,7 +134,7 @@ The diagram shows every collection, the fields in each document, and which field
 | Firestore path | Holds | Why this shape |
 |---|---|---|
 | `profiles/{uid}` | Profile | The document ID is the Firebase Auth user ID, so the app finds a profile without a query. |
-| `campsites/{campsiteId}` | Campsite, plus `ratingCount` and `ratingSum` | `averageRating` is worked out from those two numbers. |
+| `campsites/{campsiteId}` | Campsite, plus `ratingCount`, `ratingSum` and `ownerName` | `averageRating` is worked out from those two numbers. `ownerName` copies the listing owner's profile name, since profiles are private and other users can't read them (US 02.04.08). |
 | `campsites/{campsiteId}/availability/calendar` | Availability | A separate document, so entrants can book nights without write access to the campsite itself. |
 | `campsites/{campsiteId}/ratings/{uid}` | Rating | The document ID is the rater, so rating again replaces the old rating (01.13.01). |
 | `lotteries/{lotteryId}` | Lottery, plus `entryCount` and `ownerIds` | A transaction checks the waiting-list limit (02.04.07) by reading one document. `ownerIds` names every owner whose campsite the lottery covers, so all of them see it in their lotteries list (US 02.04.08). Older lotteries keep just the creator in `ownerId`. |
@@ -150,7 +151,7 @@ A few conventions keep the data consistent:
 - Dates without a time, like check-in or season start, are stored as strings such as `2027-07-02`. Firestore has no date-only type, and these strings sort in date order. In the app they're `LocalDate`s. `AvailabilityFields` shows how to turn them into strings and back, and `isDate()` in `firestore.rules` checks their format.
 - Times like `joinedAt` and `sentAt` use Firestore server timestamps, so a phone with the wrong clock can't move ahead in the queue.
 - Enums are stored by name, like `WON`.
-- Lists copy a few fields to avoid extra reads. A reservation stores the guest's name and the campsite's name, so the owner's reservation list loads with one query.
+- Lists copy a few fields to avoid extra reads. A reservation stores the guest's name and the campsite's name, so the owner's reservation list loads with one query. A campsite copies its owner's profile name into `ownerName` for the same reason (US 02.04.08); both copies can go stale when the profile is renamed.
 
 ### Cloud Functions
 
