@@ -10,6 +10,8 @@
  * prevented duplicate saves, cached the generated campsite ID across retries, extracted
  * error enums, and added coroutine cancellation re-throwing. Raghav Sethi reviewed,
  * tested, and committed it.
+ * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped copy the
+ * owner's profile name onto the saved campsite (ownerName); human review pending.
  */
 package com.lambda.campsite.controller
 
@@ -220,7 +222,14 @@ class OwnerCampsiteAddController(
                         _state.update { it.copy(form = it.form.copy(imageId = uploadedId)) }
                     }
                 }
-                val campsiteToSave = draft.copy(id = targetId, ownerId = profile.deviceId, imageId = imageId)
+                // The owner's name is copied onto the campsite, since profiles
+                // are private and other users can't read them (US 02.04.08).
+                val campsiteToSave = draft.copy(
+                    id = targetId,
+                    ownerId = profile.deviceId,
+                    ownerName = profile.name,
+                    imageId = imageId,
+                )
                 campsiteRepository.save(campsiteToSave)
 
                 val start = current.form.seasonStart
