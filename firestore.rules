@@ -126,13 +126,14 @@ service cloud.firestore {
 
     // A lottery covers one to five different campsites, each owned by one of
     // its owners, and the signed-in user is one of those owners (US 02.04.02,
-    // 02.04.08). Rules can't loop over a list, so each place is checked on its
-    // own. Each check reads one campsite, and a request can read at most 10
-    // documents.
+    // 02.04.08). The owner list may name an owner whose campsite isn't
+    // included, like the creator of a lottery built entirely from other
+    // owners' campsites. Rules can't loop over a list, so each campsite gets
+    // its own check, and a request can read at most 10 documents.
     function ownsLotteryCampsites(ids, owners) {
       return ids is list && ids.size() >= 1 && ids.size() <= 5
         && ids.toSet().size() == ids.size()
-        && owners is list && owners.size() >= 1 && owners.size() <= ids.size()
+        && owners is list && owners.size() >= 1
         && owners.toSet().size() == owners.size()
         && request.auth.uid in owners
         && campsiteOwner(ids[0]) in owners

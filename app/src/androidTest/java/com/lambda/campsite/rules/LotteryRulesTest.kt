@@ -256,6 +256,25 @@ class LotteryRulesTest {
         assertNull(firestoreErrorFrom { lotteries.document().set(LotteryFields.toMap(shared)).await() })
     }
 
+    @Test fun creatorCanRunALotteryBuiltEntirelyFromOtherOwnersCampsites() {
+        // The creator names themselves plus the campsite's owner; the owner
+        // list may be longer than the campsite list (US 02.04.08).
+        val shared = Lottery(
+            id = "unused",
+            ownerId = uid,
+            ownerIds = listOf(uid, "someone-else"),
+            name = "Their campsite, my lottery",
+            campsiteIds = listOf("theirs"),
+            registrationOpens = time("2027-05-01T15:00:00Z"),
+            registrationCloses = time("2027-06-01T15:00:00Z"),
+            stayStart = LocalDate.parse("2027-07-01"),
+            stayEnd = LocalDate.parse("2027-07-31"),
+            numberOfWinners = 10,
+        )
+
+        assertNull(firestoreErrorFrom { lotteries.document().set(LotteryFields.toMap(shared)).await() })
+    }
+
     @Test fun coOwnerCanEditTheirCoOwnedLottery() {
         setUpOnServer("shared", Lottery(
             id = "unused",
