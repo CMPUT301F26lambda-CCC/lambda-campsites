@@ -10,7 +10,8 @@
  * and the fresh re-read of the stored lottery on save.
  * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped offer
  * every published campsite and derive the lottery's owners from the selection
- * (US 02.04.08), and show each campsite's listing owner; human review pending.
+ * (US 02.04.08), show each campsite's listing owner, and report rules refusals
+ * separately from offline saves; human review pending.
  */
 
  /**
@@ -34,6 +35,7 @@ import com.lambda.campsite.model.Campsite
 import com.lambda.campsite.model.Lottery
 import com.lambda.campsite.model.LotteryEditRestriction
 import com.lambda.campsite.model.repository.LotteryEditException
+import com.lambda.campsite.model.repository.LotteryNotAllowedException
 import com.lambda.campsite.model.LotteryStatus
 import com.lambda.campsite.model.repository.CampsiteRepository
 import com.lambda.campsite.model.repository.LotteryRepository
@@ -89,6 +91,13 @@ enum class NewLotteryError {
 
     /** The lottery couldn't be saved, for example because the phone is offline. */
     SAVE_FAILED,
+
+    /**
+     * Firestore's security rules refused the save (US 02.04.08). Every
+     * campsite's owner has to be one of the lottery's owners, and the
+     * signed-in user has to still be an active owner.
+     */
+    SAVE_NOT_ALLOWED,
 
     /** Registration changed during editing; review the refreshed locked fields before saving. */
     LOCKED_FIELDS_CHANGED,
@@ -465,14 +474,22 @@ class NewLotteryController(
             } catch (e: Exception) {
                 val refusal = generateSequence(e as Throwable?) { it.cause }
                     .filterIsInstance<LotteryEditException>().firstOrNull()
-                if (refusal != null) {
-                    val latest = editingLottery?.let {
-                        try { lotteryRepository.lottery(it.id).firstOrNull() }
-                        catch (cancelled: CancellationException) { throw cancelled }
-                        catch (_: Exception) { null }
+                when {
+                    refusal != null -> {
+                        val latest = editingLottery?.let {
+                            try { lotteryRepository.lottery(it.id).firstOrNull() }
+                            catch (cancelled: CancellationException) { throw cancelled }
+                            catch (_: Exception) { null }
+                        }
+                        refuseEdit(refusal.restriction, latest)
                     }
-                    refuseEdit(refusal.restriction, latest)
-                } else _state.update { it.copy(isSaving = false, saveFailed = true) }
+                    // The security rules refused the write, which isn't a
+                    // connection problem: say so instead (US 02.04.08).
+                    generateSequence(e as Throwable?) { it.cause }
+                        .filterIsInstance<LotteryNotAllowedException>().any() ->
+                        _state.update { it.copy(isSaving = false, error = NewLotteryError.SAVE_NOT_ALLOWED) }
+                    else -> _state.update { it.copy(isSaving = false, saveFailed = true) }
+                }
             }
         }
     }

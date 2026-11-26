@@ -128,3 +128,12 @@ class WaitingListException(val reason: Reason) : Exception("Can't join or leave 
 /** A transaction rejected an edit against the latest lottery, without writing any fields. */
 class LotteryEditException(val restriction: com.lambda.campsite.model.LotteryEditRestriction) :
     IllegalStateException("Lottery edit refused: $restriction")
+
+/**
+ * Firestore's security rules refused to save the lottery, without writing any
+ * fields (US 02.04.08). The repository translates Firestore's permission
+ * refusal into this, so controllers can tell it apart from an offline save
+ * without touching Firebase's own exception classes.
+ */
+class LotteryNotAllowedException(cause: Throwable) :
+    Exception("The security rules refused this lottery.", cause)

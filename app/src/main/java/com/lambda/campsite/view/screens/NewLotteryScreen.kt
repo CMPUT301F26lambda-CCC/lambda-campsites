@@ -687,6 +687,7 @@ internal fun newLotteryErrorRes(error: NewLotteryError): Int = when (error) {
     NewLotteryError.NOT_DRAWABLE -> R.string.error_lottery_not_drawable
     NewLotteryError.LOCKED_FIELDS_CHANGED -> R.string.error_lottery_locked_fields_changed
     NewLotteryError.SAVE_FAILED -> R.string.error_lottery_save_failed
+    NewLotteryError.SAVE_NOT_ALLOWED -> R.string.error_lottery_save_not_allowed
 }
 
 /** The name of [step], shown in the "Step 1 of 4 · Campsites" header. */

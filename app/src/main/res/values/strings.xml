@@ -191,6 +191,7 @@
     <string name="new_lottery_count_one_campsite">1 campsite selected</string>
     <string name="new_lottery_count_many_campsites">%1$d campsites selected</string>
     <string name="new_lottery_listed_by">Listed by %1$s</string>
+    <string name="error_lottery_save_not_allowed">You\'re not allowed to save this lottery. Every campsite\'s owner has to be one of the lottery\'s owners, and you have to still be an active owner.</string>
     <string name="new_lottery_registration_period">Registration period</string>
     <string name="new_lottery_registration_opens">Opens*</string>
     <string name="new_lottery_registration_closes">Closes*</string>

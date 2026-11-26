@@ -7,8 +7,8 @@
  * #169 follow-up, 2026-11-04: GLM 5.3 Flash (Z.ai), through OpenCode, helped
  * write the edit-lock tests for joined entrants (US 02.04.06); human review pending.
  * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped test
- * multi-owner campsite choices, owner-list derivation and the owner-name copy;
- * human review pending.
+ * multi-owner campsite choices, owner-list derivation, the owner-name copy and
+ * the rules-refusal error; human review pending.
  */
 // Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted
 // with race/refusal and access-rule regression tests; human review pending.
@@ -318,6 +318,37 @@ class NewLotteryControllerTest {
 
         assertTrue(controller.state.value.saveFailed)
         assertFalse(controller.state.value.isSaving)
+    }
+
+    @Test
+    fun `a rules refusal says so instead of blaming the connection`() {
+        // The repository translates Firestore's permission refusal into
+        // LotteryNotAllowedException, so the screen can say the rules, not
+        // the connection, refused the save (US 02.04.08).
+        val (controller, repository) = newController(aspen)
+        toReviewStep(controller)
+        repository.failSaves = false
+        val rulesRepository = object : com.lambda.campsite.model.repository.LotteryRepository by repository {
+            override suspend fun save(lottery: Lottery) {
+                throw com.lambda.campsite.model.repository.LotteryNotAllowedException(
+                    IllegalStateException("Missing or insufficient permissions"),
+                )
+            }
+        }
+        val rulesController = NewLotteryController(
+            rulesRepository,
+            com.lambda.campsite.model.repository.FakeCampsiteRepository(myUserId = "user-1", initial = listOf(aspen)),
+            com.lambda.campsite.model.repository.FakeProfileRepository(
+                com.lambda.campsite.model.Profile("user-1", "Owner", "owner@example.com"),
+            ),
+        )
+        toReviewStep(rulesController)
+
+        rulesController.onCreateLottery { }
+
+        assertEquals(NewLotteryError.SAVE_NOT_ALLOWED, rulesController.state.value.error)
+        assertFalse(rulesController.state.value.saveFailed)
+        assertFalse(rulesController.state.value.isSaving)
     }
 
     // #169 follow-up: editing a lottery whose waiting list already took
