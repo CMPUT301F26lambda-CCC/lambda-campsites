@@ -4,8 +4,8 @@
  * the wizard's step-by-step interactions, the calendar picker test, the
  * end-to-end create path and KDoc. Raghav Sethi reviewed, tested, and committed it.
  * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped test
- * picking another owner's campsite and its "Listed by" line in the wizard; human
- * review pending.
+ * picking another owner's campsite and its "Listed by" line in the wizard, and
+ * walk all four steps through to a saved multi-owner lottery; human review pending.
  */
 // Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted
 // with edit-mode and singular-lock UI checks; human review pending.
@@ -226,6 +226,74 @@ class NewLotteryScreenTest {
         assertEquals(listOf("c1", "c3"), saved.campsiteIds)
         assertEquals(listOf("user-1", "user-2"), saved.ownerIds)
         assertEquals("user-1", saved.ownerId)
+    }
+
+    @Test
+    fun wizardWalksThroughEveryStepWithTwoOwnersAndCreatesTheLottery() {
+        val context: Context = ApplicationProvider.getApplicationContext()
+        val shared = Campsite(
+            id = "c3", ownerId = "user-2", name = "Birch Bay", location = "Slave Lake, AB", ownerName = "Priya Sharma",
+        )
+        setContent(listOf(campsite, shared))
+        val listedBy = context.getString(R.string.new_lottery_listed_by, "Priya Sharma")
+
+        // Step 1: both campsites are choices, and only the other owner's says
+        // who lists it.
+        composeRule.onNodeWithText(stepHeader(1)).assertIsDisplayed()
+        composeRule.onNodeWithText(campsite.name).assertIsDisplayed()
+        composeRule.onNodeWithText(shared.name).assertIsDisplayed()
+        composeRule.onNodeWithText(listedBy).assertIsDisplayed()
+        composeRule.onNodeWithText(campsite.name).performClick()
+        composeRule.onNodeWithText(shared.name).performClick()
+        composeRule.onNodeWithText(context.getString(R.string.new_lottery_count_many_campsites, 2))
+            .assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.action_continue)).performClick()
+        composeRule.watch()
+
+        // Step 2: the registration and booking periods, shown back once set.
+        composeRule.onNodeWithText(stepHeader(2)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.new_lottery_registration_opens)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.new_lottery_booking_period)).assertIsDisplayed()
+        composeRule.runOnIdle { setDates(controller) }
+        composeRule.watch()
+        composeRule.onNodeWithText("Oct 6, 2026").assertIsDisplayed()
+        composeRule.onNodeWithText("May 15, 2027").assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.action_continue)).performClick()
+        composeRule.watch()
+
+        // Step 3: the lottery's name, winners and waiting-list capacity.
+        composeRule.onNodeWithText(stepHeader(3)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.new_lottery_number_of_winners)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.new_lottery_waiting_list_capacity)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.new_lottery_name_required)).performTextInput(
+            "Two owners, one lottery",
+        )
+        composeRule.onNodeWithText(context.getString(R.string.action_continue)).performClick()
+        composeRule.watch()
+
+        // Step 4: the review repeats every campsite, its listing owner, the
+        // dates and the settings.
+        composeRule.onNodeWithText(stepHeader(4)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.new_lottery_review_campsites)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.new_lottery_review_dates)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.new_lottery_check_in)).assertIsDisplayed()
+        composeRule.onNodeWithText("Oct 6, 2026").assertIsDisplayed()
+        composeRule.onNodeWithText(listedBy).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.new_lottery_review_settings_limited, 20, 150))
+            .assertIsDisplayed()
+
+        composeRule.onNodeWithText(context.getString(R.string.create_lottery_button)).performClick()
+        composeRule.watch()
+        composeRule.waitUntil(timeoutMillis = 5_000) { lotteries.saved.isNotEmpty() }
+
+        val saved = lotteries.saved.single()
+        assertEquals("Two owners, one lottery", saved.name)
+        assertEquals(listOf("c1", "c3"), saved.campsiteIds)
+        assertEquals(listOf("user-1", "user-2"), saved.ownerIds)
+        assertEquals("user-1", saved.ownerId)
+        assertEquals(20, saved.numberOfWinners)
+        assertEquals(150, saved.capacity)
+        composeRule.runOnIdle { assertEquals(listOf(saved.id), createdIds) }
     }
 
     @Test
