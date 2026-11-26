@@ -6,6 +6,8 @@
  * AI use: Claude Opus 5.5 (Anthropic), used through Claude Code, helped write
  * these tests in November 2026. It helped with the test cases and the Kotlin
  * syntax. Sashreek Addanki reviewed them.
+ * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped test
+ * the owner list and the fallback for older documents; human review pending.
  */
 // Flow 5: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex, assisted
 // with server-only draw metadata tests; human review pending.
@@ -60,6 +62,31 @@ class LotteryFieldsTest {
         val unlimited = lottery.copy(capacity = null)
 
         assertEquals(unlimited, LotteryFields.fromMap("lottery-1", LotteryFields.toMap(unlimited)))
+    }
+
+    @Test
+    fun `every participating owner is stored and read back`() {
+        val shared = lottery.copy(ownerIds = listOf("owner-1", "owner-2", "owner-3"))
+        val fields = LotteryFields.toMap(shared)
+
+        assertEquals(listOf("owner-1", "owner-2", "owner-3"), fields[LotteryFields.OWNER_IDS])
+        assertEquals(shared, LotteryFields.fromMap("lottery-1", fields))
+    }
+
+    @Test
+    fun `the creator is always stored in the owner list`() {
+        // A lottery built without an owner list still names its creator, so
+        // the array-contains query finds it (US 02.04.08).
+        val fields = LotteryFields.toMap(lottery.copy(ownerIds = listOf("owner-2")))
+
+        assertEquals(listOf("owner-1", "owner-2"), fields[LotteryFields.OWNER_IDS])
+    }
+
+    @Test
+    fun `a document saved before owner lists reads as a single-owner lottery`() {
+        val fields = LotteryFields.toMap(lottery) - LotteryFields.OWNER_IDS
+
+        assertEquals(listOf("owner-1"), LotteryFields.fromMap("lottery-1", fields)?.ownerIds)
     }
 
     @Test

@@ -4,6 +4,8 @@
  * Feature owner: Lalith Valluru. Purpose: Flow 12 / US 02.09.01 read-only owner tests.
  * AI use: OpenAI GPT-6 through Codex assisted with cases and fixtures. Human review pending.
  * Issue #151: GPT-6 (OpenAI), through Codex, assisted me with contact-cache regressions.
+ * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped test that a
+ * co-owner sees a lottery covering their campsite; human review pending.
  */
 package com.lambda.campsite.controller
 
@@ -23,8 +25,13 @@ import org.junit.Test
 class OwnerWaitingListControllerTest {
     @get:Rule val dispatcher = MainDispatcherRule()
     private val owner = Profile("owner", "Owner", "", roles = setOf(Role.OWNER))
-    private fun sampleLottery(id: String, name: String = id, ownerId: String = "owner") = Lottery(
-        id, ownerId, name, listOf("camp"), Timestamp(1, 0), Timestamp(100, 0),
+    private fun sampleLottery(
+        id: String,
+        name: String = id,
+        ownerId: String = "owner",
+        ownerIds: List<String> = listOf(ownerId),
+    ) = Lottery(
+        id, ownerId, ownerIds, name, listOf("camp"), Timestamp(1, 0), Timestamp(100, 0),
         LocalDate.of(2027, 7, 1), LocalDate.of(2027, 7, 31))
     private fun entry(id: String, at: Long = 5, lotteryId: String = "a") =
         LotteryEntry(lotteryId, id, Timestamp(at, 0))
@@ -56,6 +63,18 @@ class OwnerWaitingListControllerTest {
         control.onSelectLottery("foreign")
         assertEquals(listOf("a"), repo.requested)
         assertTrue(profile.saved.isEmpty())
+    }
+
+    @Test fun `a co-owner sees a lottery covering their campsite`() {
+        val repo = Reads().apply {
+            choices.value = Result.success(listOf(
+                sampleLottery("shared", ownerId = "other", ownerIds = listOf("other", "owner")),
+            ))
+        }
+        val control = OwnerWaitingListController(repo, FakeProfileRepository(owner))
+
+        assertEquals(listOf("shared"), control.state.value.lotteries.map { it.id })
+        assertEquals("shared", control.state.value.selectedLotteryId)
     }
 
     @Test fun `foreign initial destination is never queried`() {

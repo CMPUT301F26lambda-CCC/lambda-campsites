@@ -6,6 +6,8 @@
  * Raghav Sethi reviewed, ran, and committed them.
  * #169 follow-up, 2026-11-04: GLM 5.3 Flash (Z.ai), through OpenCode, helped
  * write the edit-lock tests for joined entrants (US 02.04.06); human review pending.
+ * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped test
+ * multi-owner campsite choices and owner-list derivation; human review pending.
  */
 // Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted
 // with race/refusal and access-rule regression tests; human review pending.
@@ -224,6 +226,60 @@ class NewLotteryControllerTest {
         controller.onCreateLottery { }
 
         assertNull(repository.saved.single().capacity)
+    }
+
+    @Test
+    fun `another owner's published campsite can join the lottery`() {
+        val shared = Campsite(id = "c3", ownerId = "user-2", name = "Birch Bay", location = "Slave Lake, AB")
+        val (controller, repository) = newController(aspen, shared)
+        controller.onCampsiteToggled("c1")
+        controller.onCampsiteToggled("c3")
+        controller.onNext()
+        setValidDates(controller)
+        controller.onNext()
+        controller.onNameChange("Two owners, one lottery")
+        controller.onNext()
+
+        controller.onCreateLottery { }
+
+        val saved = repository.saved.single()
+        assertEquals(listOf("c1", "c3"), saved.campsiteIds)
+        assertEquals(listOf("user-1", "user-2"), saved.ownerIds)
+        assertEquals("user-1", saved.ownerId)
+    }
+
+    @Test
+    fun `a co-owner's unpublished campsite shows while editing`() {
+        val unpublished = Campsite(
+            id = "c3", ownerId = "user-2", name = "Birch Bay", location = "Slave Lake, AB", published = false,
+        )
+        val shared = joinedLottery.copy(
+            ownerIds = listOf("user-1", "user-2"),
+            campsiteIds = listOf("c1", "c3"),
+            entryCount = 0,
+        )
+        val (controller, _) = editController(shared, listOf(aspen, unpublished))
+
+        assertTrue(controller.state.value.campsites.any { it.id == "c3" })
+        assertEquals(listOf("c1", "c3"), controller.state.value.selectedCampsiteIds)
+    }
+
+    @Test
+    fun `saving an edited lottery keeps every co-owner`() {
+        val shared = joinedLottery.copy(
+            ownerIds = listOf("user-1", "user-2"),
+            campsiteIds = listOf("c1", "c3"),
+            entryCount = 0,
+        )
+        val coOwnerSite = Campsite(id = "c3", ownerId = "user-2", name = "Birch Bay", location = "Slave Lake, AB")
+        val (controller, repository) = editController(shared, listOf(aspen, coOwnerSite))
+
+        controller.onNameChange("Renamed lottery")
+        controller.onCreateLottery { }
+
+        val saved = repository.saved.single()
+        assertEquals(listOf("user-1", "user-2"), saved.ownerIds)
+        assertEquals(listOf("c1", "c3"), saved.campsiteIds)
     }
 
     @Test
