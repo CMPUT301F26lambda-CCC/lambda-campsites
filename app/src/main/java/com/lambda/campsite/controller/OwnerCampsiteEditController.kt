@@ -8,6 +8,8 @@
  * It helped with prefilling existing campsite data, field validation, preserving
  * the existing campsite ID so QR codes stay valid (US 02.01.03), syntax and KDoc.
  * Raghav Sethi reviewed, tested, and committed it.
+ * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped refresh
+ * the campsite's ownerName copy from the profile on save; human review pending.
  */
 
 /**
@@ -31,6 +33,7 @@ import com.lambda.campsite.model.repository.CampsiteRepository
 import com.lambda.campsite.model.repository.ImageRepository
 import java.time.LocalDate
 import kotlinx.coroutines.CancellationException
+import com.lambda.campsite.model.repository.ProfileRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -108,11 +111,16 @@ data class OwnerCampsiteEditUiState(
  *
  * @param campsiteId ID of the campsite to edit.
  * @param repository where changes are persisted.
+ * @param profileRepository where the owner's current name comes from, so
+ *   saving also refreshes the campsite's `ownerName` copy (US 02.04.08).
+ *   Optional only so older tests can build the controller without one; the
+ *   app's factory always passes it.
  */
 class OwnerCampsiteEditController(
     private val campsiteId: String,
     private val repository: CampsiteRepository,
     private val imageRepository: ImageRepository? = null,
+    private val profileRepository: ProfileRepository? = null,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(OwnerCampsiteEditUiState(campsiteId = campsiteId))
@@ -304,7 +312,13 @@ class OwnerCampsiteEditController(
                         _state.update { it.copy(imageId = uploadedId) }
                     }
                 }
-                repository.save(updated.copy(imageId = imageId))
+                // The owner's name is copied onto the campsite, since profiles
+                // are private and other users can't read them (US 02.04.08).
+                // Campsites saved before that copy existed get it here.
+                val ownerName = profileRepository
+                    ?.currentProfile()?.firstOrNull()?.name
+                    .takeUnless { it.isNullOrBlank() } ?: updated.ownerName
+                repository.save(updated.copy(imageId = imageId, ownerName = ownerName))
 
                 val start = current.seasonStart
                 val end = current.seasonEnd
@@ -328,7 +342,12 @@ class OwnerCampsiteEditController(
             initializer {
                 val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]
                     as LambdaApplication
-                OwnerCampsiteEditController(campsiteId, application.container.campsiteRepository, application.container.imageRepository)
+                OwnerCampsiteEditController(
+                    campsiteId,
+                    application.container.campsiteRepository,
+                    application.container.imageRepository,
+                    application.container.profileRepository,
+                )
             }
         }
     }

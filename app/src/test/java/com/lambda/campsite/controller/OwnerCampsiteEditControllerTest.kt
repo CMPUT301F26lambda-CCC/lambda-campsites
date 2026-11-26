@@ -8,6 +8,8 @@
  * It helped with test cases for pre-filled data, editing fields, saving changes
  * while retaining the same campsite ID (US 02.01.03), and offline failure handling.
  * Raghav Sethi reviewed, ran, and committed them.
+ * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped test that
+ * saving refreshes the campsite's ownerName copy; human review pending.
  */
 package com.lambda.campsite.controller
 
@@ -117,5 +119,40 @@ class OwnerCampsiteEditControllerTest {
         assertEquals(original.id, saved.id)
         assertEquals(42.0, saved.pricePerNight!!, 0.0)
         assertEquals("Quiet after 10 pm", saved.rules)
+    }
+
+    @Test
+    fun `saving refreshes the owner name from the profile`() {
+        // Campsites saved before the ownerName copy existed get their name
+        // the next time their owner edits them (US 02.04.08).
+        val repository = FakeCampsiteRepository(initial = listOf(original))
+        val profile = com.lambda.campsite.model.Profile(
+            deviceId = "owner-1", name = "Alex Kim", email = "alex@example.com",
+        )
+        val controller = OwnerCampsiteEditController(
+            original.id, repository,
+            profileRepository = com.lambda.campsite.model.repository.FakeProfileRepository(profile),
+        )
+
+        controller.onSave { }
+
+        assertEquals("Alex Kim", repository.saved.single().ownerName)
+    }
+
+    @Test
+    fun `a blank profile name leaves the stored owner name alone`() {
+        val named = original.copy(ownerName = "Old Name")
+        val repository = FakeCampsiteRepository(initial = listOf(named))
+        val wiped = com.lambda.campsite.model.Profile(
+            deviceId = "owner-1", name = "", email = "alex@example.com",
+        )
+        val controller = OwnerCampsiteEditController(
+            named.id, repository,
+            profileRepository = com.lambda.campsite.model.repository.FakeProfileRepository(wiped),
+        )
+
+        controller.onSave { }
+
+        assertEquals("Old Name", repository.saved.single().ownerName)
     }
 }
