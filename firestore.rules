@@ -1,5 +1,8 @@
 // Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted
 // with joined-entrant edit locks and capacity validation; human review pending.
+// Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped allow one
+// lottery to cover several owners' campsites and let each owner read its waiting
+// list; human review pending.
 // Purpose: the Firestore security rules, the server-side check on every read
 // and write the app makes. The app can be modified, so anything that must
 // hold, like who owns a campsite or which nights are free, is enforced here.
@@ -109,24 +112,41 @@ service cloud.firestore {
         && data.seasonStart < data.seasonEnd;
     }
 
-    // The signed-in user owns every campsite in this list of one to five
-    // (US 02.04.02). Rules can't loop over a list, so each place is checked
-    // on its own. Each check reads one campsite, and a request can read at
-    // most 10 documents.
-    function ownsCampsites(ids) {
+    // The owner of the campsite with this ID (US 02.04.08). Reading a campsite
+    // costs one document read.
+    function campsiteOwner(campsiteId) {
+      return get(/databases/$(database)/documents/campsites/$(campsiteId)).data.ownerId;
+    }
+
+    // Every owner a lottery lists. Lotteries saved before US 02.04.08 only
+    // store their creator in ownerId, so they count as single-owner lotteries.
+    function lotteryOwners(data) {
+      return data.get('ownerIds', [data.ownerId]);
+    }
+
+    // A lottery covers one to five different campsites, each owned by one of
+    // its owners, and the signed-in user is one of those owners (US 02.04.02,
+    // 02.04.08). Rules can't loop over a list, so each place is checked on its
+    // own. Each check reads one campsite, and a request can read at most 10
+    // documents.
+    function ownsLotteryCampsites(ids, owners) {
       return ids is list && ids.size() >= 1 && ids.size() <= 5
         && ids.toSet().size() == ids.size()
-        && ownsCampsite(ids[0])
-        && (ids.size() < 2 || ownsCampsite(ids[1]))
-        && (ids.size() < 3 || ownsCampsite(ids[2]))
-        && (ids.size() < 4 || ownsCampsite(ids[3]))
-        && (ids.size() < 5 || ownsCampsite(ids[4]));
+        && owners is list && owners.size() >= 1 && owners.size() <= ids.size()
+        && owners.toSet().size() == owners.size()
+        && request.auth.uid in owners
+        && campsiteOwner(ids[0]) in owners
+        && (ids.size() < 2 || campsiteOwner(ids[1]) in owners)
+        && (ids.size() < 3 || campsiteOwner(ids[2]) in owners)
+        && (ids.size() < 4 || campsiteOwner(ids[3]) in owners)
+        && (ids.size() < 5 || campsiteOwner(ids[4]) in owners);
     }
 
     // The fields an owner sets when they run a lottery (US 02.04.01 to
-    // 02.04.05, 02.04.07). Only joining and leaving change `entryCount`.
+    // 02.04.05, 02.04.07, 02.04.08). Only joining and leaving change
+    // `entryCount`.
     function lotteryFields() {
-      return ['ownerId', 'name', 'campsiteIds', 'registrationOpens', 'registrationCloses',
+      return ['ownerId', 'ownerIds', 'name', 'campsiteIds', 'registrationOpens', 'registrationCloses',
               'stayStart', 'stayEnd', 'numberOfWinners', 'capacity', 'status'];
     }
 
@@ -369,26 +389,31 @@ service cloud.firestore {
     match /lotteries/{lotteryId} {
       allow read: if signedIn();
 
-      // An owner runs a lottery for their own campsites. It starts OPEN with
-      // nobody on the waiting list. Only Cloud Functions change the status,
-      // when they draw or cancel it (US 02.05.01).
+      // An owner runs a lottery for campsites of theirs and of other owners who
+      // join the lottery. It starts OPEN with nobody on the waiting list. Only
+      // Cloud Functions change the status, when they draw or cancel it
+      // (US 02.04.01, 02.04.08, 02.05.01).
       allow create: if activeOwner()
         && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.keys().hasOnly(lotteryFields())
         && request.resource.data.status == 'OPEN'
-        && ownsCampsites(request.resource.data.campsiteIds)
+        && ownsLotteryCampsites(request.resource.data.campsiteIds, lotteryOwners(request.resource.data))
         && validLottery(request.resource.data);
 
-      // The owner can edit it until it's drawn (US 02.04.06), but not who
-      // owns it, its status or how many people have joined.
+      // Any of the lottery's owners can edit it until it's drawn (US 02.04.06,
+      // 02.04.08), but not who created it, its status or how many people have
+      // joined. The creator always stays an owner.
       allow update: if activeOwner()
-        && resource.data.ownerId == request.auth.uid
+        && request.auth.uid in lotteryOwners(resource.data)
         && resource.data.status == 'OPEN'
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'campsiteIds',
-            'registrationOpens', 'registrationCloses', 'stayStart', 'stayEnd', 'numberOfWinners', 'capacity'])
-        && ownsCampsites(request.resource.data.campsiteIds)
+            'ownerIds', 'registrationOpens', 'registrationCloses', 'stayStart', 'stayEnd',
+            'numberOfWinners', 'capacity'])
+        && resource.data.ownerId in lotteryOwners(request.resource.data)
+        && ownsLotteryCampsites(request.resource.data.campsiteIds, lotteryOwners(request.resource.data))
         && (resource.data.get('entryCount', 0) == 0
             || (request.resource.data.campsiteIds == resource.data.campsiteIds
+                && lotteryOwners(request.resource.data) == lotteryOwners(resource.data)
                 && request.resource.data.registrationOpens == resource.data.registrationOpens
                 && request.resource.data.registrationCloses == resource.data.registrationCloses))
         && (request.resource.data.get('capacity', null) == null
@@ -405,11 +430,12 @@ service cloud.firestore {
       // One entry per entrant, and its ID is theirs, so nobody can join
       // twice.
       match /entries/{entrantId} {
-        // Entrants see their own entry, and the owner sees the whole waiting
-        // list (US 02.09.01). Looking up an entry that doesn't exist is
-        // allowed, so the app can check whether the user has joined.
+        // Entrants see their own entry, and any of the lottery's owners sees
+        // the whole waiting list (US 02.09.01, 02.04.08). Looking up an entry
+        // that doesn't exist is allowed, so the app can check whether the user
+        // has joined.
         allow read: if isSelf(entrantId)
-          || (signedIn() && lotteryBefore(lotteryId).ownerId == request.auth.uid);
+          || (signedIn() && request.auth.uid in lotteryOwners(lotteryBefore(lotteryId)));
 
         // An entrant joins as themselves while registration is open and the
         // list has space (US 01.02.01). The entry waits for the draw, and
