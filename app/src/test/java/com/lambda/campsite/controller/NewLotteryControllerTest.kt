@@ -7,8 +7,8 @@
  * #169 follow-up, 2026-11-04: GLM 5.3 Flash (Z.ai), through OpenCode, helped
  * write the edit-lock tests for joined entrants (US 02.04.06); human review pending.
  * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped test
- * multi-owner campsite choices, owner-list derivation, the owner-name copy and
- * the rules-refusal error; human review pending.
+ * multi-owner campsite choices, owner-list derivation, the owner-name copy, the
+ * rules-refusal error and a legacy-campsite success path; human review pending.
  */
 // Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted
 // with race/refusal and access-rule regression tests; human review pending.
@@ -24,6 +24,8 @@ import com.lambda.campsite.model.repository.FakeLotteryRepository
 import com.lambda.campsite.model.repository.FakeProfileRepository
 import com.lambda.campsite.testutil.MainDispatcherRule
 import java.time.LocalDate
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -250,6 +252,51 @@ class NewLotteryControllerTest {
         assertEquals(listOf("c1", "c3"), saved.campsiteIds)
         assertEquals(listOf("user-1", "user-2"), saved.ownerIds)
         assertEquals("user-1", saved.ownerId)
+    }
+
+    @Test
+    fun `old campsites without owner names still form a multi-owner lottery`() {
+        // Campsites saved before the ownerName copy existed carry no name, but
+        // a lottery covering them works end to end (US 02.04.08).
+        val legacyOwn = Campsite(
+            id = "c1", ownerId = "user-1", name = "Aspen Hollow", location = "Hinton, AB", ownerName = "",
+        )
+        val legacyOther = Campsite(
+            id = "c3", ownerId = "user-2", name = "Birch Bay", location = "Slave Lake, AB", ownerName = "",
+        )
+        val (controller, repository) = newController(legacyOwn, legacyOther)
+
+        controller.onCampsiteToggled("c1")
+        controller.onCampsiteToggled("c3")
+        controller.onNext()
+        setValidDates(controller)
+        controller.onNext()
+        controller.onNameChange("Legacy campsites lottery")
+        controller.onNext()
+
+        var created: Lottery? = null
+        controller.onCreateLottery { created = it }
+
+        // The save succeeded and carries every owner.
+        assertFalse(controller.state.value.saveFailed)
+        assertNull(controller.state.value.error)
+        val saved = repository.saved.single()
+        assertEquals(created?.id, saved.id)
+        assertEquals(listOf("c1", "c3"), saved.campsiteIds)
+        assertEquals(listOf("user-1", "user-2"), saved.ownerIds)
+        assertEquals("user-1", saved.ownerId)
+        assertEquals(LotteryStatus.OPEN, saved.status)
+
+        // Every owner whose campsite is included sees the lottery in their
+        // own lotteries list.
+        val coOwnerView = FakeLotteryRepository(myUserId = "user-2", initial = listOf(saved))
+        val seen = runBlocking { coOwnerView.myLotteries().first() }
+        assertEquals(listOf(saved.id), seen.map { it.id })
+
+        // An entrant browsing the co-owner's campsite finds the lottery too.
+        val entrantView = FakeLotteryRepository(myUserId = "entrant-1", initial = listOf(saved))
+        val forCampsite = runBlocking { entrantView.lotteriesFor("c3").first() }
+        assertEquals(listOf(saved.id), forCampsite.map { it.id })
     }
 
     @Test
