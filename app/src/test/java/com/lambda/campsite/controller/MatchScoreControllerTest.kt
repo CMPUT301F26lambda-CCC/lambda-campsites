@@ -6,6 +6,8 @@
  * 2. Several filters: each applied filter has the same weight (50/50 with two,
  *    about 33.3% each with three), and the guests score never goes below 50%.
  * 3. No filters: there is no score, and the order stays the same.
+ * 4. Same score: campsites keep the order the filters gave them, like the
+ *    shortest stay first when only a check-in date is applied.
  * Outstanding issues: none.
  */
 /*
@@ -46,5 +48,13 @@ class MatchScoreControllerTest {
             hasLocation = false, hasDates = false, guests = null)
         assertTrue(scored.scores.isEmpty())
         assertEquals(listOf("test", "pr144", "pr144-edited"), scored.ids())
+    }
+    @Test fun `campsites with the same score keep the filter's order`() {
+        // Only check-in is applied, so every campsite scores 100%. The filter
+        // already put them shortest stay first, and that order must stay.
+        val scored = MatchScoreController.scoreResults(listOf(small, test, edited),
+            hasLocation = false, hasDates = true, guests = null)
+        assertEquals(mapOf("pr144" to 100, "test" to 100, "pr144-edited" to 100), scored.scores)
+        assertEquals(listOf("pr144", "test", "pr144-edited"), scored.ids())
     }
 }
