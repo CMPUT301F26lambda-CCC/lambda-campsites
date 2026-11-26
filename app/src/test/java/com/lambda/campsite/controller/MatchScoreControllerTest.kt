@@ -22,32 +22,29 @@ class MatchScoreControllerTest {
     private val edited = Campsite("pr144-edited", "owner", "PR144 Test Site Edited", "Hinton, AB", maxOccupancy = 6)
     private val test = Campsite("test", "owner", "test", "loc", maxOccupancy = 7)
 
-    private fun MatchScoreController.ids() = state.value.results.map { it.id }
+    private fun MatchScoreUiState.ids() = results.map { it.id }
 
     @Test fun `guests only scores an exact fit highest and sorts by score`() {
-        val control = MatchScoreController()
-        control.onFilteredResultsChanged(listOf(test, edited, small),
+        val scored = MatchScoreController.scoreResults(listOf(test, edited, small),
             hasLocation = false, hasDates = false, guests = 3)
-        assertEquals(mapOf("pr144" to 100, "pr144-edited" to 70, "test" to 60), control.state.value.scores)
-        assertEquals(listOf("pr144", "pr144-edited", "test"), control.ids())
+        assertEquals(mapOf("pr144" to 100, "pr144-edited" to 70, "test" to 60), scored.scores)
+        assertEquals(listOf("pr144", "pr144-edited", "test"), scored.ids())
     }
 
     @Test fun `each applied filter has the same weight and guests never go below 50`() {
-        val control = MatchScoreController()
-        control.onFilteredResultsChanged(listOf(edited), hasLocation = true, hasDates = false, guests = 4)
-        assertEquals(90, control.state.value.scores["pr144-edited"])
-        control.onFilteredResultsChanged(listOf(edited), hasLocation = true, hasDates = true, guests = 4)
-        assertEquals(93, control.state.value.scores["pr144-edited"])
+        val twoFilters = MatchScoreController.scoreResults(listOf(edited), hasLocation = true, hasDates = false, guests = 4)
+        assertEquals(90, twoFilters.scores["pr144-edited"])
+        val threeFilters = MatchScoreController.scoreResults(listOf(edited), hasLocation = true, hasDates = true, guests = 4)
+        assertEquals(93, threeFilters.scores["pr144-edited"])
         val big = Campsite("big", "owner", "Big Meadow", "Hinton, AB", maxOccupancy = 20)
-        control.onFilteredResultsChanged(listOf(big), hasLocation = false, hasDates = false, guests = 2)
-        assertEquals(50, control.state.value.scores["big"])
+        val manySpaces = MatchScoreController.scoreResults(listOf(big), hasLocation = false, hasDates = false, guests = 2)
+        assertEquals(50, manySpaces.scores["big"])
     }
 
     @Test fun `no filters means no score and the order stays the same`() {
-        val control = MatchScoreController()
-        control.onFilteredResultsChanged(listOf(test, small, edited),
+        val scored = MatchScoreController.scoreResults(listOf(test, small, edited),
             hasLocation = false, hasDates = false, guests = null)
-        assertTrue(control.state.value.scores.isEmpty())
-        assertEquals(listOf("test", "pr144", "pr144-edited"), control.ids())
+        assertTrue(scored.scores.isEmpty())
+        assertEquals(listOf("test", "pr144", "pr144-edited"), scored.ids())
     }
 }
