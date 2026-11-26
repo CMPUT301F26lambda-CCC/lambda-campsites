@@ -10,6 +10,8 @@
 // assisted with read-only draw metadata/results integration; human review pending.
 // Issue #151: GPT-6 (OpenAI), through Codex, assisted me with incremental
 // owner-authorized contact requests and cache cleanup.
+// Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped include
+// lotteries that cover a co-owner's campsite; human review pending.
 package com.lambda.campsite.controller
 
 import androidx.lifecycle.ViewModel
@@ -110,7 +112,7 @@ class OwnerWaitingListController(
         mutableState.value = OwnerWaitingListUiState()
         ownerJob = viewModelScope.launch {
             combine(profiles.currentProfile(), lotteries.myLotteries()) { profile, owned ->
-                profile to owned.filter { it.ownerId == profile.deviceId }
+                profile to owned.filter { it.isOwnedBy(profile.deviceId) }
             }.catch { failure ->
                 if (failure is CancellationException) throw failure
                 cancelEntries()

@@ -4,6 +4,8 @@
  * combining the lottery, campsite and waiting-list flows, error handling,
  * syntax and KDoc, following the OwnerCampsiteDetailsController shape.
  * Raghav Sethi reviewed, tested, and committed it.
+ * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped load a
+ * lottery's campsites by ID so a co-owner sees every covered campsite; human review pending.
  */
 package com.lambda.campsite.controller
 
@@ -18,11 +20,15 @@ import com.lambda.campsite.model.Lottery
 import com.lambda.campsite.model.LotteryEntry
 import com.lambda.campsite.model.repository.CampsiteRepository
 import com.lambda.campsite.model.repository.LotteryRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -56,18 +62,20 @@ data class OwnerLotteryDetailsUiState(
 /**
  * Controller for viewing one lottery's details for its owner (US 02.04.06).
  *
- * It listens to the lottery, the list of campsites in it and its waiting list,
- * and publishes everything in [state]. Only the lottery's owner can read the
- * waiting list, so the screen is for the owner (US 02.04.06, 02.09.01).
+ * It listens to the lottery, the campsites in it and its waiting list, and
+ * publishes everything in [state]. Only one of the lottery's owners can read
+ * the waiting list, so the screen is for them (US 02.04.06, 02.04.08,
+ * 02.09.01).
  *
  * @param lotteryId the document ID of the lottery to show.
  * @param lotteryRepository where the lottery and waiting list load from.
- * @param campsiteRepository where the campsites' names come from.
+ * @param campsiteRepository where each campsite's name comes from.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class OwnerLotteryDetailsController(
     private val lotteryId: String,
     private val lotteryRepository: LotteryRepository,
-    campsiteRepository: CampsiteRepository,
+    private val campsiteRepository: CampsiteRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(OwnerLotteryDetailsUiState())
@@ -78,16 +86,22 @@ class OwnerLotteryDetailsController(
     init {
         viewModelScope.launch {
             combine(
-                lotteryRepository.lottery(lotteryId),
-                campsiteRepository.myCampsites(),
+                // A lottery covers at most five campsites, so listening to each
+                // one by ID is cheap and works for a co-owner's campsite too.
+                lotteryRepository.lottery(lotteryId).flatMapLatest { lottery ->
+                    val campsiteFlows = lottery?.campsiteIds.orEmpty().map(campsiteRepository::campsite)
+                    val campsites = if (campsiteFlows.isEmpty()) {
+                        flowOf(emptyList())
+                    } else {
+                        combine(campsiteFlows) { found -> found.filterNotNull() }
+                    }
+                    campsites.map { lottery to it }
+                },
                 lotteryRepository.waitingList(lotteryId),
-            ) { lottery, myCampsites, waitingList ->
-                // A lottery covers at most five campsites, so keeping only the
-                // owner's own keeps `campsiteIds.getOrNull` safe.
-                val campsites = lottery?.campsiteIds?.mapNotNull { id -> myCampsites.firstOrNull { it.id == id } }
+            ) { (lottery, campsites), waitingList ->
                 OwnerLotteryDetailsUiState(
                     lottery = lottery,
-                    campsites = campsites.orEmpty(),
+                    campsites = campsites,
                     waitingList = waitingList,
                     isLoading = false,
                     error = if (lottery == null) LotteryDetailsError.LOTTERY_NOT_FOUND else null,
