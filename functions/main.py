@@ -46,6 +46,8 @@
 # Admin SDK client setup; emulator clients stay in test fixtures.
 # Issue #35: GPT-6 (OpenAI), through Codex, assisted with the owner-rejection
 # notification trigger, transient write retries, and regression tests. Human review is pending.
+# Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped let every
+# owner of a multi-owner lottery use its waiting-list callables; human review pending.
 """Cloud Functions for Lambda Campsite.
 
 docs/architecture.md section 4 lists every function: drawLotteries,
@@ -102,6 +104,18 @@ def waiting_list_contacts(db, uid, data):
     return _waiting_list_contacts_transaction(db.transaction(), db, uid, data["lotteryId"], list(dict.fromkeys(ids)))
 
 
+def _is_lottery_owner(lottery, uid):
+    """Whether `uid` runs this lottery (US 02.04.08).
+
+    Lotteries saved before multi-owner support only have `ownerId`, so a
+    missing or empty `ownerIds` falls back to that field.
+    """
+    owners = lottery.get("ownerIds")
+    if isinstance(owners, list) and owners:
+        return uid in owners
+    return lottery.get("ownerId") == uid
+
+
 @firestore.transactional
 def _waiting_list_contacts_transaction(transaction, db, uid, lottery_id, ids):
     """Read authorization and projections together; retries recheck ownership/membership."""
@@ -109,7 +123,7 @@ def _waiting_list_contacts_transaction(transaction, db, uid, lottery_id, ids):
     lottery_ref = db.document(f"lotteries/{lottery_id}")
     lottery = lottery_ref.get(transaction=transaction).to_dict() or {}
     if ("OWNER" not in owner.get("roles", []) or owner.get("ownerBanned", False)
-            or owner.get("removed", False) or lottery.get("ownerId") != uid):
+            or owner.get("removed", False) or not _is_lottery_owner(lottery, uid)):
         raise https_fn.HttpsError(https_fn.FunctionsErrorCode.PERMISSION_DENIED, "This waiting list is not available to you.")
     result = []
     for entrant_id in ids:
@@ -167,7 +181,7 @@ def _owned_waiting_list_lottery(transaction, db, uid, lottery_ref):
     owner = db.document(f"profiles/{uid}").get(transaction=transaction).to_dict() or {}
     lottery = lottery_ref.get(transaction=transaction).to_dict() or {}
     if ("OWNER" not in owner.get("roles", []) or owner.get("ownerBanned", False)
-            or owner.get("removed", False) or lottery.get("ownerId") != uid):
+            or owner.get("removed", False) or not _is_lottery_owner(lottery, uid)):
         raise https_fn.HttpsError(https_fn.FunctionsErrorCode.PERMISSION_DENIED, "This lottery is unavailable.")
 
     return lottery
