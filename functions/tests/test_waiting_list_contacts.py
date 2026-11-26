@@ -5,6 +5,8 @@
 # Human review pending. Shared db fixture points only at the Firestore emulator.
 # Issue #151: GPT-6 (OpenAI), through Codex, assisted me with callable
 # entry-point regression coverage. Human review pending.
+# Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped extend
+# the contact authorization tests to co-owners of a multi-owner lottery; human review pending.
 """Verify active ownership, registration membership and minimal contact output."""
 import pytest
 from flask import Flask, request
@@ -20,6 +22,23 @@ def seed(db):
     db.document("lotteries/mine/entries/entrant").set({"entrantId": "entrant"})
     db.document("profiles/entrant").set({"name": "Alex Demo", "email": "alex@example.com",
         "phone": "780-555-0101", "pushToken": "secret", "roles": ["ENTRANT"], "policyVersionAgreed": 5})
+
+
+def test_coowner_in_ownerIds_can_read_the_waiting_list(db):
+    """A co-owner listed in ownerIds can read the waiting list (US 02.04.08)."""
+    db.document("profiles/coowner").set({"roles": ["OWNER"], "ownerBanned": False, "removed": False})
+    db.document("lotteries/shared").set({
+        "ownerId": "someone-else",
+        "ownerIds": ["someone-else", "coowner"],
+        "name": "Shared lottery",
+    })
+    db.document("lotteries/shared/entries/entrant").set({"entrantId": "entrant"})
+    db.document("profiles/entrant").set({"name": "Alex Demo", "email": "alex@example.com",
+        "phone": "780-555-0101", "pushToken": "secret", "roles": ["ENTRANT"], "policyVersionAgreed": 5})
+
+    result = waiting_list_contacts(db, "coowner", {"lotteryId": "shared", "entrantIds": ["entrant"]})
+    assert result == {"contacts": [{"entrantId": "entrant", "name": "Alex Demo",
+        "email": "alex@example.com", "phone": "780-555-0101"}]}
 
 
 def test_returns_only_minimal_contacts_for_members(db):
