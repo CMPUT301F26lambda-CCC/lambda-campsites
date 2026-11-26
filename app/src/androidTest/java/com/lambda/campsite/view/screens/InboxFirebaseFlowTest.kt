@@ -37,7 +37,7 @@ class InboxFirebaseFlowTest {
     private fun seedResult(type: NotificationType): Pair<Notification, Lottery> {
         val camp = Campsite("notice-camp", "demo-owner", "Notice Demo Campsite", "Demo location", maxOccupancy = 4)
         val start = java.time.LocalDate.now().plusMonths(1)
-        val lottery = Lottery("notice-lottery", "demo-owner", "Notice Demo Lottery", listOf(camp.id), Timestamp(1, 0), Timestamp(2, 0),
+        val lottery = Lottery("notice-lottery", "demo-owner", listOf("demo-owner"), "Notice Demo Lottery", listOf(camp.id), Timestamp(1, 0), Timestamp(2, 0),
             start, start.plusDays(10), status = LotteryStatus.DRAWN)
         FirestoreEmulator.setIgnoringRules("campsites/${camp.id}", com.lambda.campsite.model.repository.CampsiteFields.toMap(camp))
         FirestoreEmulator.setIgnoringRules("campsites/${camp.id}/availability/calendar", mapOf("seasonStart" to start.toString(), "seasonEnd" to start.plusDays(11).toString()))

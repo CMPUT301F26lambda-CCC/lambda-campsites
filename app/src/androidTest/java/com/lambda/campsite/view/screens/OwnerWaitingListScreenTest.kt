@@ -30,7 +30,7 @@ import org.junit.Test
 /** Selector, full IDs, sheet, back, retries and large-font scrolling for issue #129. */
 class OwnerWaitingListScreenTest {
     @get:Rule val compose = createComposeRule()
-    private val lottery = Lottery("a", "owner", "October Camping Lottery", listOf("camp"),
+    private val lottery = Lottery("a", "owner", listOf("owner"), "October Camping Lottery", listOf("camp"),
         Timestamp(1, 0), Timestamp(2, 0), LocalDate.of(2026, 11, 5), LocalDate.of(2026, 11, 8))
     private val entry = LotteryEntry("a", "sample-entrant-001", Timestamp(1792000000, 0))
     private fun state() = OwnerWaitingListUiState(lotteries = listOf(lottery, lottery.copy(id = "b", name = "November Lottery")),

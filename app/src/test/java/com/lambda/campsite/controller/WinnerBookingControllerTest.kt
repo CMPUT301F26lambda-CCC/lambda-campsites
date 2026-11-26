@@ -23,7 +23,7 @@ class WinnerBookingControllerTest {
     private val start = LocalDate.of(2027, 7, 1)
     private val camp = Campsite("camp", "owner", "Aspen Hollow", "Alberta", "Forest", maxOccupancy = 4)
     private val other = camp.copy(id = "other", name = "Cedar Point")
-    private val lottery = Lottery("lot", "owner", "Demo lottery", listOf(camp.id), Timestamp(1, 0), Timestamp(2, 0),
+    private val lottery = Lottery("lot", "owner", listOf("owner"), "Demo lottery", listOf(camp.id), Timestamp(1, 0), Timestamp(2, 0),
         start, start.plusDays(10), status = LotteryStatus.DRAWN)
     private val entry = LotteryEntry(lottery.id, "user-1", Timestamp(1, 0), EntryStatus.WON)
     private val calendar = Availability(start, start.plusDays(12))

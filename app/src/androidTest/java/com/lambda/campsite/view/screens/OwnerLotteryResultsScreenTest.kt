@@ -25,7 +25,7 @@ import org.junit.Test
 /** Tests actual result semantics rather than a manual drawing action. */
 class OwnerLotteryResultsScreenTest {
     @get:Rule val compose=createComposeRule()
-    private val lottery=Lottery("lot","owner","Demo lottery",listOf("camp"),Timestamp(1,0),Timestamp(2,0),
+    private val lottery=Lottery("lot","owner",listOf("owner"),"Demo lottery",listOf("camp"),Timestamp(1,0),Timestamp(2,0),
         LocalDate.of(2027,7,1),LocalDate.of(2027,7,10),status=LotteryStatus.DRAWN,drawnAt=Timestamp(3,0),drawnCampsiteNames=listOf("Demo Campsite"))
     private fun text(id:Int)=InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
     private fun state(entries:List<LotteryEntry> = emptyList())=OwnerWaitingListUiState(lotteries=listOf(lottery),selectedLotteryId=lottery.id,entries=entries,loadingLotteries=false)

@@ -41,7 +41,7 @@ class EntrantCampsiteFlowTest {
     private val entries = MutableStateFlow<List<LotteryEntry>>(emptyList())
     private val date = LocalDate.of(2027, 7, 1)
     private val now = Timestamp(1500, 0)
-    private val lotteries = MutableStateFlow(listOf(Lottery("lottery-demo", "owner-demo", "Aspen summer demo",
+    private val lotteries = MutableStateFlow(listOf(Lottery("lottery-demo", "owner-demo", listOf("owner-demo"), "Aspen summer demo",
         listOf(camp.id), Timestamp(1000, 0), Timestamp(2000, 0), date, date.plusDays(10))))
     private var failLoad = false
 

@@ -36,7 +36,7 @@ class WinnerBookingFirebaseTest {
     private lateinit var uid: String
     private val start = LocalDate.now().plusMonths(1).withDayOfMonth(1)
     private val camp = Campsite("flow9-camp", "demo-owner", "Flow 9 Demo Campsite", "Demo location", maxOccupancy = 4, rules = "Demo campsite rules.")
-    private val lottery = Lottery("flow9-lottery", "demo-owner", "Flow 9 Demo Lottery", listOf(camp.id), Timestamp(1, 0), Timestamp(2, 0), start, start.plusDays(20), status = LotteryStatus.DRAWN)
+    private val lottery = Lottery("flow9-lottery", "demo-owner", listOf("demo-owner"), "Flow 9 Demo Lottery", listOf(camp.id), Timestamp(1, 0), Timestamp(2, 0), start, start.plusDays(20), status = LotteryStatus.DRAWN)
     private fun text(id: Int) = InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
     private fun awaitText(value: String) = compose.waitUntil(20_000) { compose.onAllNodesWithText(value, substring = true).fetchSemanticsNodes().isNotEmpty() }
     @Before fun seed() {

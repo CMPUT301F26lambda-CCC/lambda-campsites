@@ -42,7 +42,7 @@ class OwnerDrawFirebaseTest {
         val uid=runBlocking{withTimeout(15_000){signInAsNewUser()}}
         FirestoreEmulator.setIgnoringRules("profiles/$uid",ProfileFields.toMap(Profile(uid,"Demo Owner","owner@example.com",roles=setOf(Role.OWNER),policyVersionAgreed=1)))
         FirestoreEmulator.setIgnoringRules("campsites/flow5-demo",CampsiteFields.toMap(Campsite("flow5-demo",uid,"Flow 5 Demo Campsite","Demo location")))
-        val lottery=Lottery("flow5-draw-review",uid,"Automatic Draw Demo",listOf("flow5-demo"),Timestamp(1,0),Timestamp(2,0),
+        val lottery=Lottery("flow5-draw-review",uid,listOf(uid),"Automatic Draw Demo",listOf("flow5-demo"),Timestamp(1,0),Timestamp(2,0),
             LocalDate.now().plusMonths(1),LocalDate.now().plusMonths(2),numberOfWinners=1,entryCount=2)
         FirestoreEmulator.setIgnoringRules("lotteries/${lottery.id}",LotteryFields.toMap(lottery)+("entryCount" to 2))
         for(id in listOf("demo-a","demo-b")) FirestoreEmulator.setIgnoringRules("lotteries/${lottery.id}/entries/$id",LotteryEntryFields.toMap(LotteryEntry(lottery.id,id,Timestamp(1,0))))

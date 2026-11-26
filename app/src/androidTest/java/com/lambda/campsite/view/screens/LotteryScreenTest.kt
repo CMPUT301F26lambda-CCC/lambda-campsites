@@ -35,7 +35,7 @@ import org.junit.Test
 /** Checks visible feedback, action routing and duplicate-tap prevention without Firebase writes. */
 class LotteryScreenTest {
     @get:Rule val compose = createComposeRule()
-    private val item = Lottery("lottery-demo", "owner-demo", "Aspen demo lottery", listOf("camp-demo"),
+    private val item = Lottery("lottery-demo", "owner-demo", listOf("owner-demo"), "Aspen demo lottery", listOf("camp-demo"),
         Timestamp(1000, 0), Timestamp(2000, 0), LocalDate.of(2027, 7, 1), LocalDate.of(2027, 7, 8))
     private val state = mutableStateOf(LotteryUiState(lotteries = listOf(item), isLoading = false,
         observedAt = Timestamp(1500, 0)))

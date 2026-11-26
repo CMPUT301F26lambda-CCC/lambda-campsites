@@ -66,7 +66,7 @@ class EntrantFirebaseFlowTest {
         val start = LocalDate.now().plusMonths(1)
         FirestoreEmulator.setIgnoringRules("campsites/${site.id}/availability/calendar", mapOf(
             "seasonStart" to start.toString(), "seasonEnd" to start.plusDays(30).toString(), "bookedNights" to emptyList<String>()))
-        lottery = Lottery("flow67-lottery-$suffix", "demo-owner", "Open demo lottery $suffix", listOf(site.id),
+        lottery = Lottery("flow67-lottery-$suffix", "demo-owner", listOf("demo-owner"), "Open demo lottery $suffix", listOf(site.id),
             Timestamp(Instant.now().minusSeconds(3600)), Timestamp(Instant.now().plusSeconds(7200)),
             start, start.plusDays(10), numberOfWinners = 1, capacity = 5)
         saveLottery(lottery)
