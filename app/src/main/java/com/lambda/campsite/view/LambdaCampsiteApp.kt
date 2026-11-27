@@ -1,3 +1,4 @@
+// AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
 /*
  * Purpose: the root composable: the NavHost, the nav bar and every route in
  * the app.
