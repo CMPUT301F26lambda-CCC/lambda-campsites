@@ -15,17 +15,15 @@
  * Outstanding issues: None
  */
 /*
-AI use: Claude Opus 5.5 (Anthropic) helped Harmanjoth Kaur in score calculation after the
+* AI use: Claude Opus 5.5 (Anthropic) helped Harmanjoth Kaur in score calculation after the
 * filters are applied and revising KDoc.
  */
 package com.lambda.campsite.controller
 
-import androidx.lifecycle.ViewModel
+
 import com.lambda.campsite.model.Campsite
 import kotlin.math.roundToInt
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+
 
 /**
  * The scored results the Search screen shows (#71).
@@ -40,14 +38,10 @@ data class MatchScoreUiState(
 
 /**
  * Gives each filtered campsite a match score and sorts the results by it
- * (#71). The screen passes in the filtered results and the applied filters
- * with [onFilteredResultsChanged] whenever either changes.
+ * (#71). It holds no state: SearchScreen calls [scoreResults] with
+ * `remember(filters)`, so the scores always match the filters on screen.
  */
-class MatchScoreController : ViewModel() {
-    private val mutableState = MutableStateFlow(MatchScoreUiState())
-
-    /** State collected by SearchScreen. */
-    val state: StateFlow<MatchScoreUiState> = mutableState.asStateFlow()
+object MatchScoreController {
 
     /**
      * Scores [results], the campsites that already passed every filter, and
@@ -57,12 +51,13 @@ class MatchScoreController : ViewModel() {
      * @param hasLocation `true` when a location filter is applied.
      * @param hasDates `true` when a check-in date, a check-out date or both are applied.
      * @param guests the applied number of guests, or `null` for none.
+     * @return the scored results, from the highest score to the lowest.
      */
-    fun onFilteredResultsChanged(results: List<Campsite>, hasLocation: Boolean, hasDates: Boolean, guests: Int?) {
+    fun scoreResults(results: List<Campsite>, hasLocation: Boolean, hasDates: Boolean, guests: Int?): MatchScoreUiState {
         val scored = results.map { campsite -> campsite to score(campsite, hasLocation, hasDates, guests) }
         // sortedByDescending is stable, so equal scores keep the filter's order.
         val sorted = scored.sortedByDescending { it.second ?: 0 }
-        mutableState.value = MatchScoreUiState(
+        return MatchScoreUiState(
             results = sorted.map { it.first },
             scores = sorted.mapNotNull { (campsite, score) -> score?.let { campsite.id to it } }.toMap(),
         )
@@ -80,8 +75,7 @@ class MatchScoreController : ViewModel() {
     private fun guestsScore(maxOccupancy: Int, guests: Int): Int =
         (100 - GUEST_SCORE_STEP * (maxOccupancy - guests)).coerceAtLeast(MIN_GUEST_SCORE)
 
-    companion object {
-        const val GUEST_SCORE_STEP = 10
-        const val MIN_GUEST_SCORE = 50
-    }
+    const val GUEST_SCORE_STEP = 10
+    const val MIN_GUEST_SCORE = 50
+
 }

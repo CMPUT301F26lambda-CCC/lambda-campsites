@@ -6,6 +6,8 @@
  * 2. Several filters: each applied filter has the same weight (50/50 with two,
  *    about 33.3% each with three), and the guests score never goes below 50%.
  * 3. No filters: there is no score, and the order stays the same.
+ * 4. Same score: campsites keep the order the filters gave them, like the
+ *    shortest stay first when only a check-in date is applied.
  * Outstanding issues: none.
  */
 /*
@@ -22,32 +24,37 @@ class MatchScoreControllerTest {
     private val edited = Campsite("pr144-edited", "owner", "PR144 Test Site Edited", "Hinton, AB", maxOccupancy = 6)
     private val test = Campsite("test", "owner", "test", "loc", maxOccupancy = 7)
 
-    private fun MatchScoreController.ids() = state.value.results.map { it.id }
+    private fun MatchScoreUiState.ids() = results.map { it.id }
 
     @Test fun `guests only scores an exact fit highest and sorts by score`() {
-        val control = MatchScoreController()
-        control.onFilteredResultsChanged(listOf(test, edited, small),
+        val scored = MatchScoreController.scoreResults(listOf(test, edited, small),
             hasLocation = false, hasDates = false, guests = 3)
-        assertEquals(mapOf("pr144" to 100, "pr144-edited" to 70, "test" to 60), control.state.value.scores)
-        assertEquals(listOf("pr144", "pr144-edited", "test"), control.ids())
+        assertEquals(mapOf("pr144" to 100, "pr144-edited" to 70, "test" to 60), scored.scores)
+        assertEquals(listOf("pr144", "pr144-edited", "test"), scored.ids())
     }
 
     @Test fun `each applied filter has the same weight and guests never go below 50`() {
-        val control = MatchScoreController()
-        control.onFilteredResultsChanged(listOf(edited), hasLocation = true, hasDates = false, guests = 4)
-        assertEquals(90, control.state.value.scores["pr144-edited"])
-        control.onFilteredResultsChanged(listOf(edited), hasLocation = true, hasDates = true, guests = 4)
-        assertEquals(93, control.state.value.scores["pr144-edited"])
+        val twoFilters = MatchScoreController.scoreResults(listOf(edited), hasLocation = true, hasDates = false, guests = 4)
+        assertEquals(90, twoFilters.scores["pr144-edited"])
+        val threeFilters = MatchScoreController.scoreResults(listOf(edited), hasLocation = true, hasDates = true, guests = 4)
+        assertEquals(93, threeFilters.scores["pr144-edited"])
         val big = Campsite("big", "owner", "Big Meadow", "Hinton, AB", maxOccupancy = 20)
-        control.onFilteredResultsChanged(listOf(big), hasLocation = false, hasDates = false, guests = 2)
-        assertEquals(50, control.state.value.scores["big"])
+        val manySpaces = MatchScoreController.scoreResults(listOf(big), hasLocation = false, hasDates = false, guests = 2)
+        assertEquals(50, manySpaces.scores["big"])
     }
 
     @Test fun `no filters means no score and the order stays the same`() {
-        val control = MatchScoreController()
-        control.onFilteredResultsChanged(listOf(test, small, edited),
+        val scored = MatchScoreController.scoreResults(listOf(test, small, edited),
             hasLocation = false, hasDates = false, guests = null)
-        assertTrue(control.state.value.scores.isEmpty())
-        assertEquals(listOf("test", "pr144", "pr144-edited"), control.ids())
+        assertTrue(scored.scores.isEmpty())
+        assertEquals(listOf("test", "pr144", "pr144-edited"), scored.ids())
+    }
+    @Test fun `campsites with the same score keep the filter's order`() {
+        // Only check-in is applied, so every campsite scores 100%. The filter
+        // already put them shortest stay first, and that order must stay.
+        val scored = MatchScoreController.scoreResults(listOf(small, test, edited),
+            hasLocation = false, hasDates = true, guests = null)
+        assertEquals(mapOf("pr144" to 100, "test" to 100, "pr144-edited" to 100), scored.scores)
+        assertEquals(listOf("pr144", "test", "pr144-edited"), scored.ids())
     }
 }
