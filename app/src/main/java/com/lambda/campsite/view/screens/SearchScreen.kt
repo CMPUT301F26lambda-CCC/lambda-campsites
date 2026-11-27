@@ -56,17 +56,18 @@ import androidx.compose.runtime.saveable.rememberSaveable
 @Composable
 fun SearchScreen(controller: SearchController, onCampsiteClick: (String) -> Unit, profileName: String? = null,
                  onInbox: (() -> Unit)? = null, unreadCount: Int = 0,
-                 filterController: CampsiteFilterController = viewModel(factory = CampsiteFilterController.Factory)
-                 , matchController: MatchScoreController = viewModel()) {
+                 filterController: CampsiteFilterController = viewModel(factory = CampsiteFilterController.Factory))
+                  {
     val state by controller.state.collectAsStateWithLifecycle()
     val filters by filterController.state.collectAsStateWithLifecycle()
-    val scored by matchController.state.collectAsStateWithLifecycle()
+
     // The filters work on whatever the entrant searched for (Flow 15).
     LaunchedEffect(state.results) { filterController.onSearchResultsChanged(state.results) }
-    LaunchedEffect(filters) {
-        matchController.onFilteredResultsChanged(filters.results, filters.location.isNotBlank(),
-            filters.hasDates, filters.guests)
-    }
+    // Scored in the same frame the filters change, so the list never shows old scores (#71).
+    val scored = remember(filters) {
+                          MatchScoreController.scoreResults(filters.results, filters.location.isNotBlank(),
+                              filters.hasDates, filters.guests)
+                      }
     // Once a filter is applied, the list shows the filtered results instead of the plain search.
     val shown = if (!filters.hasFilters) state else state.copy(results = scored.results,
         isLoading = state.isLoading || filters.isLoading, loadFailed = state.loadFailed || filters.loadFailed)
