@@ -431,7 +431,7 @@
     <string name="profile_cancel">Cancel</string>
     <!--For Edit Profile Page-->
     <string name="profile_discard_title">Discard changes?</string>
-    <string name="profile_discard_message">Your changes won\'t be saved. Your profile stays as it was.</string>
+    <string name="profile_discard_message">Your name, email and phone changes won\'t be saved. Photo changes are already saved.</string>
     <string name="profile_discard">Discard</string>
     <string name="profile_keep_editing">Keep editing</string>
     <string name="error_name_required">Enter your name</string>

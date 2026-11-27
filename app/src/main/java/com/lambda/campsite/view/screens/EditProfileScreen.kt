@@ -64,6 +64,8 @@ import com.lambda.campsite.view.components.rememberPhotoPicker
  *
  * Cancel and the X button both open a dialog that asks whether to discard
  * the changes. Keep editing closes the dialog. Discard calls [onCancel].
+ * The photo is saved as soon as it's picked, so Discard only undoes the
+ * name, email and phone changes.
  *
  * The avatar shows the profile photo, or the initials of the name being
  * typed when there's no photo. Change Photo opens the phone's gallery, and
