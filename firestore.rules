@@ -124,13 +124,29 @@ service cloud.firestore {
       return data.get('ownerIds', [data.ownerId]);
     }
 
+    // Every owner the lottery's campsite list and its creator allow
+    // (US 02.04.08). Rules can't loop over a list, so each campsite
+    // contributes one entry, with the creator standing in for the campsites
+    // past the end of the list. The gets are cached per request, so this is
+    // no extra reads beyond checking each campsite once.
+    function allowedLotteryOwners(ids, creator) {
+      return [creator,
+              campsiteOwner(ids[0]),
+              ids.size() > 1 ? campsiteOwner(ids[1]) : creator,
+              ids.size() > 2 ? campsiteOwner(ids[2]) : creator,
+              ids.size() > 3 ? campsiteOwner(ids[3]) : creator,
+              ids.size() > 4 ? campsiteOwner(ids[4]) : creator].toSet();
+    }
+
     // A lottery covers one to five different campsites, each owned by one of
-    // its owners, and the signed-in user is one of those owners (US 02.04.02,
-    // 02.04.08). The owner list may name an owner whose campsite isn't
-    // included, like the creator of a lottery built entirely from other
-    // owners' campsites. Rules can't loop over a list, so each campsite gets
-    // its own check, and a request can read at most 10 documents.
-    function ownsLotteryCampsites(ids, owners) {
+    // its owners, every listed owner is the creator or owns one of those
+    // campsites, and the signed-in user is one of the owners (US 02.04.02,
+    // 02.04.08). The last check keeps a stranger out of the owner list:
+    // otherwise someone who owns nothing in the lottery could read its
+    // waiting list. Rules can't loop over a list, so each campsite gets its
+    // own check. Each check reads one campsite, and a request can read at
+    // most 10 documents.
+    function ownsLotteryCampsites(ids, owners, creator) {
       return ids is list && ids.size() >= 1 && ids.size() <= 5
         && ids.toSet().size() == ids.size()
         && owners is list && owners.size() >= 1
@@ -140,7 +156,8 @@ service cloud.firestore {
         && (ids.size() < 2 || campsiteOwner(ids[1]) in owners)
         && (ids.size() < 3 || campsiteOwner(ids[2]) in owners)
         && (ids.size() < 4 || campsiteOwner(ids[3]) in owners)
-        && (ids.size() < 5 || campsiteOwner(ids[4]) in owners);
+        && (ids.size() < 5 || campsiteOwner(ids[4]) in owners)
+        && owners.toSet().difference(allowedLotteryOwners(ids, creator)).size() == 0;
     }
 
     // The fields an owner sets when they run a lottery (US 02.04.01 to
@@ -174,6 +191,28 @@ service cloud.firestore {
 
     function lotteryAfter(lotteryId) {
       return getAfter(/databases/$(database)/documents/lotteries/$(lotteryId)).data;
+    }
+
+    // Whether the signed-in user owns one of these campsites. There are at
+    // most five, and each read is cached for the request.
+    function ownsOneOfItsCampsites(ids) {
+      return ids is list && ids.size() >= 1
+        && (campsiteOwner(ids[0]) == request.auth.uid
+            || (ids.size() > 1 && campsiteOwner(ids[1]) == request.auth.uid)
+            || (ids.size() > 2 && campsiteOwner(ids[2]) == request.auth.uid)
+            || (ids.size() > 3 && campsiteOwner(ids[3]) == request.auth.uid)
+            || (ids.size() > 4 && campsiteOwner(ids[4]) == request.auth.uid));
+    }
+
+    // Whether the signed-in user runs this lottery: they created it, or they
+    // are one of its listed owners and own one of its campsites
+    // (US 02.04.08). ownerIds alone can't decide this, because a document
+    // saved before the stricter rules could name someone who owns nothing in
+    // it, and that person must not read the waiting list.
+    function runsLottery(lottery) {
+      return request.auth.uid == lottery.get('ownerId', '')
+        || (request.auth.uid in lotteryOwners(lottery)
+            && ownsOneOfItsCampsites(lottery.get('campsiteIds', [])));
     }
 
     // Entrants can join or leave from when registration opens until it
@@ -337,22 +376,28 @@ service cloud.firestore {
             || resource.data.ownerId == request.auth.uid);
 
       // An owner lists a campsite as themselves, with no ratings yet and a
-      // photo they uploaded, if any (US 02.01.01).
+      // photo they uploaded, if any (US 02.01.01). The ownerName copy is
+      // blank or the owner's own profile name, so a campsite can't claim
+      // someone else lists it (US 02.04.08).
       allow create: if activeOwner()
         && request.resource.data.ownerId == request.auth.uid
         && !request.resource.data.keys().hasAny(['ratingCount', 'ratingSum'])
-        && ownPhotoOrNone(request.resource.data);
+        && ownPhotoOrNone(request.resource.data)
+        && ownerNameMatchesProfile(request.resource.data);
 
       // An owner edits their own campsites (US 02.01.03). A new photo has to
       // be one they uploaded. Only Cloud Functions change the rating totals,
       // and only admins unpublish (US 03.07.01). Deleting comes with the
-      // admin stories (US 03.01.01).
+      // admin stories (US 03.01.01). A changed ownerName copy still has to
+      // name its own owner (US 02.04.08).
       allow update: if activeOwner()
         && resource.data.ownerId == request.auth.uid
         && !request.resource.data.diff(resource.data).affectedKeys()
             .hasAny(['ownerId', 'published', 'ratingCount', 'ratingSum'])
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['imageId'])
-            || ownPhotoOrNone(request.resource.data));
+            || ownPhotoOrNone(request.resource.data))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerName'])
+            || ownerNameMatchesProfile(request.resource.data));
 
       // Each campsite has one calendar, `availability/calendar`, with its
       // season and booked nights. Anyone signed in can see which nights are
@@ -398,7 +443,8 @@ service cloud.firestore {
         && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.keys().hasOnly(lotteryFields())
         && request.resource.data.status == 'OPEN'
-        && ownsLotteryCampsites(request.resource.data.campsiteIds, lotteryOwners(request.resource.data))
+        && ownsLotteryCampsites(request.resource.data.campsiteIds, lotteryOwners(request.resource.data),
+            request.resource.data.ownerId)
         && validLottery(request.resource.data);
 
       // Any of the lottery's owners can edit it until it's drawn (US 02.04.06,
@@ -411,7 +457,8 @@ service cloud.firestore {
             'ownerIds', 'registrationOpens', 'registrationCloses', 'stayStart', 'stayEnd',
             'numberOfWinners', 'capacity'])
         && resource.data.ownerId in lotteryOwners(request.resource.data)
-        && ownsLotteryCampsites(request.resource.data.campsiteIds, lotteryOwners(request.resource.data))
+        && ownsLotteryCampsites(request.resource.data.campsiteIds, lotteryOwners(request.resource.data),
+            request.resource.data.ownerId)
         && (resource.data.get('entryCount', 0) == 0
             || (request.resource.data.campsiteIds == resource.data.campsiteIds
                 && lotteryOwners(request.resource.data) == lotteryOwners(resource.data)
@@ -431,12 +478,12 @@ service cloud.firestore {
       // One entry per entrant, and its ID is theirs, so nobody can join
       // twice.
       match /entries/{entrantId} {
-        // Entrants see their own entry, and any of the lottery's owners sees
-        // the whole waiting list (US 02.09.01, 02.04.08). Looking up an entry
-        // that doesn't exist is allowed, so the app can check whether the user
-        // has joined.
+        // Entrants see their own entry, and the lottery's creator or an owner
+        // whose campsite it covers sees the whole waiting list
+        // (US 02.09.01, 02.04.08). Looking up an entry that doesn't exist is
+        // allowed, so the app can check whether the user has joined.
         allow read: if isSelf(entrantId)
-          || (signedIn() && request.auth.uid in lotteryOwners(lotteryBefore(lotteryId)));
+          || (signedIn() && runsLottery(lotteryBefore(lotteryId)));
 
         // An entrant joins as themselves while registration is open and the
         // list has space (US 01.02.01). The entry waits for the draw, and
