@@ -5,7 +5,8 @@
 // hold, like who owns a campsite or which nights are free, is enforced here.
 //
 // Outstanding issues:
-// - Admins have no access yet. It comes with the admin stories.
+// - Admins can't read messages yet. That rule goes in with the messaging
+//   rules (#112, PR #186), which add the messages collection.
 // - Cancelling and rejecting are allowed until the end of check-in day in
 //   UTC, a few hours past what the app allows, because the rules don't
 //   know the phone's time zone. The app stops them at local midnight.
@@ -41,6 +42,12 @@
 // Sashreek Addanki add the reservation rules, and fix the profile rule so a
 // profile missing its ownerBanned or removed field can still be saved, on
 // November 2, 2026. Sashreek Addanki reviewed them.
+//
+// Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+// Sashreek Addanki add the admin rules: isAdmin(), reading every profile,
+// campsite and notification, deleting campsites and images, banning and
+// removing profiles, and deleting your own profile (#113), on November 27,
+// 2026. Sashreek Addanki reviewed them.
 rules_version = '2';
 
 service cloud.firestore {
@@ -77,6 +84,29 @@ service cloud.firestore {
         && 'OWNER' in myProfile().get('roles', ['ENTRANT'])
         && myProfile().get('ownerBanned', false) == false
         && myProfile().get('removed', false) == false;
+    }
+
+    // Holds the admin role and hasn't been removed. Admins are only ever set
+    // by hand in the Firebase console, and the profile rules stop anyone
+    // adding the role to themselves (US 03.11.01). It reads the same profile
+    // document as activeOwner(), which a request only pays for once.
+    function isAdmin() {
+      return signedIn()
+        && 'ADMIN' in myProfile().get('roles', ['ENTRANT'])
+        && myProfile().get('removed', false) == false;
+    }
+
+    // An admin bans or removes someone else's profile, or takes roles away
+    // from it (US 03.02.01, 03.07.01). Nothing else on it changes, and no
+    // role can be added, so an admin can't make someone else an admin.
+    // Removing a profile runs the cleanUpProfile Cloud Function.
+    function adminModeratesProfile(uid) {
+      return isAdmin() && !isSelf(uid)
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['ownerBanned', 'removed', 'roles'])
+        && newRoles().toSet().difference(oldRoles().toSet()).size() == 0
+        && request.resource.data.get('ownerBanned', false) is bool
+        && request.resource.data.get('removed', false) is bool;
     }
 
     // The signed-in user owns this campsite and can still act as an owner.
@@ -279,9 +309,10 @@ service cloud.firestore {
     }
 
     // One profile per install. The document ID is its Firebase Auth user ID
-    // (US 01.09.01). Admin access comes with the admin stories.
+    // (US 01.09.01). Only its owner reads it, plus admins, who browse every
+    // profile (US 03.05.01).
     match /profiles/{uid} {
-      allow read: if isSelf(uid);
+      allow read: if isSelf(uid) || isAdmin();
 
       // A new profile can't start as an admin, banned or removed.
       allow create: if isSelf(uid)
@@ -289,19 +320,25 @@ service cloud.firestore {
         && request.resource.data.get('ownerBanned', false) == false
         && request.resource.data.get('removed', false) == false;
 
-      // Only admins and Cloud Functions set ownerBanned and removed, and they
-      // skip these rules. A removed profile can't be changed (US 03.02.01),
-      // and a banned one can't become an owner again (US 03.07.01). The two
-      // fields are compared by value, with a missing one counting as false,
-      // so a profile that doesn't have them yet can still be saved with them
-      // set to false.
-      allow update: if isSelf(uid)
+      // Only admins, through adminModeratesProfile, and Cloud Functions,
+      // which skip these rules, set ownerBanned and removed. A removed
+      // profile can't be changed by its owner (US 03.02.01), and a banned one
+      // can't become an owner again (US 03.07.01). The two fields are
+      // compared by value, with a missing one counting as false, so a profile
+      // that doesn't have them yet can still be saved with them set to false.
+      allow update: if (isSelf(uid)
         && resource.data.get('removed', false) == false
         && request.resource.data.get('ownerBanned', false) == resource.data.get('ownerBanned', false)
         && request.resource.data.get('removed', false) == resource.data.get('removed', false)
         && (!('ADMIN' in newRoles()) || 'ADMIN' in oldRoles())
         && (!('OWNER' in newRoles()) || 'OWNER' in oldRoles()
-            || resource.data.get('ownerBanned', false) == false);
+            || resource.data.get('ownerBanned', false) == false))
+        || adminModeratesProfile(uid);
+
+      // You can delete your own profile (US 01.08.01). The cleanUpProfile
+      // Cloud Function then takes you off waiting lists, cancels your
+      // upcoming reservations and deletes your photo and campsites.
+      allow delete: if isSelf(uid);
     }
 
     // Signed-in users can read published campsites, and owners can also read
@@ -313,7 +350,8 @@ service cloud.firestore {
       allow read: if signedIn()
         && (resource == null
             || resource.data.published == true
-            || resource.data.ownerId == request.auth.uid);
+            || resource.data.ownerId == request.auth.uid
+            || isAdmin());
 
       // An owner lists a campsite as themselves, with no ratings yet and a
       // photo they uploaded, if any (US 02.01.01).
@@ -324,14 +362,19 @@ service cloud.firestore {
 
       // An owner edits their own campsites (US 02.01.03). A new photo has to
       // be one they uploaded. Only Cloud Functions change the rating totals,
-      // and only admins unpublish (US 03.07.01). Deleting comes with the
-      // admin stories (US 03.01.01).
+      // and only admins unpublish (US 03.07.01).
       allow update: if activeOwner()
         && resource.data.ownerId == request.auth.uid
         && !request.resource.data.diff(resource.data).affectedKeys()
             .hasAny(['ownerId', 'published', 'ratingCount', 'ratingSum'])
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['imageId'])
             || ownPhotoOrNone(request.resource.data));
+
+      // Only an admin removes a campsite (US 03.01.01). The cleanUpCampsite
+      // Cloud Function then deletes its calendar and photo, takes it out of
+      // its lotteries, cancels its upcoming reservations and tells everyone
+      // affected.
+      allow delete: if isAdmin();
 
       // Each campsite has one calendar, `availability/calendar`, with its
       // season and booked nights. Anyone signed in can see which nights are
@@ -498,9 +541,10 @@ service cloud.firestore {
     }
 
     // Only a Cloud Function creates a notification (US 01.03.01, 01.03.02).
-    // The app can only read its own and mark it read.
+    // The app can only read its own and mark it read. Admins read every
+    // notification for the notification log (US 03.08.01).
     match /notifications/{notificationId} {
-      allow read: if isSelf(resource.data.recipientId);
+      allow read: if isSelf(resource.data.recipientId) || isAdmin();
 
       allow update: if isSelf(resource.data.recipientId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
@@ -516,6 +560,11 @@ service cloud.firestore {
 
       allow create: if isSelf(request.resource.data.ownerId)
         && request.resource.data.keys().hasOnly(['ownerId']);
+
+      // Only an admin removes a photo (US 03.03.01). The cleanUpImage Cloud
+      // Function then deletes the file and clears it from the campsite or
+      // profile that used it, which falls back to its placeholder.
+      allow delete: if isAdmin();
     }
 
     // Everything not matched above is denied.
