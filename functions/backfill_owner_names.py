@@ -6,15 +6,20 @@
 # only the server, which skips the security rules, can read every profile.
 #
 # Running it (from `functions/`):
-#   - Against the Firestore emulator:
+#   - Against the Firestore emulator (the default, and the only target unless
+#     you ask for the real project on purpose):
 #       FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 GOOGLE_CLOUD_PROJECT=lambda-campsite \
 #       python backfill_owner_names.py
-#   - Against the real project (deploy owner only):
-#       GOOGLE_CLOUD_PROJECT=<project-id> GOOGLE_APPLICATION_CREDENTIALS=<service-account.json> \
-#       python backfill_owner_names.py
+#   - Against the real project (deploy owner only, deliberate choice):
+#       python backfill_owner_names.py --production <project-id>
+#     This uses the signed-in Google credentials, like
+#     GOOGLE_APPLICATION_CREDENTIALS=<service-account.json>.
 #
 # Outstanding issues: None known.
 """One-off backfill: every campsite gets its listing owner's profile name."""
+
+import os
+import sys
 
 from google.cloud import firestore
 
@@ -52,8 +57,28 @@ def backfill(db):
     return updated
 
 
+def client_for(argv):
+    """Builds the Firestore client the run targets.
+
+    The default target is the emulator, and the script refuses to run when
+    `FIRESTORE_EMULATOR_HOST` isn't set, so a missing environment variable can
+    never point the writes at the real project by accident. Pass
+    `--production <project-id>` to run on the real project on purpose.
+    """
+    if "--production" in argv:
+        index = argv.index("--production")
+        if index + 1 >= len(argv):
+            raise SystemExit("Usage: python backfill_owner_names.py --production <project-id>")
+        return firestore.Client(project=argv[index + 1])
+    if not os.environ.get("FIRESTORE_EMULATOR_HOST"):
+        raise SystemExit(
+            "No FIRESTORE_EMULATOR_HOST is set, so there is no emulator to write to. "
+            "Set it (see the file header), or pass --production <project-id> to run "
+            "on the real project on purpose."
+        )
+    return firestore.Client(project=os.environ.get("GOOGLE_CLOUD_PROJECT", "lambda-campsite"))
+
+
 if __name__ == "__main__":
-    # The client honors FIRESTORE_EMULATOR_HOST, or falls back to the
-    # service account in GOOGLE_APPLICATION_CREDENTIALS for production.
-    client = firestore.Client(project=None)
-    print(f"Updated {backfill(client)} campsites.")
+    client = client_for(sys.argv[1:])
+    print(f"Updated {backfill(client)} campsites in project '{client.project}'.")
