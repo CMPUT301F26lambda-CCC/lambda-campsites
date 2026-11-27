@@ -41,6 +41,11 @@ Issue #151 waiting-list follow-up: Sreeman Reddy · last updated 2026-11-03.
 > Documentation organization: Lalith Valluru, 2026-11-03 (#151). OpenAI GPT-6
 > (OpenAI), through Codex, assisted with shortening the Flow 12 addition to a
 > high-level summary; follow-up human review is pending.
+>
+> Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+> Sashreek Addanki update the Cloud Functions table and the security rules
+> list in section 4 for the admin rules and clean-up functions (#113), on
+> November 27, 2026. Sashreek Addanki reviewed it.
 
 This page explains how the app is put together. It covers the class diagram and the reasons behind it, the backend on Firebase, and how the Android app splits into Model, View and Controller. Section 6 follows one entrant from tapping "Join" to holding a reservation, so you can see every layer working in one story. Section 7 is the practical part: where files live, what to name things, and how to add something to the frontend or the backend. If a term is new to you, like repository, Flow or transaction, `docs/glossary.md` explains it.
 
@@ -156,8 +161,9 @@ A few conventions keep the data consistent:
 | `sendPush` | A notification or message document is created | Reads the recipient's `pushToken` and `notificationsOn`. If notifications are on, it sends the push through FCM. The in-app copy exists either way, which is what 01.10.01 needs. |
 | `owner_waiting_list_contacts` | Authenticated callable request | Checks active owner, lottery ownership and current entry membership on every call; returns only name/email/phone projections for requested registrations (US 02.09.01). It uses the standard deployed Firestore client; emulator tests configure the emulator separately. |
 | `updateRatingStats` | A rating is written | Updates `ratingCount` and `ratingSum` on the campsite. |
-| `cleanUpCampsite` | A campsite document is deleted | Deletes its `availability` and `ratings` subcollections and its photo in Storage, cancels its open lotteries and upcoming reservations, and notifies everyone affected with a CAMPSITE_REMOVED notification (03.01.01). |
-| `cleanUpProfile` | A profile is deleted (01.08.01) or an admin marks it removed (03.02.01) | Removes the person's waiting-list entries, cancels their upcoming reservations and deletes their photo. If they own campsites, it deletes those too, which runs `cleanUpCampsite` for each one. |
+| `cleanUpCampsite` | An admin deletes a campsite (03.01.01) | Deletes its subcollections (the `availability` calendar, and `ratings` once they exist) and its photo's document. Takes it out of its OPEN and DRAWN lotteries, and ends a lottery it was the only campsite of. Cancels its reservations that haven't ended. Sends one CAMPSITE_REMOVED notification to its owner, each affected guest and each entrant still waiting or holding an unbooked win. |
+| `cleanUpProfile` | A profile is deleted (01.08.01), or an admin removes it (03.02.01) or bans its owner (03.07.01) | Deleted or removed: takes the person off every open waiting list, declines a win they haven't booked, cancels their reservations that haven't ended and frees those nights, and deletes their photo's document. In all three cases it deletes their campsites, which runs `cleanUpCampsite` for each one. A removed profile keeps only its roles and `removed`, so the app can't recreate it. |
+| `cleanUpImage` | A photo's document is deleted, by an admin (03.03.01) or by the two functions above | Deletes the file from Storage and clears `imageId` on the campsite or profile that used it, which then shows its placeholder. |
 
 The functions are written in Python, since Firebase's tools don't support Kotlin, and deploy with the Firebase CLI. One person should own them.
 
@@ -185,7 +191,7 @@ The app checks every rule before it calls Firestore, so users get a quick error 
 - Only a campsite's owner can edit the campsite or set its season. An entrant can change the availability calendar only in the same write that creates their own reservation.
 - Only an owner can run a lottery, and only for campsites they own. They can edit it until it's drawn. Only Cloud Functions change its status.
 - Entrants can add or remove only their own entry, only while registration is open, and only in the same write that changes `entryCount` by one. Only the lottery's owner can read its waiting list.
-- Only admins can delete other people's campsites, profiles or images, set `ownerBanned`, or read every notification and message.
+- Only admins can delete campsites and photos, ban or remove other people's profiles, take roles away, or read every profile, campsite and notification. An admin can't add a role, so nobody becomes an admin in the app. Users can delete their own profile.
 - Only the conversation's owner and entrant can read its messages, plus admins.
 - A removed profile can't write anything.
 

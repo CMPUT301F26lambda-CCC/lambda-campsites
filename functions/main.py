@@ -12,8 +12,12 @@
 #
 # Outstanding issues:
 # - Flow 12: contact callable deployment and shared-project verification remain pending (#129).
-# - updateRatingStats, cleanUpCampsite and cleanUpProfile aren't written
-#   yet. Each one comes with its own issue.
+# - updateRatingStats isn't written yet. It comes with #111.
+# - The clean-up triggers (#113) run once per change. Python Firestore
+#   triggers have no retry option, so if one fails partway, whatever is left
+#   stays until it's run again by hand. Every step is safe to run twice.
+# - "Upcoming" in the clean-up means the stay hasn't ended by today's date
+#   in UTC, the same day boundary the rules use for cancelling.
 # - send_push only clears a token when FCM says it's unregistered. Any
 #   other send error, like FCM being down, fails the function and that
 #   push is lost. Retrying could send the same push twice, and the in-app
@@ -46,24 +50,29 @@
 # Admin SDK client setup; emulator clients stay in test fixtures.
 # Issue #35: GPT-6 (OpenAI), through Codex, assisted with the owner-rejection
 # notification trigger, transient write retries, and regression tests. Human review is pending.
+#
+# Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
+# Sashreek Addanki write clean_up_campsite, clean_up_profile and
+# clean_up_image, and move the notice retry into _create_notice_once so they
+# share it, on November 27, 2026 (#113). Sashreek Addanki reviewed them.
 """Cloud Functions for Lambda Campsite.
 
 docs/architecture.md section 4 lists every function: drawLotteries,
-sendPush, updateRatingStats, cleanUpCampsite and cleanUpProfile. Each one
-gets added here by its own issue.
+sendPush, updateRatingStats, cleanUpCampsite, cleanUpProfile and
+cleanUpImage. Each one gets added here by its own issue.
 """
 
 import random
 from uuid import UUID
 from hashlib import sha256
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from time import sleep
 
-from firebase_admin import firestore, initialize_app, messaging
+from firebase_admin import firestore, initialize_app, messaging, storage
 from firebase_functions import firestore_fn, logger, scheduler_fn, https_fn
 from firebase_functions.options import set_global_options
 from google.api_core.exceptions import (
-    Aborted, AlreadyExists, DeadlineExceeded, InternalServerError,
+    Aborted, AlreadyExists, DeadlineExceeded, InternalServerError, NotFound,
     ServiceUnavailable, TooManyRequests,
 )
 from google.cloud.firestore_v1.base_query import FieldFilter
@@ -376,6 +385,17 @@ def create_rejection_notification(db, reservation_id, before, after):
         "sentAt": firestore.SERVER_TIMESTAMP,
         "read": False,
     }
+    _create_notice_once(db, notification_id, notice)
+
+
+def _create_notice_once(db, notification_id, notice):
+    """Creates one notice under a stable ID, retrying brief write failures.
+
+    The stable ID means a trigger Firestore delivers twice, or a write whose
+    response was lost, still leaves one notice. Python Firestore triggers
+    have no retry option, so this retries transient errors itself and
+    raises if every attempt fails.
+    """
     notification_ref = db.collection("notifications").document(notification_id)
     transient_errors = (Aborted, DeadlineExceeded, InternalServerError, ServiceUnavailable, TooManyRequests)
     max_attempts = 3
@@ -449,3 +469,251 @@ def push_for_notification(db, notification):
         token=profile["pushToken"],
         notification=messaging.Notification(title=notification["title"], body=notification["body"]),
     )
+
+
+# Clean-up (#113). Firestore never deletes a document's subcollections, or
+# anything that points at it, so these triggers do it when an admin removes a
+# campsite, profile or photo, or someone deletes their own profile
+# (US 01.08.01, 03.01.01, 03.02.01, 03.03.01, 03.07.01). Each one is safe to
+# run twice.
+
+
+@firestore_fn.on_document_deleted(document="campsites/{campsiteId}")
+def clean_up_campsite(event: firestore_fn.Event) -> None:
+    """Runs clean_up_deleted_campsite when a campsite is deleted (US 03.01.01)."""
+    if event.data is None:
+        return
+    clean_up_deleted_campsite(firestore.client(), event.params["campsiteId"],
+                              event.data.to_dict() or {}, _today())
+
+
+def clean_up_deleted_campsite(db, campsite_id, campsite, today):
+    """Removes everything that belongs to, or depends on, a deleted campsite.
+
+    - Deletes its subcollections: the availability calendar, and its ratings
+      once #111 adds them.
+    - Deletes its photo's document, which runs clean_up_image for the file.
+    - Takes it out of its OPEN and DRAWN lotteries. A lottery it was the only
+      campsite of is ENDED.
+    - Cancels its reservations that haven't ended yet.
+    - Sends one CAMPSITE_REMOVED notice to its owner, each affected guest and
+      each entrant still waiting or holding a win they haven't booked.
+
+    `campsite` is the deleted document's data and `today` is a yyyy-MM-dd
+    date. Returns the IDs of everyone it notified.
+    """
+    name = campsite.get("name") or "A campsite"
+    campsite_ref = db.collection("campsites").document(campsite_id)
+    for subcollection in campsite_ref.collections():
+        db.recursive_delete(subcollection)
+    if campsite.get("imageId"):
+        db.collection("images").document(campsite["imageId"]).delete()
+
+    # One notice per person. A guest's reservation beats a lottery, which
+    # beats being the owner, so each person gets the reason that matters most.
+    notices = {}
+    owner_id = campsite.get("ownerId")
+    if owner_id:
+        notices[owner_id] = f"An admin removed your campsite {name}. Its upcoming reservations were cancelled."
+
+    lotteries = db.collection("lotteries").where(
+        filter=FieldFilter("campsiteIds", "array_contains", campsite_id)).stream()
+    for lottery_snapshot in lotteries:
+        lottery = _drop_campsite_from_lottery(db.transaction(), lottery_snapshot.reference, campsite_id)
+        if lottery is None:
+            continue
+        lottery_name = lottery.get("name") or "a lottery"
+        if len(lottery.get("campsiteIds", [])) <= 1:
+            body = f"{name} was removed, so {lottery_name} has ended."
+        else:
+            body = f"{name} was removed from {lottery_name}. Its other campsites are still in the lottery."
+        for entry in lottery_snapshot.reference.collection("entries").stream():
+            if (entry.to_dict() or {}).get("status") in ("WAITING", "WON"):
+                notices[entry.id] = body
+
+    reservations = db.collection("reservations").where(
+        filter=FieldFilter("campsiteId", "==", campsite_id)).stream()
+    for reservation in reservations:
+        data = reservation.to_dict() or {}
+        if data.get("status") != "CONFIRMED" or data.get("checkOut", "") <= today:
+            continue
+        reservation.reference.update({"status": "CANCELLED", "cancelledAt": firestore.SERVER_TIMESTAMP})
+        if data.get("guestId"):
+            notices[data["guestId"]] = (f"{name} was removed by an admin, so your reservation from "
+                                        f"{data.get('checkIn')} to {data.get('checkOut')} was cancelled.")
+
+    for recipient_id, body in notices.items():
+        _create_notice_once(db, sha256(f"campsite-removed/{campsite_id}/{recipient_id}".encode()).hexdigest(), {
+            "recipientId": recipient_id,
+            "type": "CAMPSITE_REMOVED",
+            "title": "Campsite removed",
+            "body": body,
+            "sentAt": firestore.SERVER_TIMESTAMP,
+            "read": False,
+        })
+    return sorted(notices)
+
+
+@firestore.transactional
+def _drop_campsite_from_lottery(transaction, lottery_ref, campsite_id):
+    """Takes a removed campsite out of an OPEN or DRAWN lottery.
+
+    A lottery left with no campsites is ENDED, since nobody can win or book
+    anything in it. Returns the lottery as it was before the change, or None
+    if it didn't need one: it already ended, or the campsite is already out.
+    """
+    lottery = lottery_ref.get(transaction=transaction).to_dict() or {}
+    campsite_ids = lottery.get("campsiteIds", [])
+    if lottery.get("status") not in ("OPEN", "DRAWN") or campsite_id not in campsite_ids:
+        return None
+    remaining = [other for other in campsite_ids if other != campsite_id]
+    changes = {"campsiteIds": remaining}
+    if not remaining:
+        changes["status"] = "ENDED"
+    transaction.update(lottery_ref, changes)
+    return lottery
+
+
+@firestore_fn.on_document_written(document="profiles/{uid}")
+def clean_up_profile(event: firestore_fn.Event) -> None:
+    """Runs clean_up_profile_data when a profile is deleted (US 01.08.01), or an
+    admin removes it (US 03.02.01) or bans its owner (US 03.07.01)."""
+    if event.data is None:
+        return
+    before = _snapshot_data(event.data.before)
+    after = _snapshot_data(event.data.after)
+    reason = profile_cleanup_reason(before, after)
+    if reason is not None:
+        clean_up_profile_data(firestore.client(), event.params["uid"], before, _today(), reason)
+
+
+def _snapshot_data(snapshot):
+    """A snapshot's fields, or None if it's missing or the document doesn't exist."""
+    return snapshot.to_dict() if snapshot is not None and snapshot.exists else None
+
+
+def profile_cleanup_reason(before, after):
+    """Why a write to a profile needs clean-up: "deleted", "removed", "banned" or None.
+
+    Only the change into one of those states counts, so later writes to an
+    already removed or banned profile, like clearing its details, don't run
+    the clean-up again.
+    """
+    if before is None:
+        return None
+    if after is None:
+        return "deleted"
+    if after.get("removed", False) and not before.get("removed", False):
+        return "removed"
+    if after.get("ownerBanned", False) and not before.get("ownerBanned", False):
+        return "banned"
+    return None
+
+
+def clean_up_profile_data(db, uid, profile, today, reason):
+    """Removes what a deleted, removed or banned profile leaves behind.
+
+    For a deleted or removed profile:
+    - takes the person off every OPEN lottery's waiting list, and declines
+      any win they haven't booked;
+    - cancels their reservations that haven't ended and frees those nights;
+    - deletes their photo's document, which runs clean_up_image.
+    For all three, it deletes their campsites, which runs clean_up_campsite
+    for each (US 03.07.01). A removed profile also loses its name, email,
+    phone, push token and photo, so only its roles and `removed` are left,
+    and the app can't recreate it.
+
+    `profile` is the profile's data before the change, `today` a yyyy-MM-dd
+    date and `reason` what profile_cleanup_reason returned.
+    """
+    if reason in ("deleted", "removed"):
+        entries = db.collection_group("entries").where(filter=FieldFilter("entrantId", "==", uid)).stream()
+        for entry in entries:
+            _leave_lottery(db.transaction(), entry.reference.parent.parent, entry.reference)
+
+        reservations = db.collection("reservations").where(filter=FieldFilter("guestId", "==", uid)).stream()
+        for reservation in reservations:
+            data = reservation.to_dict() or {}
+            if data.get("status") != "CONFIRMED" or data.get("checkOut", "") <= today:
+                continue
+            batch = db.batch()
+            batch.update(reservation.reference, {"status": "CANCELLED", "cancelledAt": firestore.SERVER_TIMESTAMP})
+            nights = _nights(data.get("checkIn"), data.get("checkOut"))
+            calendar_ref = db.document(f"campsites/{data.get('campsiteId')}/availability/calendar")
+            if nights and calendar_ref.get().exists:
+                batch.update(calendar_ref, {"bookedNights": firestore.ArrayRemove(nights)})
+            batch.commit()
+
+        if profile.get("imageId"):
+            db.collection("images").document(profile["imageId"]).delete()
+
+    for campsite in db.collection("campsites").where(filter=FieldFilter("ownerId", "==", uid)).stream():
+        campsite.reference.delete()
+
+    if reason == "removed":
+        try:
+            db.collection("profiles").document(uid).update({
+                "name": "", "email": "", "phone": None, "pushToken": None, "imageId": None,
+            })
+        except NotFound:
+            pass  # Deleted since it was removed, so there's nothing left to clear.
+
+
+@firestore.transactional
+def _leave_lottery(transaction, lottery_ref, entry_ref):
+    """Takes a deleted or removed entrant out of one lottery.
+
+    While the lottery is OPEN, the entry is deleted and the waiting list
+    shrinks by one, like leaving in the app does. After the draw, a win they
+    haven't booked is DECLINED, so nobody books in their name.
+    """
+    lottery = lottery_ref.get(transaction=transaction).to_dict() or {}
+    entry = entry_ref.get(transaction=transaction).to_dict()
+    if entry is None:
+        return
+    if lottery.get("status") == "OPEN" and entry.get("status", "WAITING") == "WAITING":
+        transaction.delete(entry_ref)
+        transaction.update(lottery_ref, {"entryCount": max(0, int(lottery.get("entryCount", 0)) - 1)})
+    elif entry.get("status") == "WON":
+        transaction.update(entry_ref, {"status": "DECLINED"})
+
+
+def _nights(check_in, check_out):
+    """The yyyy-MM-dd nights from check-in up to, but not including, check-out."""
+    try:
+        start, end = date.fromisoformat(check_in), date.fromisoformat(check_out)
+    except (TypeError, ValueError):
+        return []
+    return [(start + timedelta(days=offset)).isoformat() for offset in range((end - start).days)]
+
+
+def _today():
+    """Today's date as yyyy-MM-dd in UTC, the day boundary the rules use too."""
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+@firestore_fn.on_document_deleted(document="images/{imageId}")
+def clean_up_image(event: firestore_fn.Event) -> None:
+    """Runs clean_up_deleted_image when a photo's document is deleted (US 03.03.01)."""
+    clean_up_deleted_image(firestore.client(), event.params["imageId"], _delete_photo_file)
+
+
+def clean_up_deleted_image(db, image_id, delete_file):
+    """Deletes a removed photo's file and clears it from whatever used it.
+
+    The campsite or profile then shows its placeholder (US 03.03.01).
+    `delete_file` deletes images/{image_id}.jpg from Storage. The tests pass
+    a fake, since the functions tests don't run the Storage emulator.
+    """
+    delete_file(image_id)
+    for collection in ("campsites", "profiles"):
+        for document in db.collection(collection).where(filter=FieldFilter("imageId", "==", image_id)).stream():
+            document.reference.update({"imageId": None})
+
+
+def _delete_photo_file(image_id):
+    """Deletes images/{image_id}.jpg from the default Storage bucket, if it's there."""
+    try:
+        storage.bucket().blob(f"images/{image_id}.jpg").delete()
+    except NotFound:
+        pass
