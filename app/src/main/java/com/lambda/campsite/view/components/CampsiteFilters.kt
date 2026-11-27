@@ -9,6 +9,11 @@
  * after check-in.(US 01.01.02), (US 01.01.03)
  * If the user changes check-in to the same date as check-out or a later date,
  * the check-out date is cleared.
+ * It also contains MatchScoreBadge for the WOW factor match score (#71). It shows
+ * a campsite's score, like "100% match", next to its lottery status on the search
+ * results. The color shows how good the match is: dark green from 90%, light
+ * green from 70%, and gray below that. The badge only displays the score;
+ * MatchScoreController calculates it.
  * Outstanding issue- None
  */
 
@@ -467,3 +472,32 @@ private fun StayDateDialog(
 private fun LocalDate.toUtcMillis(): Long = atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
 
 private fun Long.toLocalDate(): LocalDate = Instant.ofEpochMilli(this).atZone(ZoneOffset.UTC).toLocalDate()
+
+/**
+ * The match score pill shown next to a campsite's lottery status (#71),
+ * like "100% match". Its colour shows how good the match is: dark green from
+ * 90%, light green from 70%, and grey below that.
+ *
+ * @param score the campsite's match score, from 0 to 100.
+ */
+@Composable
+fun MatchScoreBadge(score: Int) {
+    val (background, text) = when {
+        score >= 90 -> ForestGreen to Mint
+        score >= 70 -> CampPositive to DeepGreen
+        else -> CampField to CampSecondaryText
+    }
+    val description = stringResource(R.string.match_score_description, score)
+    Surface(
+        color = background,
+        contentColor = text,
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.semantics { contentDescription = description },
+    ) {
+        Text(
+            text = stringResource(R.string.match_score, score),
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+        )
+    }
+}

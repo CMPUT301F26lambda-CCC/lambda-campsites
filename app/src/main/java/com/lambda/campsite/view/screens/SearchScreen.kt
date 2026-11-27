@@ -56,22 +56,32 @@ import androidx.compose.runtime.saveable.rememberSaveable
 @Composable
 fun SearchScreen(controller: SearchController, onCampsiteClick: (String) -> Unit, profileName: String? = null,
                  onInbox: (() -> Unit)? = null, unreadCount: Int = 0,
-                 filterController: CampsiteFilterController = viewModel(factory = CampsiteFilterController.Factory)) {
+                 filterController: CampsiteFilterController = viewModel(factory = CampsiteFilterController.Factory)
+                 , matchController: MatchScoreController = viewModel()) {
     val state by controller.state.collectAsStateWithLifecycle()
     val filters by filterController.state.collectAsStateWithLifecycle()
+    val scored by matchController.state.collectAsStateWithLifecycle()
     // The filters work on whatever the entrant searched for (Flow 15).
     LaunchedEffect(state.results) { filterController.onSearchResultsChanged(state.results) }
+    LaunchedEffect(filters) {
+        matchController.onFilteredResultsChanged(filters.results, filters.location.isNotBlank(),
+            filters.hasDates, filters.guests)
+    }
     // Once a filter is applied, the list shows the filtered results instead of the plain search.
-    val shown = if (!filters.hasFilters) state else state.copy(results = filters.results,
+    val shown = if (!filters.hasFilters) state else state.copy(results = scored.results,
         isLoading = state.isLoading || filters.isLoading, loadFailed = state.loadFailed || filters.loadFailed)
     SearchContent(shown, controller::onQueryChanged, { controller.onRetry(); filterController.onRetry() }, onCampsiteClick,
         onSubmitSearch = controller::onSubmitSearch, onClearSearch = { controller.onSearch("") }, profileName = profileName,
         filters = filters, onApplyFilters = filterController::onApplyFilters, onClearFilters = filterController::onClearFilters,
         onInbox = onInbox, unreadCount = unreadCount, onRetryCalendars = filterController::onRetry,
         status = { camp ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             val lottery: LotteryController = viewModel(key = "search-lottery-${camp.id}",
                 factory = LotteryController.createFactory(camp.id))
             CampsiteLotteryBadge(lottery)
+                // Only shown while a filter is applied, because scores is empty otherwise.
+                scored.scores[camp.id]?.let { MatchScoreBadge(it) }
+            }
         })
 }
 
