@@ -64,6 +64,8 @@ import com.lambda.campsite.view.components.rememberPhotoPicker
  *
  * Cancel and the X button both open a dialog that asks whether to discard
  * the changes. Keep editing closes the dialog. Discard calls [onCancel].
+ * The photo is saved as soon as it's picked, so Discard only undoes the
+ * name, email and phone changes.
  *
  * The avatar shows the profile photo, or the initials of the name being
  * typed when there's no photo. Change Photo opens the phone's gallery, and
@@ -80,7 +82,8 @@ import com.lambda.campsite.view.components.rememberPhotoPicker
  * @param saveFailed `true` if the last save failed, which shows an error
  *   message above the Save Changes button.
  * @param photoUrl where to load the profile photo from, or `null` to show the initials.
- * @param photoSaving `true` while a photo is uploading, which turns off Change Photo.
+ * @param photoSaving `true` while a photo is uploading or being removed, which turns
+ * off Change Photo and shows "Uploading your photo…".
  * @param photoFailed `true` if the last photo upload failed, which shows an error.
  * @param onPhotoPicked called with the photo the entrant picked.
  * @param hasPhoto `true` when the profile has a photo, which shows Remove photo.
@@ -191,6 +194,24 @@ fun EditProfileScreen(
                     Text(
                         text = stringResource(R.string.profile_remove_photo),
                         color = Mint,
+                    )
+                }
+            }
+            if (photoSaving) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                ) {
+                    CircularProgressIndicator(
+                        color = Mint,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.profile_photo_uploading),
+                        color = Mint,
+                        style = MaterialTheme.typography.bodySmall,
                     )
                 }
             }
