@@ -42,7 +42,12 @@
 /*
 * Flow 14: Harmanjoth Kaur, November 2026. Claude Opus 5.5 (Anthropic), through
 * Claude Code, helped add the Settings, Edit Profile and First Launch routes
- */
+*
+*  Flow 18: Harmanjoth Kaur, November 2026. Claude Opus 5.5 (Anthropic), through
+* Claude Code, helped connect ProfilePhotoController to the Profile and Edit Profile
+* routes, to add, change and remove the photo (US 01.08.02).
+*
+*/
 package com.lambda.campsite.view
 
 import android.net.Uri
@@ -143,6 +148,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.IconButton
+import com.lambda.campsite.controller.ProfilePhotoController
 
 /** Entrant pushed routes retain Home selection and the selected campsite's parent state. */
 private const val ENTRANT_DETAILS_ROUTE = "entrant/home/details/{campsiteId}"
@@ -351,12 +357,19 @@ fun LambdaCampsiteApp(
                                     navController.navigate("entrant/home/details/${Uri.encode(campsiteId)}")
                                 })
                             }
-                            AppTab.PROFILE -> ProfileScreen(
-                                controller = profileController,
-                                onEditProfile = { navController.navigate(EDIT_PROFILE_ROUTE) },
-                                onSettings = { navController.navigate(SETTINGS_ROUTE) },
-                                onBack = { navController.navigateToTab(tabs.first()) },
-                            )
+                            AppTab.PROFILE -> {
+                                // Flow 18: the profile photo (US 01.08.02).
+                                val photoController: ProfilePhotoController =
+                                    viewModel(factory = ProfilePhotoController.Factory)
+                                val photo by photoController.state.collectAsStateWithLifecycle()
+                                ProfileScreen(
+                                    controller = profileController,
+                                    onEditProfile = { navController.navigate(EDIT_PROFILE_ROUTE) },
+                                    onSettings = { navController.navigate(SETTINGS_ROUTE) },
+                                    onBack = { navController.navigateToTab(tabs.first()) },
+                                    photoUrl = photo.photoUrl,
+                                )
+                            }
                             AppTab.ENTRANT_RESERVATIONS -> {
                                 val reservationsController: EntrantReservationsController =
                                     viewModel(factory = EntrantReservationsController.Factory)
@@ -742,11 +755,21 @@ fun LambdaCampsiteApp(
                 composable(EDIT_PROFILE_ROUTE) {
                     val profile = state.profile
                     if (profile != null) {
+                        // Flow 18: the profile photo (US 01.08.02).
+                        val photoController: ProfilePhotoController =
+                            viewModel(factory = ProfilePhotoController.Factory)
+                        val photo by photoController.state.collectAsStateWithLifecycle()
                         EditProfileScreen(
                             name = profile.name,
                             email = profile.email,
                             phone = profile.phone,
                             saveFailed = state.error == ProfileError.SAVE_FAILED,
+                            photoUrl = photo.photoUrl,
+                            photoSaving = photo.saving,
+                            photoFailed = photo.failed,
+                            onPhotoPicked = photoController::onPhotoPicked,
+                            hasPhoto = photo.hasPhoto,
+                            onRemovePhoto = photoController::onRemovePhoto,
                             onCancel = {
                                 profileController.onEditProfileClosed()
                                 navController.popBackStack()

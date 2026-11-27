@@ -6,6 +6,7 @@ This page is used to display the profile information for any user.
 Firstly, it will try to retrieve the profile. If nothing is available,
 or it is unable to load the profile, it will simply display an error
 message.(US 01.07.03)
+The avatar shows the profile photo, or the initials when there's no photo (US 01.08.02).
 Once it is able to retrieve the profile from Firestore, it will
 retrieve the user's roles, name, email and phone number. If the person
 is an Admin, all three slider options are available. However, if the
@@ -16,6 +17,7 @@ This page connects with EditProfileScreen.kt, where users can edit
 their name, email and phone number, and SettingsScreen.kt, where they
 can turn notifications on or off, view the campsite policy they agreed
 to on FirstLaunchScreen, and delete their profile.
+
 
 Resolved issue:
 1.RESOLVED: the slider now calls ProfileController.onSwitchRole (or
@@ -102,6 +104,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.lambda.campsite.view.theme.SelectedMint
+import com.lambda.campsite.view.components.ProfileAvatar
 /**
  * Displays the user's profile information, including their name, email,
  * phone number and assigned roles (US 03.11.01). Allows users to select
@@ -120,6 +123,7 @@ import com.lambda.campsite.view.theme.SelectedMint
  * @param onEditProfile callback invoked when the user selects Edit Profile.
  * @param onSettings callback invoked when the user opens Settings.
  * @param onBack callback invoked when the user selects the back button.
+ *  * @param photoUrl where to load the profile photo from, or `null` to show the initials.
  */
 @Composable
 fun ProfileScreen(controller: ProfileController,
@@ -127,6 +131,7 @@ fun ProfileScreen(controller: ProfileController,
                   onEditProfile: () -> Unit = {},
                   onSettings: () -> Unit = {},
                   onBack: () -> Unit = {},
+                  photoUrl: String? = null,
 ) {
     val state by controller.state.collectAsStateWithLifecycle()
     val profile = state.profile
@@ -188,25 +193,7 @@ fun ProfileScreen(controller: ProfileController,
                         color = Mint,
                     )
                 }
-                Box(
-                    modifier = Modifier
-                        .size(112.dp)
-                        .clip(CircleShape)
-                        .background(Mint),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = profile.name
-                            .trim()
-                            .split(Regex("\\s+"))
-                            .mapNotNull { it.firstOrNull()?.uppercaseChar() }
-                            .take(2)
-                            .joinToString("")
-                            .ifBlank { "?" },
-                        style = MaterialTheme.typography.headlineLarge,
-                        color = DeepGreen,
-                    )
-                }
+                ProfileAvatar(name = profile.name, photoUrl = photoUrl)
                 Text(
                     text = profile.name,
                     style = MaterialTheme.typography.headlineSmall,

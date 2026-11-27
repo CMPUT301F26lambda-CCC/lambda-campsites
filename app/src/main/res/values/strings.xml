@@ -521,5 +521,10 @@
 
     <!-- WOW factor #71: match score -->
     <string name="match_score">%1$d%% match</string>
+    <!-- Flow 18-->
+    <string name="profile_photo_description">Your profile photo</string>
+    <string name="profile_photo_failed">Couldn\'t update your photo. Check your connection and try again.</string>
+    <string name="profile_remove_photo">Remove photo</string>
+
 
 </resources>
