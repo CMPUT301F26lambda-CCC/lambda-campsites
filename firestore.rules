@@ -89,6 +89,14 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/campsites/$(campsiteId)).data.ownerId == request.auth.uid;
     }
 
+    // The campsite's ownerName copy is blank or the owner's own profile name,
+    // so a campsite can't claim someone else lists it (US 02.04.08).
+    // myProfile() is cached per request, so this is no extra read on create.
+    function ownerNameMatchesProfile(data) {
+      return data.get('ownerName', '') == ''
+        || data.ownerName == myProfile().get('name', '');
+    }
+
     // A campsite's photo has to be one its owner uploaded, or none, so
     // deleting the campsite can't take someone else's photo with it
     // (US 02.01.02). Checking the photo costs one more document read, and a

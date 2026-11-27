@@ -13,6 +13,9 @@
  * Claude Opus 5.5 (Anthropic), used through Claude Code, also helped
  * Sashreek Addanki add the photo tests, on November 1, 2026. Sashreek
  * Addanki reviewed them.
+ * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped test
+ * that the ownerName copy is blank or the owner's own profile name; human
+ * review pending.
  */
 package com.lambda.campsite.rules
 
@@ -103,6 +106,56 @@ class CampsiteRulesTest {
     @Test
     fun ownerCanListACampsite() {
         val error = firestoreErrorFrom { campsites.document("new").set(campsiteFields(ownerId = uid)).await() }
+
+        assertNull(error)
+    }
+
+    @Test
+    fun ownerCanListACampsiteWithTheirOwnNameAsOwnerName() {
+        val error = firestoreErrorFrom {
+            campsites.document("new").set(campsiteFields(ownerId = uid, ownerName = "Alex Kim")).await()
+        }
+
+        assertNull(error)
+    }
+
+    @Test
+    fun ownerCantListACampsiteUnderSomeoneElsesName() {
+        // The ownerName copy is blank or the owner's own profile name, so a
+        // campsite can't claim someone else lists it (US 02.04.08).
+        val error = firestoreErrorFrom {
+            campsites.document("new").set(campsiteFields(ownerId = uid, ownerName = "Parks Canada")).await()
+        }
+
+        assertPermissionDenied(error)
+    }
+
+    @Test
+    fun ownerCantRenameTheOwnerNameToSomeoneElse() {
+        FirestoreEmulator.setIgnoringRules(
+            "campsites/mine",
+            campsiteFields(ownerId = uid, ownerName = "Alex Kim"),
+        )
+
+        val error = firestoreErrorFrom {
+            campsites.document("mine")
+                .set(campsiteFields(ownerId = uid, ownerName = "Parks Canada"), SetOptions.merge()).await()
+        }
+
+        assertPermissionDenied(error)
+    }
+
+    @Test
+    fun ownerCanUpdateTheOwnerNameToTheirCurrentProfileName() {
+        FirestoreEmulator.setIgnoringRules(
+            "campsites/mine",
+            campsiteFields(ownerId = uid, ownerName = "Old Name"),
+        )
+
+        val error = firestoreErrorFrom {
+            campsites.document("mine")
+                .set(campsiteFields(ownerId = uid, ownerName = "Alex Kim"), SetOptions.merge()).await()
+        }
 
         assertNull(error)
     }
@@ -284,21 +337,25 @@ class CampsiteRulesTest {
         name: String = "Moose Lake Campsite",
         published: Boolean = true,
         imageId: String? = null,
-    ): Map<String, Any?> = mapOf(
-        "ownerId" to ownerId,
-        "name" to name,
-        "location" to "Elk Island National Park, AB",
-        "description" to "A quiet site by the lake.",
-        "amenities" to listOf("Fire pit"),
-        "maxOccupancy" to 6,
-        "latitude" to 53.6,
-        "longitude" to -112.85,
-        "tags" to listOf("lakeside"),
-        "pricePerNight" to null,
-        "rules" to "No pets.",
-        "published" to published,
-        "imageId" to imageId,
-    )
+        ownerName: String? = null,
+    ): Map<String, Any?> = buildMap {
+        put("ownerId", ownerId)
+        put("name", name)
+        put("location", "Elk Island National Park, AB")
+        put("description", "A quiet site by the lake.")
+        put("amenities", listOf("Fire pit"))
+        put("maxOccupancy", 6)
+        put("latitude", 53.6)
+        put("longitude", -112.85)
+        put("tags", listOf("lakeside"))
+        put("pricePerNight", null)
+        put("rules", "No pets.")
+        put("published", published)
+        put("imageId", imageId)
+        // Left out unless a test names it, the way campsites saved before
+        // US 02.04.08 have no ownerName field at all.
+        if (ownerName != null) put("ownerName", ownerName)
+    }
 
     /** The fields only the `updateRatingStats` Cloud Function writes. */
     private fun ratingTotals(): Map<String, Any?> = mapOf("ratingCount" to 2, "ratingSum" to 9)
