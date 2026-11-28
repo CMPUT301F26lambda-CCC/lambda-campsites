@@ -487,12 +487,10 @@ fun MatchScoreBadge(score: Int) {
         score >= 70 -> CampPositive to DeepGreen
         else -> CampField to CampSecondaryText
     }
-
     Surface(
         color = background,
         contentColor = text,
         shape = RoundedCornerShape(8.dp),
-
     ) {
         Text(
             text = stringResource(R.string.match_score, score),

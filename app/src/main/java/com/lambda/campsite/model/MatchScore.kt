@@ -75,5 +75,4 @@ object MatchScore {
 
     const val GUEST_SCORE_STEP = 10
     const val MIN_GUEST_SCORE = 50
-
 }
