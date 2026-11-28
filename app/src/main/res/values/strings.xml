@@ -527,4 +527,24 @@
     <string name="profile_remove_photo">Remove photo</string>
 
 
+    <string name="campsite_reviews_heading">Reviews</string>
+    <string name="campsite_reviews_write">Write a review</string>
+    <string name="campsite_reviews_edit">Edit your review</string>
+    <string name="campsite_reviews_completed_stay">You can post a review after a completed stay.</string>
+    <string name="campsite_reviews_saved">Review posted.</string>
+    <string name="campsite_reviews_empty">No reviews yet.</string>
+    <string name="campsite_reviews_yours">Your review</string>
+    <string name="campsite_reviews_camper">Camper review</string>
+    <string name="campsite_reviews_sheet_title">Review %1$s</string>
+    <string name="campsite_reviews_label">Your review</string>
+    <string name="campsite_reviews_hint">How was your stay?</string>
+    <string name="campsite_reviews_count">%1$d / 1000 characters</string>
+    <string name="campsite_reviews_required">Write a review before posting.</string>
+    <string name="campsite_reviews_too_long">Keep your review under 1000 characters.</string>
+    <string name="campsite_reviews_save_failed">Could not post the review. Try again.</string>
+    <string name="campsite_reviews_load_failed">Could not load reviews.</string>
+    <string name="campsite_reviews_latest">Posting again replaces your earlier review.</string>
+    <string name="campsite_reviews_cancel">Cancel</string>
+    <string name="campsite_reviews_post">Post review</string>
+    <string name="campsite_reviews_save">Save review</string>
 </resources>

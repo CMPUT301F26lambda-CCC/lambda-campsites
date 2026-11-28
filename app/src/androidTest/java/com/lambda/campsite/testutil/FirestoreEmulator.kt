@@ -12,6 +12,9 @@
  * The timestampValue encoding was added by Aarush Bhat with the assistance
  * of Claude Sonnet 5 (Anthropic), through Claude Code, in November 2026, for
  * the notification tests. Aarush Bhat reviewed and committed it.
+ *
+ * GPT-6 (OpenAI), through Codex, assisted Sreeman Reddy with the document
+ * deletion helper for the Flow 17 review rule regression test in November 2026.
  */
 package com.lambda.campsite.testutil
 
@@ -53,6 +56,11 @@ object FirestoreEmulator {
         val write = JSONObject().put("update", JSONObject().put("name", name).put("fields", encodeFields(fields)))
         val body = JSONObject().put("writes", JSONArray().put(write))
         send("POST", "$baseUrl/v1/projects/$projectId/databases/(default)/documents:commit", body.toString())
+    }
+
+    /** Deletes one document at [path] without applying its security rules. */
+    fun deleteIgnoringRules(path: String) {
+        send("DELETE", "$baseUrl/v1/projects/$projectId/databases/(default)/documents/$path")
     }
 
     private fun encodeFields(fields: Map<String, Any?>): JSONObject =

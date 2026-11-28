@@ -29,6 +29,8 @@
 // Flow 12 feature owner: Lalith Valluru. OpenAI GPT-6 through Codex assisted
 // with the contact repository binding. Human review pending.
 // Issue #151: GPT-6 (OpenAI), through Codex, assisted me with repository grouping.
+// Flow 17 (#192): GPT-6 (OpenAI), through Codex, assisted Sreeman Reddy with
+// the written-review repository binding. Human review is pending.
 package com.lambda.campsite
 
 import com.google.firebase.Firebase
@@ -41,7 +43,9 @@ import com.google.firebase.functions.functions
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.storage
 import com.lambda.campsite.model.repository.CampsiteRepository
+import com.lambda.campsite.model.repository.CampsiteReviewRepository
 import com.lambda.campsite.model.repository.FirestoreCampsiteRepository
+import com.lambda.campsite.model.repository.FirestoreCampsiteReviewRepository
 import com.lambda.campsite.model.repository.FirestoreImageRepository
 import com.lambda.campsite.model.repository.FirestoreLotteryRepository
 import com.lambda.campsite.model.repository.FirestoreNotificationRepository
@@ -88,6 +92,11 @@ class AppContainer {
 
     /** Every campsite, stored in Firestore. */
     val campsiteRepository: CampsiteRepository by lazy { FirestoreCampsiteRepository(auth, firestore) }
+
+    /** Written campsite reviews, separate from star ratings. */
+    val campsiteReviewRepository: CampsiteReviewRepository by lazy {
+        FirestoreCampsiteReviewRepository(auth, firestore)
+    }
 
     /** Every lottery and waiting list, stored in Firestore. */
     val lotteryRepository: LotteryRepository by lazy { FirestoreLotteryRepository(auth, firestore) }
