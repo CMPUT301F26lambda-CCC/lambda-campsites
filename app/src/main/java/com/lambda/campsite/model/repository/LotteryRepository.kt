@@ -9,6 +9,8 @@
  */
 // Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 (OpenAI), through Codex,
 // assisted with edit guards, race handling and merge preservation. Human review pending.
+// Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped document
+// multi-owner lotteries; human review pending.
 // Outstanding issues: manual TalkBack review and rules deployment remain pending.
 package com.lambda.campsite.model.repository
 
@@ -39,8 +41,9 @@ interface LotteryRepository {
     fun lotteriesFor(campsiteId: String): Flow<List<Lottery>>
 
     /**
-     * The lotteries this device's profile runs, in no particular order, sent
-     * again whenever one changes (US 02.04.06).
+     * The lotteries this device's profile helps run, in no particular order,
+     * sent again whenever one changes (US 02.04.06, 02.04.08). That includes
+     * lotteries another owner created for one of this profile's campsites.
      */
     fun myLotteries(): Flow<List<Lottery>>
 
@@ -54,7 +57,7 @@ interface LotteryRepository {
      *
      * @throws LotteryEditException if the latest stored lottery refuses the edit.
      * @throws Exception if the lottery can't be saved, for example when it
-     *   includes a campsite this device's profile doesn't own.
+     *   includes a campsite whose owner isn't in [Lottery.ownerIds].
      */
     suspend fun save(lottery: Lottery)
 
@@ -125,3 +128,12 @@ class WaitingListException(val reason: Reason) : Exception("Can't join or leave 
 /** A transaction rejected an edit against the latest lottery, without writing any fields. */
 class LotteryEditException(val restriction: com.lambda.campsite.model.LotteryEditRestriction) :
     IllegalStateException("Lottery edit refused: $restriction")
+
+/**
+ * Firestore's security rules refused to save the lottery, without writing any
+ * fields (US 02.04.08). The repository translates Firestore's permission
+ * refusal into this, so controllers can tell it apart from an offline save
+ * without touching Firebase's own exception classes.
+ */
+class LotteryNotAllowedException(cause: Throwable) :
+    Exception("The security rules refused this lottery.", cause)

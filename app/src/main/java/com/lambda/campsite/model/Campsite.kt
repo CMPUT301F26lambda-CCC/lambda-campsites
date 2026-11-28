@@ -16,6 +16,8 @@
  * The imageId field was added by Aarush Bhat with the assistance of Claude
  * Sonnet 5 (Anthropic), through Claude Code, in November 2026. Aarush Bhat
  * reviewed and committed it.
+ * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped add
+ * the ownerName copy so other owners can see who lists a campsite; human review pending.
  */
 package com.lambda.campsite.model
 
@@ -54,6 +56,11 @@ package com.lambda.campsite.model
  *   Function changes it.
  * @property imageId the ID of its photo, or `null` if the owner didn't upload
  *   one (US 02.01.02).
+ * @property ownerName the listing owner's profile name, copied when they saved
+ *   the campsite. Profiles are private, so other users can't load the owner's
+ *   profile to read their name; screens show this copy instead, like a
+ *   reservation's `guestName`. It can go stale if the owner later renames
+ *   their profile (US 02.04.08).
  */
 data class Campsite(
     val id: String,
@@ -72,6 +79,7 @@ data class Campsite(
     val ratingCount: Int = 0,
     val ratingSum: Int = 0,
     override val imageId: String? = null,
+    val ownerName: String = "",
 ) : ImageOwner {
 
     /** The average star rating, or `null` if nobody has rated it yet (US 01.01.04, 02.01.04). */

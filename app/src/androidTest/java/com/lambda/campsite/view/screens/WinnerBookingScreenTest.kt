@@ -32,7 +32,7 @@ class WinnerBookingScreenTest {
     @get:Rule val compose = createComposeRule()
     private val today = LocalDate.of(2027, 7, 1)
     private val camp = Campsite("camp", "owner", "Aspen Hollow", "Alberta", maxOccupancy = 4, rules = "Keep fires in the fire pit.")
-    private val lottery = Lottery("lot", "owner", "Demo summer lottery", listOf(camp.id), Timestamp(1, 0), Timestamp(2, 0),
+    private val lottery = Lottery("lot", "owner", listOf("owner"), "Demo summer lottery", listOf(camp.id), Timestamp(1, 0), Timestamp(2, 0),
         today, today.plusDays(10), status = LotteryStatus.DRAWN)
     private fun text(id: Int) = InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
     private fun controller(multi: Boolean = false, status: EntryStatus = EntryStatus.WON): WinnerBookingController {

@@ -8,6 +8,10 @@
  * add the edit locks from US 02.04.06: the campsites and registration dates
  * lock once entrants joined, the capacity floor against the live wait list,
  * and the fresh re-read of the stored lottery on save.
+ * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped offer
+ * every published campsite and derive the lottery's owners from the selection
+ * (US 02.04.08), show each campsite's listing owner, and report rules refusals
+ * separately from offline saves; human review pending.
  */
 
  /**
@@ -31,6 +35,7 @@ import com.lambda.campsite.model.Campsite
 import com.lambda.campsite.model.Lottery
 import com.lambda.campsite.model.LotteryEditRestriction
 import com.lambda.campsite.model.repository.LotteryEditException
+import com.lambda.campsite.model.repository.LotteryNotAllowedException
 import com.lambda.campsite.model.LotteryStatus
 import com.lambda.campsite.model.repository.CampsiteRepository
 import com.lambda.campsite.model.repository.LotteryRepository
@@ -42,6 +47,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -86,6 +92,13 @@ enum class NewLotteryError {
     /** The lottery couldn't be saved, for example because the phone is offline. */
     SAVE_FAILED,
 
+    /**
+     * Firestore's security rules refused the save (US 02.04.08). Every
+     * campsite's owner has to be one of the lottery's owners, and the
+     * signed-in user has to still be an active owner.
+     */
+    SAVE_NOT_ALLOWED,
+
     /** Registration changed during editing; review the refreshed locked fields before saving. */
     LOCKED_FIELDS_CHANGED,
 }
@@ -100,7 +113,11 @@ enum class NewLotteryError {
  *
  * @property step which wizard step is shown: 1 campsites, 2 dates, 3
  *   settings, 4 review.
- * @property campsites the owner's campsites to choose from (US 02.04.02).
+ * @property campsites the campsites this owner can include: their own, published
+ *   or not, and every other owner's published ones (US 02.04.02, 02.04.08).
+ * @property myUserId the signed-in profile's device ID, or `null` until the
+ *   profile has loaded. The screen uses it to show "Listed by" only on other
+ *   owners' campsites.
  * @property selectedCampsiteIds the campsites picked for this lottery, in the
  *   order they were picked.
  * @property registrationOpens when entrants can start joining (US 02.04.03).
@@ -119,6 +136,7 @@ enum class NewLotteryError {
 data class NewLotteryUiState(
     val step: Int = 1,
     val campsites: List<Campsite> = emptyList(),
+    val myUserId: String? = null,
     val selectedCampsiteIds: List<String> = emptyList(),
     val registrationOpens: LocalDate? = null,
     val registrationCloses: LocalDate? = null,
@@ -159,18 +177,19 @@ data class NewLotteryUiState(
  * Controller for the four-step "New lottery" wizard (US 02.04.01 to 02.04.07).
  * It is an Android [ViewModel] that survives screen rotation.
  *
- * Step 1 picks the owner's campsites, step 2 sets the registration and booking
+ * Step 1 picks the campsites the lottery covers, which can belong to several
+ * owners (US 02.04.08). Step 2 sets the registration and booking
  * periods, step 3 names the lottery and caps its waiting list, and step 4
  * reviews everything before saving. `onNext` validates the current step before
  * moving on; [Lottery.validateDates] makes the final call on the dates.
  *
  * @param lotteryRepository where the lottery is saved.
- * @param campsiteRepository where the owner's campsites are loaded from.
+ * @param campsiteRepository where the selectable campsites are loaded from.
  * @param profileRepository where the owner's ID comes from for the new lottery.
  */
 class NewLotteryController(
     private val lotteryRepository: LotteryRepository,
-    campsiteRepository: CampsiteRepository,
+    private val campsiteRepository: CampsiteRepository,
     private val profileRepository: ProfileRepository,
     private val lotteryIdToEdit: String? = null,
 ) : ViewModel() {
@@ -185,12 +204,31 @@ class NewLotteryController(
 
     private var editingLottery: Lottery? = null
 
+    /**
+     * The campsites of the lottery being edited, loaded by ID. A co-owner's
+     * unpublished campsite may be missing from the published list, so it's kept
+     * here and merged into the choices (US 02.04.08).
+     */
+    private var editCampsites: List<Campsite> = emptyList()
+
     init {
         viewModelScope.launch {
-            campsiteRepository.myCampsites()
+            // The screen marks other owners' campsites with their name, so it
+            // needs to know which user is signed in (US 02.04.08).
+            profileRepository.currentProfile().firstOrNull()?.let { profile ->
+                _state.update { it.copy(myUserId = profile.deviceId) }
+            }
+            // The owner's own campsites, plus every other owner's published
+            // ones, so one lottery can cover several owners' sites (US 02.04.08).
+            combine(
+                campsiteRepository.publishedCampsites(),
+                campsiteRepository.myCampsites(),
+            ) { published, mine -> (mine + published).distinctBy { it.id } }
                 .catch { _state.update { it.copy(isLoadingCampsites = false) } }
                 .collect { campsites ->
-                    _state.update { it.copy(campsites = campsites, isLoadingCampsites = false) }
+                    _state.update {
+                        it.copy(campsites = mergeEditCampsites(campsites), isLoadingCampsites = false)
+                    }
                 }
         }
         lotteryIdToEdit?.let { lotteryId ->
@@ -198,8 +236,14 @@ class NewLotteryController(
             viewModelScope.launch {
                 lotteryRepository.lottery(lotteryId).firstOrNull()?.let { lottery ->
                     editingLottery = lottery
+                    // Load every covered campsite by ID, so a co-owner's
+                    // unpublished campsite still shows in the wizard.
+                    editCampsites = lottery.campsiteIds.mapNotNull { id ->
+                        campsiteRepository.campsite(id).firstOrNull()
+                    }
                     _state.update {
                         it.copy(
+                            campsites = mergeEditCampsites(it.campsites),
                             selectedCampsiteIds = lottery.campsiteIds,
                             registrationOpens = lottery.registrationOpens.toInstant().atZone(ZoneId.systemDefault()).toLocalDate(),
                             // Stored as the start of the following day: present the day the owner chose.
@@ -218,6 +262,10 @@ class NewLotteryController(
             }
         }
     }
+
+    /** Adds the edited lottery's campsites to the choices, without duplicates. */
+    private fun mergeEditCampsites(campsites: List<Campsite>): List<Campsite> =
+        (campsites + editCampsites).distinctBy { it.id }.sortedBy { it.name }
 
     /**
      * Selects or unselects the campsite with this [campsiteId] (US 02.04.02).
@@ -333,7 +381,9 @@ class NewLotteryController(
     }
 
     /**
-     * Saves the lottery as [LotteryStatus.OPEN] (US 02.04.01). The draw checks
+     * Saves the lottery as [LotteryStatus.OPEN] (US 02.04.01). The owners are
+     * taken from the selected campsites, so one lottery can cover several
+     * owners' sites (US 02.04.08). The draw checks
      * the dates one last time on the [Lottery] model, since the timezone can
      * make a date set that looked fine on the form impossible. Refuses to run
      * while a save is in flight, so a quick double tap creates one lottery.
@@ -396,6 +446,7 @@ class NewLotteryController(
                 val lottery = Lottery(
                     id = editingLottery?.id ?: lotteryRepository.newLotteryId(),
                     ownerId = ownerId,
+                    ownerIds = ownerIdsFor(current, ownerId),
                     name = current.name.trim(),
                     // Keep the proposal intact so a newly locked edit is explicitly refused.
                     campsiteIds = current.selectedCampsiteIds,
@@ -423,14 +474,22 @@ class NewLotteryController(
             } catch (e: Exception) {
                 val refusal = generateSequence(e as Throwable?) { it.cause }
                     .filterIsInstance<LotteryEditException>().firstOrNull()
-                if (refusal != null) {
-                    val latest = editingLottery?.let {
-                        try { lotteryRepository.lottery(it.id).firstOrNull() }
-                        catch (cancelled: CancellationException) { throw cancelled }
-                        catch (_: Exception) { null }
+                when {
+                    refusal != null -> {
+                        val latest = editingLottery?.let {
+                            try { lotteryRepository.lottery(it.id).firstOrNull() }
+                            catch (cancelled: CancellationException) { throw cancelled }
+                            catch (_: Exception) { null }
+                        }
+                        refuseEdit(refusal.restriction, latest)
                     }
-                    refuseEdit(refusal.restriction, latest)
-                } else _state.update { it.copy(isSaving = false, saveFailed = true) }
+                    // The security rules refused the write, which isn't a
+                    // connection problem: say so instead (US 02.04.08).
+                    generateSequence(e as Throwable?) { it.cause }
+                        .filterIsInstance<LotteryNotAllowedException>().any() ->
+                        _state.update { it.copy(isSaving = false, error = NewLotteryError.SAVE_NOT_ALLOWED) }
+                    else -> _state.update { it.copy(isSaving = false, saveFailed = true) }
+                }
             }
         }
     }
@@ -440,6 +499,20 @@ class NewLotteryController(
 
     private fun registrationCloseDate(lottery: Lottery): LocalDate =
         lottery.registrationCloses.toInstant().atZone(ZoneId.systemDefault()).toLocalDate().minusDays(1)
+
+    /**
+     * Every owner whose campsite the form includes, with the creator first
+     * (US 02.04.08). If a selected campsite hasn't loaded yet, the edited
+     * lottery's owners are kept, so saving can't silently drop a co-owner.
+     */
+    private fun ownerIdsFor(state: NewLotteryUiState, creatorId: String): List<String> {
+        val ownersByCampsite = state.campsites.associate { it.id to it.ownerId }
+        val selected = state.selectedCampsiteIds
+        if (selected.any { it !in ownersByCampsite }) {
+            return (listOf(creatorId) + editingLottery?.ownerIds.orEmpty()).distinct()
+        }
+        return (listOf(creatorId) + selected.mapNotNull { ownersByCampsite[it] }).distinct()
+    }
 
     /** Refresh locked fields after a refused edit; the user must review and save again. */
     private fun refuseEdit(reason: LotteryEditRestriction, latest: Lottery?) {

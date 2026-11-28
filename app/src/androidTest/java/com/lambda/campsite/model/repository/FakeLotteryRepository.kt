@@ -6,6 +6,8 @@
  */
 // UI-test reuse: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex,
 // assisted with reusing this existing unit-test fake for Flow 9.
+// Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped make
+// [myLotteries] include lotteries this user helps run; human review pending.
 // Purpose: Provide in-memory lottery data for Android UI tests.
 // Outstanding issues: None known.
 package com.lambda.campsite.model.repository
@@ -55,7 +57,7 @@ class FakeLotteryRepository(
         stored.map { lotteries -> lotteries.values.filter { campsiteId in it.campsiteIds } }
 
     override fun myLotteries(): Flow<List<Lottery>> =
-        stored.map { lotteries -> lotteries.values.filter { it.ownerId == myUserId } }
+        stored.map { lotteries -> lotteries.values.filter { it.isOwnedBy(myUserId) } }
 
     override fun newLotteryId(): String = "lottery-${nextId++}"
 

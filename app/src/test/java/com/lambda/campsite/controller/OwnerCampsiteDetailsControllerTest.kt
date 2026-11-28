@@ -76,7 +76,7 @@ class OwnerCampsiteDetailsControllerTest {
     @Test
     fun `details include lotteries linked to this campsite only`() {
         val now = Timestamp.now()
-        val related = Lottery("lottery-1", camp.ownerId, "Aspen draw", listOf(camp.id),
+        val related = Lottery("lottery-1", camp.ownerId, listOf(camp.ownerId), "Aspen draw", listOf(camp.id),
             now, now, LocalDate.of(2027, 5, 1), LocalDate.of(2027, 6, 1))
         val unrelated = related.copy(id = "lottery-2", campsiteIds = listOf("other-site"))
         val controller = OwnerCampsiteDetailsController(camp.id,

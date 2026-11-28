@@ -9,12 +9,16 @@
  */
 // Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 (OpenAI), through Codex,
 // assisted with edit guards, race handling and merge preservation. Human review pending.
+// Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped merge the
+// creator and participating-owner queries in [myLotteries] and translate rules
+// refusals into LotteryNotAllowedException; human review pending.
 // Outstanding issues: manual TalkBack review and rules deployment remain pending.
 package com.lambda.campsite.model.repository
 
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.MetadataChanges
 import com.google.firebase.firestore.QuerySnapshot
 import com.google.firebase.firestore.SetOptions
@@ -23,6 +27,7 @@ import com.lambda.campsite.model.Lottery
 import com.lambda.campsite.model.LotteryEntry
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -77,7 +82,13 @@ class FirestoreLotteryRepository(
 
     override fun myLotteries(): Flow<List<Lottery>> =
         auth.signedInUserId().flatMapLatest { uid ->
-            lotteries.whereEqualTo(LotteryFields.OWNER_ID, uid).liveSnapshots().map { it.toLotteries() }
+            // New lotteries name every owner in ownerIds. Lotteries saved before
+            // US 02.04.08 only have ownerId, so both queries run and the same
+            // lottery is kept once.
+            combine(
+                lotteries.whereEqualTo(LotteryFields.OWNER_ID, uid).liveSnapshots(),
+                lotteries.whereArrayContains(LotteryFields.OWNER_IDS, uid).liveSnapshots(),
+            ) { byCreator, byOwner -> (byCreator.toLotteries() + byOwner.toLotteries()).distinctBy { it.id } }
         }
 
     override fun newLotteryId(): String = lotteries.document().id
@@ -87,9 +98,11 @@ class FirestoreLotteryRepository(
      * the transaction fails rather than queueing an edit against an outdated list.
      *
      * @throws LotteryEditException when a join or draw has locked the proposed changes.
+     * @throws LotteryNotAllowedException when the security rules refuse the
+     *   write, for example when a campsite's owner isn't in the lottery's
+     *   owner list.
      * @throws com.google.firebase.firestore.FirebaseFirestoreException if the
-     *   server refuses the write, for example when the lottery has been drawn
-     *   or includes someone else's campsite.
+     *   server refuses the write for any other reason, like being offline.
      */
     override suspend fun save(lottery: Lottery) {
         // A write made before sign-in finishes would never be sent.
@@ -97,15 +110,25 @@ class FirestoreLotteryRepository(
         // A join or draw invalidates this read and retries the transaction. Never silently
         // substitute locked fields or overwrite server-managed entry/draw metadata.
         val ref = lotteries.document(lottery.id)
-        firestore.runTransaction { transaction ->
-            val snapshot = transaction.get(ref)
-            if (snapshot.exists()) {
-                val stored = LotteryFields.fromMap(lottery.id, snapshot.data.orEmpty())
-                    ?: error("Stored lottery is invalid")
-                lottery.editRestriction(stored)?.let { throw LotteryEditException(it) }
+        try {
+            firestore.runTransaction { transaction ->
+                val snapshot = transaction.get(ref)
+                if (snapshot.exists()) {
+                    val stored = LotteryFields.fromMap(lottery.id, snapshot.data.orEmpty())
+                        ?: error("Stored lottery is invalid")
+                    lottery.editRestriction(stored)?.let { throw LotteryEditException(it) }
+                }
+                transaction.set(ref, LotteryFields.toMap(lottery), SetOptions.merge())
+            }.await()
+        } catch (e: FirebaseFirestoreException) {
+            // A rules refusal isn't an offline problem: the screens say so
+            // instead of asking the owner to check their connection
+            // (US 02.04.08).
+            if (e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                throw LotteryNotAllowedException(e)
             }
-            transaction.set(ref, LotteryFields.toMap(lottery), SetOptions.merge())
-        }.await()
+            throw e
+        }
     }
 
     override fun waitingList(lotteryId: String): Flow<List<LotteryEntry>> =

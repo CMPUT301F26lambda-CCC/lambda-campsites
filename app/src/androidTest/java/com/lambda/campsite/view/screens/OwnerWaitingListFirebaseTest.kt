@@ -54,7 +54,7 @@ class OwnerWaitingListFirebaseTest {
         val owner = Profile(uid, "Demo Owner", "owner@example.com", roles = setOf(Role.ENTRANT, Role.OWNER))
         FirestoreEmulator.setIgnoringRules("profiles/$uid", ProfileFields.toMap(owner))
         val suffix = UUID.randomUUID().toString()
-        fun lottery(id: String, name: String, ownerId: String = uid) = Lottery("$id-$suffix", ownerId, name,
+        fun lottery(id: String, name: String, ownerId: String = uid) = Lottery("$id-$suffix", ownerId, listOf(ownerId), name,
             listOf("camp-$suffix"), Timestamp(1792000000, 0), Timestamp(1793000000, 0),
             LocalDate.of(2026, 11, 5), LocalDate.of(2026, 11, 8))
         first = lottery("first", "October Camping Lottery")

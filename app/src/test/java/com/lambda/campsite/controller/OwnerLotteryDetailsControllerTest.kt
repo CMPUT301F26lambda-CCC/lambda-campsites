@@ -4,6 +4,8 @@
  * a lottery's details, observing waiting-list changes, error handling and the
  * coroutines rule, following the OwnerCampsiteListControllerTest pattern.
  * Raghav Sethi reviewed, ran, and committed them.
+ * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped test
+ * loading a co-owner's campsite by ID; human review pending.
  */
 package com.lambda.campsite.controller
 
@@ -96,7 +98,25 @@ class OwnerLotteryDetailsControllerTest {
     }
 
     @Test
-    fun `only the owner's campsites get names`() {
+    fun `a co-owner's campsite still gets its name`() {
+        val coOwnerSite = Campsite(
+            id = "c3", ownerId = "user-2", name = "Birch Bay", location = "Slave Lake, AB", published = false,
+        )
+        val shared = lottery.copy(
+            ownerIds = listOf("user-1", "user-2"),
+            campsiteIds = listOf("c1", "c3"),
+        )
+        val controller = OwnerLotteryDetailsController(
+            lotteryId = shared.id,
+            lotteryRepository = FakeLotteryRepository(myUserId = "user-1", initial = listOf(shared)),
+            campsiteRepository = FakeCampsiteRepository(myUserId = "user-1", initial = listOf(aspen, coOwnerSite)),
+        )
+
+        assertEquals(listOf("Aspen Hollow", "Birch Bay"), controller.state.value.campsites.map { it.name })
+    }
+
+    @Test
+    fun `a campsite that no longer loads is left out`() {
         val elsewhere = Lottery(
             id = "l2",
             ownerId = "user-1",

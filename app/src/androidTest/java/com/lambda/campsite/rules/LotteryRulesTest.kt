@@ -7,6 +7,12 @@
  * these tests in November 2026, following the lottery rules in
  * firestore.rules. It helped with the test cases and the Kotlin syntax.
  * Sashreek Addanki reviewed them.
+ * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped extend
+ * the rules tests to multi-owner lotteries: co-owner create/edit/entry read,
+ * and refusal when a campsite's owner isn't listed; human review pending.
+ * PR review follow-up: GLM 5.3 Flash (Z.ai), through OpenCode, helped test that
+ * every listed owner owns something in the lottery, so a stranger can't join
+ * the owner list to read the waiting list; human review pending.
  */
 // Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted
 // with race/refusal and access-rule regression tests; human review pending.
@@ -234,6 +240,242 @@ class LotteryRulesTest {
             "registrationCloses" to time("2027-06-02T15:00:00Z"))).await() })
     }
 
+    @Test fun coOwnerCanRunALotteryCoveringTheOtherOwnersCampsite() {
+        // US 02.04.08: an owner can list another owner's campsite in the same
+        // lottery by naming them in ownerIds; no approval step is required.
+        val shared = Lottery(
+            id = "unused",
+            ownerId = uid,
+            ownerIds = listOf(uid, "someone-else"),
+            name = "Two owners, one lottery",
+            campsiteIds = listOf("mine", "theirs"),
+            registrationOpens = time("2027-05-01T15:00:00Z"),
+            registrationCloses = time("2027-06-01T15:00:00Z"),
+            stayStart = LocalDate.parse("2027-07-01"),
+            stayEnd = LocalDate.parse("2027-07-31"),
+            numberOfWinners = 10,
+        )
+
+        assertNull(firestoreErrorFrom { lotteries.document().set(LotteryFields.toMap(shared)).await() })
+    }
+
+    @Test fun creatorCanRunALotteryBuiltEntirelyFromOtherOwnersCampsites() {
+        // The creator names themselves plus the campsite's owner; the owner
+        // list may be longer than the campsite list (US 02.04.08).
+        val shared = Lottery(
+            id = "unused",
+            ownerId = uid,
+            ownerIds = listOf(uid, "someone-else"),
+            name = "Their campsite, my lottery",
+            campsiteIds = listOf("theirs"),
+            registrationOpens = time("2027-05-01T15:00:00Z"),
+            registrationCloses = time("2027-06-01T15:00:00Z"),
+            stayStart = LocalDate.parse("2027-07-01"),
+            stayEnd = LocalDate.parse("2027-07-31"),
+            numberOfWinners = 10,
+        )
+
+        assertNull(firestoreErrorFrom { lotteries.document().set(LotteryFields.toMap(shared)).await() })
+    }
+
+    @Test fun coOwnerCanEditTheirCoOwnedLottery() {
+        setUpOnServer("shared", Lottery(
+            id = "unused",
+            ownerId = "someone-else",
+            ownerIds = listOf(uid, "someone-else"),
+            name = "Moose Lake, July 2027",
+            campsiteIds = listOf("theirs", "mine"),
+            registrationOpens = time("2027-05-01T15:00:00Z"),
+            registrationCloses = time("2027-06-01T15:00:00Z"),
+            stayStart = LocalDate.parse("2027-07-01"),
+            stayEnd = LocalDate.parse("2027-07-31"),
+            numberOfWinners = 10,
+        ), entryCount = 0)
+
+        assertNull(firestoreErrorFrom { lotteries.document("shared").update(
+            mapOf("name" to "Renamed lottery", "ownerIds" to listOf(uid, "someone-else"))).await() })
+    }
+
+    @Test fun coOwnerWithACampsiteCanReadTheWaitingList() {
+        setUpOnServer("shared", Lottery(
+            id = "unused",
+            ownerId = "someone-else",
+            ownerIds = listOf(uid, "someone-else"),
+            name = "Moose Lake, July 2027",
+            campsiteIds = listOf("theirs", "mine"),
+            registrationOpens = time("2027-05-01T15:00:00Z"),
+            registrationCloses = time("2027-06-01T15:00:00Z"),
+            stayStart = LocalDate.parse("2027-07-01"),
+            stayEnd = LocalDate.parse("2027-07-31"),
+            numberOfWinners = 10,
+        ))
+        seedEntry("shared", "entrant-1")
+
+        val error = firestoreErrorFrom {
+            lotteries.document("shared").collection("entries").document("entrant-1")
+                .get(Source.SERVER).await()
+        }
+
+        assertNull(error)
+    }
+
+    @Test fun creatorOfAnAllOtherOwnersLotteryCanReadTheWaitingList() {
+        // The creator owns none of the campsites, but the creator always
+        // keeps access (US 02.04.08).
+        val shared = Lottery(
+            id = "unused",
+            ownerId = uid,
+            ownerIds = listOf(uid, "someone-else"),
+            name = "Their campsite, my lottery",
+            campsiteIds = listOf("theirs"),
+            registrationOpens = time("2027-05-01T15:00:00Z"),
+            registrationCloses = time("2027-06-01T15:00:00Z"),
+            stayStart = LocalDate.parse("2027-07-01"),
+            stayEnd = LocalDate.parse("2027-07-31"),
+            numberOfWinners = 10,
+        )
+        assertNull(firestoreErrorFrom { lotteries.document("all-theirs").set(LotteryFields.toMap(shared)).await() })
+        seedEntry("all-theirs", "entrant-1")
+
+        val error = firestoreErrorFrom {
+            lotteries.document("all-theirs").collection("entries").document("entrant-1")
+                .get(Source.SERVER).await()
+        }
+
+        assertNull(error)
+    }
+
+    @Test fun ownerCantListSomeoneWhoOwnsNothingInTheLottery() {
+        // Every listed owner has to be the creator or own one of the
+        // lottery's campsites, so a stranger can't be added to the owner list
+        // to read the waiting list (US 02.04.08).
+        val exploited = Lottery(
+            id = "unused",
+            ownerId = uid,
+            ownerIds = listOf(uid, "someone-else"),
+            name = "Two owners, one lottery",
+            campsiteIds = listOf("mine", "mine-too"),
+            registrationOpens = time("2027-05-01T15:00:00Z"),
+            registrationCloses = time("2027-06-01T15:00:00Z"),
+            stayStart = LocalDate.parse("2027-07-01"),
+            stayEnd = LocalDate.parse("2027-07-31"),
+            numberOfWinners = 10,
+        )
+
+        val error = firestoreErrorFrom { lotteries.document().set(LotteryFields.toMap(exploited)).await() }
+
+        assertPermissionDenied(error)
+    }
+
+    @Test fun someoneWhoOwnsNothingCantReadTheWaitingList() {
+        // A document saved before the stricter rules could name someone who
+        // owns nothing in it. That person still can't read the waiting list,
+        // unless the creator picked one of their campsites (US 02.04.08).
+        setUpOnServer("exploited", Lottery(
+            id = "unused",
+            ownerId = "someone-else",
+            ownerIds = listOf("someone-else", uid),
+            name = "Exploited lottery",
+            campsiteIds = listOf("theirs"),
+            registrationOpens = time("2027-05-01T15:00:00Z"),
+            registrationCloses = time("2027-06-01T15:00:00Z"),
+            stayStart = LocalDate.parse("2027-07-01"),
+            stayEnd = LocalDate.parse("2027-07-31"),
+            numberOfWinners = 10,
+        ))
+        seedEntry("exploited", "entrant-1")
+
+        val error = firestoreErrorFrom {
+            lotteries.document("exploited").collection("entries").document("entrant-1")
+                .get(Source.SERVER).await()
+        }
+
+        assertPermissionDenied(error)
+    }
+
+    @Test fun coOwnerCantAddASomeoneWhoOwnsNothingOnAnEdit() {
+        setUpOnServer("shared", Lottery(
+            id = "unused",
+            ownerId = "someone-else",
+            ownerIds = listOf(uid, "someone-else"),
+            name = "Moose Lake, July 2027",
+            campsiteIds = listOf("theirs", "mine"),
+            registrationOpens = time("2027-05-01T15:00:00Z"),
+            registrationCloses = time("2027-06-01T15:00:00Z"),
+            stayStart = LocalDate.parse("2027-07-01"),
+            stayEnd = LocalDate.parse("2027-07-31"),
+            numberOfWinners = 10,
+        ), entryCount = 0)
+
+        val error = firestoreErrorFrom { lotteries.document("shared").update(
+            mapOf("ownerIds" to listOf(uid, "someone-else", "stranger"))).await() }
+
+        assertPermissionDenied(error)
+    }
+
+
+    @Test fun unlistedUserCantEditASomeoneElsesLottery() {
+        setUpOnServer("shared", Lottery(
+            id = "unused",
+            ownerId = "someone-else",
+            ownerIds = listOf("someone-else"),
+            name = "Moose Lake, July 2027",
+            campsiteIds = listOf("theirs"),
+            registrationOpens = time("2027-05-01T15:00:00Z"),
+            registrationCloses = time("2027-06-01T15:00:00Z"),
+            stayStart = LocalDate.parse("2027-07-01"),
+            stayEnd = LocalDate.parse("2027-07-31"),
+            numberOfWinners = 10,
+        ), entryCount = 0)
+
+        val error = firestoreErrorFrom { lotteries.document("shared").update(
+            mapOf("name" to "Renamed lottery")).await() }
+
+        assertPermissionDenied(error)
+    }
+
+    @Test fun campsiteWhoseOwnerIsNotListedIsRefused() {
+        // Including a campsite whose owner isn't in ownerIds is refused, even
+        // when the creator is listed.
+        val shared = Lottery(
+            id = "unused",
+            ownerId = uid,
+            ownerIds = listOf(uid),
+            name = "Two owners, one lottery",
+            campsiteIds = listOf("mine", "theirs"),
+            registrationOpens = time("2027-05-01T15:00:00Z"),
+            registrationCloses = time("2027-06-01T15:00:00Z"),
+            stayStart = LocalDate.parse("2027-07-01"),
+            stayEnd = LocalDate.parse("2027-07-31"),
+            numberOfWinners = 10,
+        )
+
+        val error = firestoreErrorFrom { lotteries.document().set(LotteryFields.toMap(shared)).await() }
+
+        assertPermissionDenied(error)
+    }
+
+    @Test fun creatorIsAlwaysKeptInTheOwnerList() {
+        // The creator can't drop themselves from ownerIds.
+        setUpOnServer("shared", Lottery(
+            id = "unused",
+            ownerId = uid,
+            ownerIds = listOf(uid, "someone-else"),
+            name = "Moose Lake, July 2027",
+            campsiteIds = listOf("mine", "theirs"),
+            registrationOpens = time("2027-05-01T15:00:00Z"),
+            registrationCloses = time("2027-06-01T15:00:00Z"),
+            stayStart = LocalDate.parse("2027-07-01"),
+            stayEnd = LocalDate.parse("2027-07-31"),
+            numberOfWinners = 10,
+        ), entryCount = 0)
+
+        val error = firestoreErrorFrom { lotteries.document("shared").update(
+            mapOf("ownerIds" to listOf("someone-else"))).await() }
+
+        assertPermissionDenied(error)
+    }
+
     private fun assertPermissionDenied(error: FirebaseFirestoreException?) {
         assertEquals(FirebaseFirestoreException.Code.PERMISSION_DENIED, error?.code)
     }
@@ -258,6 +500,18 @@ class LotteryRulesTest {
     private fun setUpOnServer(id: String, lottery: Lottery, entryCount: Int = 0) {
         val fields = LotteryFields.toMap(lottery) + mapOf(LotteryFields.ENTRY_COUNT to entryCount)
         FirestoreEmulator.setIgnoringRules("lotteries/$id", fields)
+    }
+
+    /** Writes a waiting-list entry to `lotteries/{id}/entries/{entrantId}`, skipping the rules. */
+    private fun seedEntry(lotteryId: String, entrantId: String) {
+        FirestoreEmulator.setIgnoringRules(
+            "lotteries/$lotteryId/entries/$entrantId",
+            mapOf(
+                "entrantId" to entrantId,
+                "joinedAt" to time("2027-05-02T15:00:00Z"),
+                "status" to "WAITING",
+            ),
+        )
     }
 
     private fun time(text: String): Timestamp = Timestamp(Instant.parse(text))

@@ -4,6 +4,8 @@
  * splitting, observing repository changes, error handling and the coroutines
  * rule, following the OwnerCampsiteListControllerTest pattern.
  * Raghav Sethi reviewed, ran, and committed them.
+ * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped test that
+ * a co-owner sees lotteries covering their campsites; human review pending.
  */
 package com.lambda.campsite.controller
 
@@ -87,6 +89,27 @@ class OwnerLotteryListControllerTest {
         assertEquals(1, controller.state.value.upcoming.size)
     }
 
+    /** Builds an OPEN lottery whose registration sits relative to the test's now. */
+    private fun lottery(
+        id: String,
+        opens: LocalDate = LocalDate.of(2026, 10, 1),
+        closes: LocalDate = LocalDate.of(2026, 11, 1),
+        status: LotteryStatus = LotteryStatus.OPEN,
+        ownerId: String = "user-1",
+        ownerIds: List<String> = listOf(ownerId),
+    ) = Lottery(
+        id = id,
+        ownerId = ownerId,
+        ownerIds = ownerIds,
+        name = "Lottery $id",
+        campsiteIds = listOf("c1"),
+        registrationOpens = timestamp(opens),
+        registrationCloses = timestamp(closes),
+        stayStart = LocalDate.of(2027, 5, 15),
+        stayEnd = LocalDate.of(2027, 9, 30),
+        status = status,
+    )
+
     @Test
     fun `lotteries run by another owner are left out`() {
         val other = lottery("other", ownerId = "someone-else")
@@ -96,6 +119,16 @@ class OwnerLotteryListControllerTest {
 
         assertTrue(controller.state.value.active.isEmpty())
         assertTrue(controller.state.value.error == null)
+    }
+
+    @Test
+    fun `a co-owner sees lotteries covering their campsite`() {
+        val shared = lottery("shared", ownerId = "someone-else", ownerIds = listOf("someone-else", "user-1"))
+        val repository = FakeLotteryRepository(myUserId = "user-1", initial = listOf(shared))
+
+        val controller = OwnerLotteryListController(repository, now = { now })
+
+        assertEquals(listOf(shared), controller.state.value.active)
     }
 
     @Test

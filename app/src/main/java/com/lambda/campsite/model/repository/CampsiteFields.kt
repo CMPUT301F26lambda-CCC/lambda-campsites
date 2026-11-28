@@ -11,6 +11,8 @@
  * The imageId field was added by Aarush Bhat with the assistance of Claude
  * Sonnet 5 (Anthropic), through Claude Code, in November 2026. Aarush Bhat
  * reviewed and committed it.
+ * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped store
+ * the owner's display name on the campsite; human review pending.
  */
 package com.lambda.campsite.model.repository
 
@@ -43,6 +45,7 @@ object CampsiteFields {
     const val RATING_COUNT = "ratingCount"
     const val RATING_SUM = "ratingSum"
     const val IMAGE_ID = "imageId"
+    const val OWNER_NAME = "ownerName"
 
     /**
      * The document fields for [campsite]. It leaves out [RATING_COUNT] and
@@ -63,6 +66,7 @@ object CampsiteFields {
         RULES to campsite.rules,
         PUBLISHED to campsite.published,
         IMAGE_ID to campsite.imageId,
+        OWNER_NAME to campsite.ownerName,
     )
 
     /**
@@ -92,6 +96,9 @@ object CampsiteFields {
             ratingCount = (fields[RATING_COUNT] as? Number)?.toInt() ?: defaults.ratingCount,
             ratingSum = (fields[RATING_SUM] as? Number)?.toInt() ?: defaults.ratingSum,
             imageId = fields[IMAGE_ID] as? String,
+            // Campsites saved before US 02.04.08 have no owner name yet, so
+            // screens hide the "Listed by" line for them.
+            ownerName = fields[OWNER_NAME] as? String ?: defaults.ownerName,
         )
     }
 

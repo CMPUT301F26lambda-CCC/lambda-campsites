@@ -10,6 +10,9 @@
  */
 // Flow 5: Lalith Valluru, 2026-11-03. OpenAI GPT-6 (OpenAI), through Codex,
 // assisted with read-only draw metadata/results integration; human review pending.
+// Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped store
+// every participating owner in `ownerIds` and read older documents that only have
+// `ownerId`; human review pending.
 package com.lambda.campsite.model.repository
 
 import com.google.firebase.Timestamp
@@ -31,6 +34,7 @@ import java.time.format.DateTimeParseException
 object LotteryFields {
 
     const val OWNER_ID = "ownerId"
+    const val OWNER_IDS = "ownerIds"
     const val NAME = "name"
     const val CAMPSITE_IDS = "campsiteIds"
     const val REGISTRATION_OPENS = "registrationOpens"
@@ -48,6 +52,9 @@ object LotteryFields {
      */
     fun toMap(lottery: Lottery): Map<String, Any?> = mapOf(
         OWNER_ID to lottery.ownerId,
+        // The creator comes first, so the list always holds at least one owner
+        // even for a lottery built before US 02.04.08.
+        OWNER_IDS to (listOf(lottery.ownerId) + lottery.ownerIds).distinct(),
         NAME to lottery.name,
         CAMPSITE_IDS to lottery.campsiteIds,
         REGISTRATION_OPENS to lottery.registrationOpens,
@@ -71,6 +78,8 @@ object LotteryFields {
         val stayStart = date(fields[STAY_START]) ?: return null
         val stayEnd = date(fields[STAY_END]) ?: return null
         val status = (fields[STATUS] as? String)?.let(::statusOrNull) ?: return null
+        val ownerId = fields[OWNER_ID] as? String ?: ""
+        val storedOwnerIds = (fields[OWNER_IDS] as? List<*>)?.filterIsInstance<String>().orEmpty()
         val defaults = Lottery(
             id = id,
             ownerId = "",
@@ -82,7 +91,10 @@ object LotteryFields {
             stayEnd = stayEnd,
         )
         return defaults.copy(
-            ownerId = fields[OWNER_ID] as? String ?: defaults.ownerId,
+            ownerId = ownerId,
+            // Lotteries saved before US 02.04.08 only have ownerId, so they read
+            // back as a single-owner lottery.
+            ownerIds = (storedOwnerIds + ownerId).distinct(),
             name = fields[NAME] as? String ?: defaults.name,
             campsiteIds = (fields[CAMPSITE_IDS] as? List<*>)?.filterIsInstance<String>() ?: defaults.campsiteIds,
             numberOfWinners = (fields[NUMBER_OF_WINNERS] as? Number)?.toInt() ?: defaults.numberOfWinners,

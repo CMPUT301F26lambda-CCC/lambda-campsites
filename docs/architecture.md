@@ -41,6 +41,11 @@ Issue #151 waiting-list follow-up: Sreeman Reddy · last updated 2026-11-03.
 > Documentation organization: Lalith Valluru, 2026-11-03 (#151). OpenAI GPT-6
 > (OpenAI), through Codex, assisted with shortening the Flow 12 addition to a
 > high-level summary; follow-up human review is pending.
+>
+> Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped
+> document multi-owner lotteries: the ownerIds field, legacy fallback, query
+> merge, rules and UI changes, and the campsite ownerName copy. Human review
+> is pending.
 
 This page explains how the app is put together. It covers the class diagram and the reasons behind it, the backend on Firebase, and how the Android app splits into Model, View and Controller. Section 6 follows one entrant from tapping "Join" to holding a reservation, so you can see every layer working in one story. Section 7 is the practical part: where files live, what to name things, and how to add something to the frontend or the backend. If a term is new to you, like repository, Flow or transaction, `docs/glossary.md` explains it.
 
@@ -113,7 +118,7 @@ remains the team's original overview.
 | One Notification class with a `type` field. | The admin's notification log (03.08.01) reads every notification from one place. |
 | Reservations store CONFIRMED, CANCELLED or REJECTED. "Completed" is worked out from the check-out date. | Nothing has to run at midnight to change statuses. |
 | A lottery is saved as OPEN and stays OPEN until it's drawn or cancelled. UPCOMING is worked out from `registrationOpens`. | Nothing has to run when registration opens to change the status, and the draw only has to look for OPEN lotteries. |
-| A lottery covers at most five campsites. | The security rules check that the owner owns each campsite, and rules can't loop over a list, so each campsite gets its own check. A request can also read at most 10 documents. |
+| A lottery covers at most five campsites. | The security rules check that each campsite's owner is listed in the lottery's owner list, that every listed owner is the lottery's creator or owns one of those campsites (so a stranger can't join the owner list to read the waiting list), that the signed-in user is one of those owners, and that each campsite gets its own read. Rules can't loop over a list, so each campsite gets its own check. A request can also read at most 10 documents. |
 | Messaging is two-way, with one Conversation per reservation, created when the chat opens. | 02.12.01 asks for owner messages and replies are wow factor 7. A new conversation can have zero messages, so `lastMessage` and `lastMessageAt` are nullable. |
 | We use the Blaze plan but stay inside the free quotas. | Cloud Functions only run on Blaze, and Cloud Storage has needed Blaze since February 3, 2026. The free quotas still apply on Blaze, and our expected usage is far below them (see section 4). |
 | Controllers are Jetpack ViewModels, not the lecture's `TModel` and `TView` classes. | Android keeps a ViewModel when the phone rotates, and Compose redraws from its state by itself, so we don't write our own lists of views or code to remove them. Model, View and Controller still do the same jobs. |
@@ -129,10 +134,10 @@ The diagram shows every collection, the fields in each document, and which field
 | Firestore path | Holds | Why this shape |
 |---|---|---|
 | `profiles/{uid}` | Profile | The document ID is the Firebase Auth user ID, so the app finds a profile without a query. |
-| `campsites/{campsiteId}` | Campsite, plus `ratingCount` and `ratingSum` | `averageRating` is worked out from those two numbers. |
+| `campsites/{campsiteId}` | Campsite, plus `ratingCount`, `ratingSum` and `ownerName` | `averageRating` is worked out from those two numbers. `ownerName` copies the listing owner's profile name, since profiles are private and other users can't read them (US 02.04.08); the rules only accept it blank or equal to the owner's profile name. |
 | `campsites/{campsiteId}/availability/calendar` | Availability | A separate document, so entrants can book nights without write access to the campsite itself. |
 | `campsites/{campsiteId}/ratings/{uid}` | Rating | The document ID is the rater, so rating again replaces the old rating (01.13.01). |
-| `lotteries/{lotteryId}` | Lottery, plus `entryCount` | A transaction checks the waiting-list limit (02.04.07) by reading one document. |
+| `lotteries/{lotteryId}` | Lottery, plus `entryCount` and `ownerIds` | A transaction checks the waiting-list limit (02.04.07) by reading one document. `ownerIds` names every owner whose campsite the lottery covers, so all of them see it in their lotteries list (US 02.04.08). Older lotteries keep just the creator in `ownerId`. |
 | `lotteries/{lotteryId}/entries/{uid}` | LotteryEntry | The document ID is the entrant, so nobody can join twice. Each entry also stores `entrantId`, a copy of that ID, so one collection group query finds every waiting list a person is on. |
 | `reservations/{reservationId}` | Reservation | Top level, so we can query by guest, by campsite or by status. |
 | `conversations/{reservationId}` | Conversation | The document ID is the reservation, which allows only one conversation per reservation. |
@@ -146,7 +151,7 @@ A few conventions keep the data consistent:
 - Dates without a time, like check-in or season start, are stored as strings such as `2027-07-02`. Firestore has no date-only type, and these strings sort in date order. In the app they're `LocalDate`s. `AvailabilityFields` shows how to turn them into strings and back, and `isDate()` in `firestore.rules` checks their format.
 - Times like `joinedAt` and `sentAt` use Firestore server timestamps, so a phone with the wrong clock can't move ahead in the queue.
 - Enums are stored by name, like `WON`.
-- Lists copy a few fields to avoid extra reads. A reservation stores the guest's name and the campsite's name, so the owner's reservation list loads with one query.
+- Lists copy a few fields to avoid extra reads. A reservation stores the guest's name and the campsite's name, so the owner's reservation list loads with one query. A campsite copies its owner's profile name into `ownerName` for the same reason (US 02.04.08); both copies can go stale when the profile is renamed.
 
 ### Cloud Functions
 
@@ -183,8 +188,8 @@ The app checks every rule before it calls Firestore, so users get a quick error 
 - Every request has to come from a signed-in user. Anonymous sign-in counts.
 - Users can edit only their own profile. They can't add ADMIN to their roles, they can add OWNER only while `ownerBanned` is false, and they can't change `ownerBanned` or `removed`.
 - Only a campsite's owner can edit the campsite or set its season. An entrant can change the availability calendar only in the same write that creates their own reservation.
-- Only an owner can run a lottery, and only for campsites they own. They can edit it until it's drawn. Only Cloud Functions change its status.
-- Entrants can add or remove only their own entry, only while registration is open, and only in the same write that changes `entryCount` by one. Only the lottery's owner can read its waiting list.
+- Only an owner can run a lottery, and only for campsites whose owners are all listed in the lottery's owner list; every listed owner is the lottery's creator or owns one of those campsites. Every listed owner can edit it until it's drawn. Only Cloud Functions change its status.
+- Entrants can add or remove only their own entry, only while registration is open, and only in the same write that changes `entryCount` by one. The lottery's creator, or a listed owner whose campsite it covers, can read its waiting list.
 - Only admins can delete other people's campsites, profiles or images, set `ownerBanned`, or read every notification and message.
 - Only the conversation's owner and entrant can read its messages, plus admins.
 - A removed profile can't write anything.

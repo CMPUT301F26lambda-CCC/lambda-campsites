@@ -14,6 +14,8 @@
 // human review pending.
 // Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 (OpenAI), through Codex,
 // assisted with edit guards, race handling and merge preservation. Human review pending.
+// Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped add
+// multi-owner lotteries ([ownerIds], [isOwnedBy] and the owner edit lock); human review pending.
 // Outstanding issues: manual TalkBack review and rules deployment remain pending.
 package com.lambda.campsite.model
 
@@ -50,15 +52,22 @@ enum class LotteryStatus {
  * `copy()` and save it through the repository.
  *
  * The class diagram's `owner: Profile` and `campsites: List<Campsite>` are
- * [ownerId] and [campsiteIds] here, the way Firestore stores them. Its
- * `entries` list is the `entries` subcollection, which the repository loads
- * on its own, so a lottery only keeps [entryCount].
+ * [ownerId], [ownerIds] and [campsiteIds] here, the way Firestore stores them.
+ * Its `entries` list is the `entries` subcollection, which the repository
+ * loads on its own, so a lottery only keeps [entryCount].
+ *
+ * One lottery can cover campsites from several owners (US 02.04.08). Every
+ * owner whose campsite it includes sees it in their lotteries list and can
+ * read its waiting list.
  *
  * @property id the lottery's document ID.
- * @property ownerId the Firebase Auth user ID of the owner who runs it.
+ * @property ownerId the Firebase Auth user ID of the owner who created it.
+ * @property ownerIds every owner whose campsite the lottery covers. It always
+ *   contains [ownerId]. Older lotteries saved before US 02.04.08 read back as
+ *   a list holding only [ownerId].
  * @property name what entrants see in lists, like "Moose Lake, July 2027".
- * @property campsiteIds the campsites a winner can book. At least one, all
- *   owned by [ownerId] (US 02.04.02).
+ * @property campsiteIds the campsites a winner can book. At least one, each
+ *   owned by one of [ownerIds] (US 02.04.02, 02.04.08).
  * @property registrationOpens when entrants can start joining (US 02.04.03).
  * @property registrationCloses when joining stops and the draw runs
  *   (US 02.04.03, 02.05.01). It's stored as midnight after the last join
@@ -79,6 +88,7 @@ enum class LotteryStatus {
 data class Lottery(
     val id: String,
     val ownerId: String,
+    val ownerIds: List<String> = listOf(ownerId),
     val name: String,
     val campsiteIds: List<String>,
     val registrationOpens: Timestamp,
@@ -103,11 +113,19 @@ data class Lottery(
     fun editRestriction(stored: Lottery): LotteryEditRestriction? = when {
         stored.status != LotteryStatus.OPEN -> LotteryEditRestriction.NOT_OPEN
         stored.entryCount > 0 && (campsiteIds != stored.campsiteIds ||
+            ownerIds != stored.ownerIds ||
             registrationOpens != stored.registrationOpens || registrationCloses != stored.registrationCloses) ->
             LotteryEditRestriction.LOCKED_FIELDS_CHANGED
         capacity != null && capacity < stored.entryCount -> LotteryEditRestriction.CAPACITY_BELOW_JOINED
         else -> null
     }
+
+    /**
+     * Returns `true` if [uid] is one of the owners running this lottery
+     * (US 02.04.08). [ownerId] counts even if [ownerIds] is missing it, so a
+     * hand-edited document can't lock its creator out.
+     */
+    fun isOwnedBy(uid: String): Boolean = uid == ownerId || uid in ownerIds
 
     /**
      * Returns `true` if entrants can join or leave at [now]: from

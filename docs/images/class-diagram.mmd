@@ -2,6 +2,8 @@
 %% class-diagram source. Human review is pending.
 %% Focused source for the owner waiting-list boundary; the PNG in this folder
 %% is the team's broader original class overview.
+%% Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped add
+%% ownerIds to Lottery for multi-owner lotteries; human review is pending.
 classDiagram
     class Profile {
         +String deviceId
@@ -13,6 +15,7 @@ classDiagram
     class Lottery {
         +String id
         +String ownerId
+        +List~String~ ownerIds
         +List~String~ campsiteIds
         +LotteryStatus status
         +Int entryCount

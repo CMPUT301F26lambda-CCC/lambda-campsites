@@ -6,6 +6,9 @@
  * Raghav Sethi reviewed, ran, and committed them.
  * #169 follow-up, 2026-11-04: GLM 5.3 Flash (Z.ai), through OpenCode, helped
  * write the edit-lock tests for joined entrants (US 02.04.06); human review pending.
+ * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped test
+ * multi-owner campsite choices, owner-list derivation, the owner-name copy, the
+ * rules-refusal error and a legacy-campsite success path; human review pending.
  */
 // Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 through Codex assisted
 // with race/refusal and access-rule regression tests; human review pending.
@@ -21,6 +24,8 @@ import com.lambda.campsite.model.repository.FakeLotteryRepository
 import com.lambda.campsite.model.repository.FakeProfileRepository
 import com.lambda.campsite.testutil.MainDispatcherRule
 import java.time.LocalDate
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -227,6 +232,111 @@ class NewLotteryControllerTest {
     }
 
     @Test
+    fun `another owner's published campsite can join the lottery`() {
+        val shared = Campsite(
+            id = "c3", ownerId = "user-2", name = "Birch Bay", location = "Slave Lake, AB", ownerName = "Priya Sharma",
+        )
+        val (controller, repository) = newController(aspen, shared)
+        assertEquals("user-1", controller.state.value.myUserId)
+        controller.onCampsiteToggled("c1")
+        controller.onCampsiteToggled("c3")
+        controller.onNext()
+        setValidDates(controller)
+        controller.onNext()
+        controller.onNameChange("Two owners, one lottery")
+        controller.onNext()
+
+        controller.onCreateLottery { }
+
+        val saved = repository.saved.single()
+        assertEquals(listOf("c1", "c3"), saved.campsiteIds)
+        assertEquals(listOf("user-1", "user-2"), saved.ownerIds)
+        assertEquals("user-1", saved.ownerId)
+    }
+
+    @Test
+    fun `old campsites without owner names still form a multi-owner lottery`() {
+        // Campsites saved before the ownerName copy existed carry no name, but
+        // a lottery covering them works end to end (US 02.04.08).
+        val legacyOwn = Campsite(
+            id = "c1", ownerId = "user-1", name = "Aspen Hollow", location = "Hinton, AB", ownerName = "",
+        )
+        val legacyOther = Campsite(
+            id = "c3", ownerId = "user-2", name = "Birch Bay", location = "Slave Lake, AB", ownerName = "",
+        )
+        val (controller, repository) = newController(legacyOwn, legacyOther)
+
+        controller.onCampsiteToggled("c1")
+        controller.onCampsiteToggled("c3")
+        controller.onNext()
+        setValidDates(controller)
+        controller.onNext()
+        controller.onNameChange("Legacy campsites lottery")
+        controller.onNext()
+
+        var created: Lottery? = null
+        controller.onCreateLottery { created = it }
+
+        // The save succeeded and carries every owner.
+        assertFalse(controller.state.value.saveFailed)
+        assertNull(controller.state.value.error)
+        val saved = repository.saved.single()
+        assertEquals(created?.id, saved.id)
+        assertEquals(listOf("c1", "c3"), saved.campsiteIds)
+        assertEquals(listOf("user-1", "user-2"), saved.ownerIds)
+        assertEquals("user-1", saved.ownerId)
+        assertEquals(LotteryStatus.OPEN, saved.status)
+
+        // Every owner whose campsite is included sees the lottery in their
+        // own lotteries list.
+        val coOwnerView = FakeLotteryRepository(myUserId = "user-2", initial = listOf(saved))
+        val seen = runBlocking { coOwnerView.myLotteries().first() }
+        assertEquals(listOf(saved.id), seen.map { it.id })
+
+        // An entrant browsing the co-owner's campsite finds the lottery too.
+        val entrantView = FakeLotteryRepository(myUserId = "entrant-1", initial = listOf(saved))
+        val forCampsite = runBlocking { entrantView.lotteriesFor("c3").first() }
+        assertEquals(listOf(saved.id), forCampsite.map { it.id })
+    }
+
+    @Test
+    fun `a co-owner's unpublished campsite shows while editing`() {
+        val unpublished = Campsite(
+            id = "c3", ownerId = "user-2", name = "Birch Bay", location = "Slave Lake, AB",
+            published = false, ownerName = "Priya Sharma",
+        )
+        val shared = joinedLottery.copy(
+            ownerIds = listOf("user-1", "user-2"),
+            campsiteIds = listOf("c1", "c3"),
+            entryCount = 0,
+        )
+        val (controller, _) = editController(shared, listOf(aspen, unpublished))
+
+        assertTrue(controller.state.value.campsites.any { it.id == "c3" })
+        assertEquals(listOf("c1", "c3"), controller.state.value.selectedCampsiteIds)
+    }
+
+    @Test
+    fun `saving an edited lottery keeps every co-owner`() {
+        val shared = joinedLottery.copy(
+            ownerIds = listOf("user-1", "user-2"),
+            campsiteIds = listOf("c1", "c3"),
+            entryCount = 0,
+        )
+        val coOwnerSite = Campsite(
+            id = "c3", ownerId = "user-2", name = "Birch Bay", location = "Slave Lake, AB", ownerName = "Priya Sharma",
+        )
+        val (controller, repository) = editController(shared, listOf(aspen, coOwnerSite))
+
+        controller.onNameChange("Renamed lottery")
+        controller.onCreateLottery { }
+
+        val saved = repository.saved.single()
+        assertEquals(listOf("user-1", "user-2"), saved.ownerIds)
+        assertEquals(listOf("c1", "c3"), saved.campsiteIds)
+    }
+
+    @Test
     fun `creating is refused when the dates don't fit`() {
         val (controller, repository) = newController(aspen)
         toDatesStep(controller)
@@ -255,6 +365,37 @@ class NewLotteryControllerTest {
 
         assertTrue(controller.state.value.saveFailed)
         assertFalse(controller.state.value.isSaving)
+    }
+
+    @Test
+    fun `a rules refusal says so instead of blaming the connection`() {
+        // The repository translates Firestore's permission refusal into
+        // LotteryNotAllowedException, so the screen can say the rules, not
+        // the connection, refused the save (US 02.04.08).
+        val (controller, repository) = newController(aspen)
+        toReviewStep(controller)
+        repository.failSaves = false
+        val rulesRepository = object : com.lambda.campsite.model.repository.LotteryRepository by repository {
+            override suspend fun save(lottery: Lottery) {
+                throw com.lambda.campsite.model.repository.LotteryNotAllowedException(
+                    IllegalStateException("Missing or insufficient permissions"),
+                )
+            }
+        }
+        val rulesController = NewLotteryController(
+            rulesRepository,
+            com.lambda.campsite.model.repository.FakeCampsiteRepository(myUserId = "user-1", initial = listOf(aspen)),
+            com.lambda.campsite.model.repository.FakeProfileRepository(
+                com.lambda.campsite.model.Profile("user-1", "Owner", "owner@example.com"),
+            ),
+        )
+        toReviewStep(rulesController)
+
+        rulesController.onCreateLottery { }
+
+        assertEquals(NewLotteryError.SAVE_NOT_ALLOWED, rulesController.state.value.error)
+        assertFalse(rulesController.state.value.saveFailed)
+        assertFalse(rulesController.state.value.isSaving)
     }
 
     // #169 follow-up: editing a lottery whose waiting list already took

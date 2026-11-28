@@ -8,6 +8,8 @@
  * syntax. Sashreek Addanki reviewed them.
  * #169 follow-up, 2026-11-04: Raghav Sethi. GLM 5.3 Flash (Z.ai), through OpenCode,
  * helped write the [Lottery.lastDayToJoin] tests; human review pending.
+ * Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped test
+ * multi-owner membership and the co-owner edit lock; human review pending.
  */
 package com.lambda.campsite.model
 
@@ -141,6 +143,37 @@ class LotteryTest {
             date("2027-05-31"),
             lottery.lastDayToJoin(EDMONTON),
         )
+    }
+
+    @Test
+    fun `the creator owns a lottery saved before owner lists existed`() {
+        // Old documents only store ownerId; the model treats the creator as
+        // the only owner (US 02.04.08).
+        assertTrue(lottery.isOwnedBy("owner-1"))
+    }
+
+    @Test
+    fun `a listed co-owner owns the lottery`() {
+        val shared = lottery.copy(ownerIds = listOf("owner-1", "owner-2"))
+
+        assertTrue(shared.isOwnedBy("owner-2"))
+    }
+
+    @Test
+    fun `someone who isn't a listed owner doesn't own the lottery`() {
+        val shared = lottery.copy(ownerIds = listOf("owner-1", "owner-2"))
+
+        assertFalse(shared.isOwnedBy("entrant-1"))
+    }
+
+    @Test
+    fun `changing the owner list after entrants joined is locked`() {
+        // Entrants joined a lottery covering these owners' campsites, so a
+        // co-owner can't be dropped once registration is under way (US 02.04.06).
+        val stored = lottery.copy(ownerIds = listOf("owner-1", "owner-2"), entryCount = 3)
+        val proposed = stored.copy(ownerIds = listOf("owner-1"))
+
+        assertEquals(LotteryEditRestriction.LOCKED_FIELDS_CHANGED, proposed.editRestriction(stored))
     }
 
     private fun date(text: String): LocalDate = LocalDate.parse(text)

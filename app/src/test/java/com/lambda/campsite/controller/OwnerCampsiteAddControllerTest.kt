@@ -3,6 +3,8 @@
  * Outstanding issues: None known.
  */
 // AI use: For issue #150, GPT-6 (OpenAI), through Codex, assisted me with this follow-up.
+// Issue #194: DeepSeek V4.1 Flash Free (DeepSeek), through OpenCode, helped test that
+// saving copies the owner's profile name onto the campsite; human review pending.
 /*
  * AI use: Gemini 3.8 Flash (Google DeepMind) helped write these tests in November 2026.
  * It helped with test cases for required field validation, updating form fields,
@@ -131,6 +133,19 @@ class OwnerCampsiteAddControllerTest {
         // The owner's My campsites query matches campsites with this ownerId.
         val mine = runBlocking { repository.myCampsites().first() }
         assertEquals(listOf(stored), mine)
+    }
+
+    @Test
+    fun `saving copies the owner's profile name onto the campsite`() {
+        // Other owners see this name when picking the campsite for a shared
+        // lottery, since profiles are private (US 02.04.08).
+        val repository = FakeCampsiteRepository()
+        val controller = OwnerCampsiteAddController(repository, FakeProfileRepository(profile))
+        fillValidDraft(controller)
+
+        controller.onSave { }
+
+        assertEquals("Owner One", repository.saved.single().ownerName)
     }
 
     @Test
