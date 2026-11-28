@@ -383,6 +383,9 @@ service cloud.firestore {
 
         allow create, update: if isSelf(reviewerId)
           && activeEntrant()
+          // The parent must still exist when this write commits. A review
+          // cannot be left behind by a concurrent campsite deletion.
+          && existsAfter(/databases/$(database)/documents/campsites/$(campsiteId))
           && request.resource.data.keys().hasOnly(['reservationId', 'text', 'postedAt'])
           && request.resource.data.keys().hasAll(['reservationId', 'text', 'postedAt'])
           && request.resource.data.reservationId is string

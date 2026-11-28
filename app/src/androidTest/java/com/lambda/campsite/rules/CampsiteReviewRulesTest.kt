@@ -14,10 +14,12 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.firestore
+import com.lambda.campsite.model.Campsite
 import com.lambda.campsite.model.Profile
 import com.lambda.campsite.model.Reservation
 import com.lambda.campsite.model.ReservationStatus
 import com.lambda.campsite.model.repository.CampsiteReviewFields
+import com.lambda.campsite.model.repository.CampsiteFields
 import com.lambda.campsite.model.repository.ProfileFields
 import com.lambda.campsite.model.repository.ReservationFields
 import com.lambda.campsite.testutil.FirestoreEmulator
@@ -45,6 +47,8 @@ class CampsiteReviewRulesTest {
         uid = runBlocking { awaitSignIn() }
         FirestoreEmulator.setIgnoringRules("profiles/$uid",
             ProfileFields.toMap(Profile(deviceId = uid, name = "Jordan Lee", email = "")))
+        FirestoreEmulator.setIgnoringRules("campsites/site-1", CampsiteFields.toMap(
+            Campsite("site-1", "owner-1", "Moose Lake Campsite", "Alberta")))
     }
 
     @Test
@@ -88,6 +92,14 @@ class CampsiteReviewRulesTest {
 
         assertDenied { reviews.document(uid).set(review("theirs", "Not my stay.")).await() }
         assertDenied { reviews.document(uid).set(review("other-site", "Wrong place.")).await() }
+    }
+
+    @Test
+    fun postingAfterCampsiteDeletionIsRejected() {
+        stay("past", uid, "site-1", LocalDate.now().minusDays(2))
+        FirestoreEmulator.deleteIgnoringRules("campsites/site-1")
+
+        assertDenied { reviews.document(uid).set(review("past", "Campsite gone.")).await() }
     }
 
     @Test
