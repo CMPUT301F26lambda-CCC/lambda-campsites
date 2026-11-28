@@ -15,9 +15,10 @@
  * Outstanding issues: None
  */
 /*
-* AI use: Claude Opus 5.5 (Anthropic) helped Harmanjoth Kaur in score calculation after the
-* filters are applied and revising KDoc.
- */
+* AI use: Claude Opus 5.5 (Anthropic) in November 2026, helped Harmanjoth Kaur in score calculation
+* after the filters are applied and revising KDoc. Harmanjoth Kaur chose the scoring
+ * rules, reviewed the code and committed it.
+*/
 package com.lambda.campsite.model
 
 import kotlin.math.roundToInt
