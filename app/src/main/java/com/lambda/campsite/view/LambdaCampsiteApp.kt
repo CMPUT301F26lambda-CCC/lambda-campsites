@@ -37,6 +37,8 @@
 // assisted me with entrant reservation list and detail navigation.
 // Flow 16 feature owner: Sreeman Reddy. GPT-6 (OpenAI), through Codex,
 // assisted me with the Home scan button and full-screen scanner route.
+// Flow 17 (#192): GPT-6 (OpenAI), through Codex, assisted Sreeman Reddy with
+// the entrant campsite review controller route. Human review is pending.
 // Follow-up #172: Lalith Valluru, 2026-11-04. OpenAI GPT-6 (OpenAI), through Codex,
 // assisted with edit guards, race handling and merge preservation. Human review pending.
 /*
@@ -92,6 +94,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.lambda.campsite.R
 import com.lambda.campsite.controller.CampsiteQrCodeController
+import com.lambda.campsite.controller.CampsiteReviewController
 import com.lambda.campsite.controller.MapLocationController
 import com.lambda.campsite.controller.NewLotteryController
 import com.lambda.campsite.controller.OwnerCampsiteAddController
@@ -472,9 +475,14 @@ fun LambdaCampsiteApp(
                         key = "entrant-lottery-$campsiteId",
                         factory = LotteryController.createFactory(campsiteId),
                     )
+                    val reviewController: CampsiteReviewController = viewModel(
+                        key = "entrant-reviews-$campsiteId",
+                        factory = CampsiteReviewController.createFactory(campsiteId),
+                    )
                     CampsiteScreen(campsiteController, lotteryController, onBack = { navController.popBackStack() },
                         onLotteryClick = { lotteryId -> navController.navigate(
-                            "entrant/home/details/${Uri.encode(campsiteId)}/lottery/${Uri.encode(lotteryId)}") })
+                            "entrant/home/details/${Uri.encode(campsiteId)}/lottery/${Uri.encode(lotteryId)}") },
+                        reviewController = reviewController)
                 }
 
                 composable(ENTRANT_LOTTERY_ROUTE, arguments = listOf(

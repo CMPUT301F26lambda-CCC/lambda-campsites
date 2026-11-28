@@ -4,6 +4,8 @@
  * Outstanding issues: rating submission and owner-section consolidation remain separate work.
  * AI use: OpenAI GPT-6 (OpenAI), through Codex, assisted with Compose layout and shared sections;
  * human review pending.
+ * Flow 17 (#192): GPT-6 (OpenAI), through Codex, assisted Sreeman Reddy with
+ * the written-review section and sheet entry point. Human review is pending.
  */
 package com.lambda.campsite.view.screens
 
@@ -26,6 +28,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.lambda.campsite.R
 import com.lambda.campsite.controller.*
 import com.lambda.campsite.view.components.*
@@ -40,14 +44,29 @@ import java.util.Locale
  * @param lotteryController owns registration eligibility and live lottery status.
  * @param onBack returns to the retained search.
  * @param onLotteryClick opens the selected active lottery.
+ * @param reviewController loads and posts written reviews for this campsite.
  */
 @Composable
 fun CampsiteScreen(controller: CampsiteController, lotteryController: LotteryController, onBack: () -> Unit,
-    onLotteryClick: (String) -> Unit = {}) {
+    onLotteryClick: (String) -> Unit = {}, reviewController: CampsiteReviewController? = null) {
     val state by controller.state.collectAsStateWithLifecycle()
+    val reviewState = reviewController?.state?.collectAsStateWithLifecycle()?.value
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { reviewController?.onResume() }
     CampsiteContent(state, controller::onRetry, onBack,
-        lotteryStatus = { CampsiteLotteryBadge(lotteryController, showNoActiveHint = true) }) {
+        lotteryStatus = { CampsiteLotteryBadge(lotteryController, showNoActiveHint = true) },
+        reviewSection = {
+            if (reviewController != null && reviewState != null) {
+                CampsiteReviewsSection(reviewState, reviewController::onReviewRequested,
+                    reviewController::onRetry)
+            }
+        }) {
         CampsiteLotteryLinks(lotteryController, onLotteryClick)
+    }
+    val campsiteName = state.campsite?.name
+    if (reviewController != null && reviewState != null && campsiteName != null) {
+        CampsiteReviewSheet(campsiteName, reviewState,
+            reviewController::onDraftChanged, reviewController::onDismiss,
+            reviewController::onSubmit)
     }
 }
 
@@ -57,12 +76,14 @@ fun CampsiteScreen(controller: CampsiteController, lotteryController: LotteryCon
  * @param onRetry retries failed reads.
  * @param onBack returns to search.
  * @param lotteryStatus optional live status under the campsite title.
+ * @param reviewSection written reviews after the rating summary.
  * @param lotterySection active-lottery navigation after the reading sections.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CampsiteContent(state: CampsiteUiState, onRetry: () -> Unit, onBack: () -> Unit,
-    lotteryStatus: @Composable () -> Unit = {}, lotterySection: @Composable () -> Unit) {
+    lotteryStatus: @Composable () -> Unit = {},
+    reviewSection: @Composable () -> Unit = {}, lotterySection: @Composable () -> Unit) {
     StatusBarIconStyle(darkIcons = false)
     Scaffold(containerColor = ForestGreen, topBar = {
         TopAppBar(title = { Text(stringResource(R.string.campsite_header_title)) }, navigationIcon = {
@@ -138,6 +159,7 @@ fun CampsiteContent(state: CampsiteUiState, onRetry: () -> Unit, onBack: () -> U
                             CampsiteReadingSection(stringResource(R.string.heading_location)) { CampsiteMapPlaceholder() }
                             CampsiteDivider()
                             CampsiteReadingSection(stringResource(R.string.campsite_ratings_heading)) { CampsiteRating(camp.averageRating, camp.ratingCount) }
+                            reviewSection()
                             Column(Modifier.padding(horizontal = 24.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { lotterySection() }
                         }
                     }
