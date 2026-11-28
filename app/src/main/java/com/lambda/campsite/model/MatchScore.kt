@@ -18,12 +18,9 @@
 * AI use: Claude Opus 5.5 (Anthropic) helped Harmanjoth Kaur in score calculation after the
 * filters are applied and revising KDoc.
  */
-package com.lambda.campsite.controller
+package com.lambda.campsite.model
 
-
-import com.lambda.campsite.model.Campsite
 import kotlin.math.roundToInt
-
 
 /**
  * The scored results the Search screen shows (#71).
@@ -31,17 +28,18 @@ import kotlin.math.roundToInt
  * @property scores each campsite's score from 0 to 100 by campsite ID, or empty
  *   when no filter is applied.
  */
-data class MatchScoreUiState(
+data class ScoredResults(
     val results: List<Campsite> = emptyList(),
     val scores: Map<String, Int> = emptyMap(),
 )
 
 /**
  * Gives each filtered campsite a match score and sorts the results by it
- * (#71). It holds no state: SearchScreen calls [scoreResults] with
- * `remember(filters)`, so the scores always match the filters on screen.
+ * (#71). It's model logic with no state, like CampsiteSearch. SearchScreen
+ * calls [scoreResults] with `remember(filters)`, so the scores always match
+ * the filters on screen.
  */
-object MatchScoreController {
+object MatchScore {
 
     /**
      * Scores [results], the campsites that already passed every filter, and
@@ -53,11 +51,11 @@ object MatchScoreController {
      * @param guests the applied number of guests, or `null` for none.
      * @return the scored results, from the highest score to the lowest.
      */
-    fun scoreResults(results: List<Campsite>, hasLocation: Boolean, hasDates: Boolean, guests: Int?): MatchScoreUiState {
+    fun scoreResults(results: List<Campsite>, hasLocation: Boolean, hasDates: Boolean, guests: Int?): ScoredResults {
         val scored = results.map { campsite -> campsite to score(campsite, hasLocation, hasDates, guests) }
         // sortedByDescending is stable, so equal scores keep the filter's order.
         val sorted = scored.sortedByDescending { it.second ?: 0 }
-        return MatchScoreUiState(
+        return ScoredResults(
             results = sorted.map { it.first },
             scores = sorted.mapNotNull { (campsite, score) -> score?.let { campsite.id to it } }.toMap(),
         )

@@ -1,5 +1,5 @@
 /*
- * Purpose: unit tests for MatchScoreController (WOW factor #71). They check
+ * Purpose: unit tests for MatchScore (WOW factor #71). They check
  * that each filtered campsite gets the right match score and that the results
  * are sorted from the highest score to the lowest:
  * 1. Guests only: an exact fit scores 100%, and each extra space takes 10% off.
@@ -14,45 +14,47 @@
 * AI use: Claude Opus 5.5 (Anthropic) helped Harmanjoth Kaur with the syntax of the test cases
 * and Kdoc. All the test cases are chosen by Harmanjoth Kaur
  */
-package com.lambda.campsite.controller
-import com.lambda.campsite.model.Campsite
+package com.lambda.campsite.model
+
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-class MatchScoreControllerTest {
+
+class MatchScoreTest {
     private val small = Campsite("pr144", "owner", "PR144 Test Site", "Hinton, AB", maxOccupancy = 3)
     private val edited = Campsite("pr144-edited", "owner", "PR144 Test Site Edited", "Hinton, AB", maxOccupancy = 6)
     private val test = Campsite("test", "owner", "test", "loc", maxOccupancy = 7)
 
-    private fun MatchScoreUiState.ids() = results.map { it.id }
+    private fun ScoredResults.ids() = results.map { it.id }
 
     @Test fun `guests only scores an exact fit highest and sorts by score`() {
-        val scored = MatchScoreController.scoreResults(listOf(test, edited, small),
+        val scored = MatchScore.scoreResults(listOf(test, edited, small),
             hasLocation = false, hasDates = false, guests = 3)
         assertEquals(mapOf("pr144" to 100, "pr144-edited" to 70, "test" to 60), scored.scores)
         assertEquals(listOf("pr144", "pr144-edited", "test"), scored.ids())
     }
 
     @Test fun `each applied filter has the same weight and guests never go below 50`() {
-        val twoFilters = MatchScoreController.scoreResults(listOf(edited), hasLocation = true, hasDates = false, guests = 4)
+        val twoFilters = MatchScore.scoreResults(listOf(edited), hasLocation = true, hasDates = false, guests = 4)
         assertEquals(90, twoFilters.scores["pr144-edited"])
-        val threeFilters = MatchScoreController.scoreResults(listOf(edited), hasLocation = true, hasDates = true, guests = 4)
+        val threeFilters = MatchScore.scoreResults(listOf(edited), hasLocation = true, hasDates = true, guests = 4)
         assertEquals(93, threeFilters.scores["pr144-edited"])
         val big = Campsite("big", "owner", "Big Meadow", "Hinton, AB", maxOccupancy = 20)
-        val manySpaces = MatchScoreController.scoreResults(listOf(big), hasLocation = false, hasDates = false, guests = 2)
+        val manySpaces = MatchScore.scoreResults(listOf(big), hasLocation = false, hasDates = false, guests = 2)
         assertEquals(50, manySpaces.scores["big"])
     }
 
     @Test fun `no filters means no score and the order stays the same`() {
-        val scored = MatchScoreController.scoreResults(listOf(test, small, edited),
+        val scored = MatchScore.scoreResults(listOf(test, small, edited),
             hasLocation = false, hasDates = false, guests = null)
         assertTrue(scored.scores.isEmpty())
         assertEquals(listOf("test", "pr144", "pr144-edited"), scored.ids())
     }
+
     @Test fun `campsites with the same score keep the filter's order`() {
         // Only check-in is applied, so every campsite scores 100%. The filter
         // already put them shortest stay first, and that order must stay.
-        val scored = MatchScoreController.scoreResults(listOf(small, test, edited),
+        val scored = MatchScore.scoreResults(listOf(small, test, edited),
             hasLocation = false, hasDates = true, guests = null)
         assertEquals(mapOf("pr144" to 100, "test" to 100, "pr144-edited" to 100), scored.scores)
         assertEquals(listOf("pr144", "test", "pr144-edited"), scored.ids())

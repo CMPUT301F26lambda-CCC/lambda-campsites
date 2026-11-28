@@ -13,7 +13,7 @@
  * a campsite's score, like "100% match", next to its lottery status on the search
  * results. The color shows how good the match is: dark green from 90%, light
  * green from 70%, and gray below that. The badge only displays the score;
- * MatchScoreController calculates it.
+ * MatchScore calculates it.
  * Outstanding issue- None
  */
 
